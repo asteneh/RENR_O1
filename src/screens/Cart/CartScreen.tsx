@@ -12,19 +12,19 @@ export default function CartScreen() {
     <View style={styles.container}>
       <FlatList
         data={items}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         ListEmptyComponent={<Text style={styles.empty}>Your cart is empty</Text>}
         renderItem={({ item }) => (
           <View style={styles.item}>
             <View>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text>Qty: {item.quantity} | Total: ${item.price * item.quantity}</Text>
+              <Text style={styles.name}>{item.title}</Text>
+              <Text>Qty: {item.quantity} | Total: ETB {((item.currentPrice || 0) * item.quantity).toLocaleString()}</Text>
             </View>
-            <Button title="Remove" color="red" onPress={() => removeItem(item.id)} />
+            <Button title="Remove" color="red" onPress={() => removeItem(item._id)} />
           </View>
         )}
       />
-      
+
       {items.length > 0 && (
         <View style={styles.footer}>
           <Text style={styles.total}>Total: ${totalPrice()}</Text>

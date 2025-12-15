@@ -4,6 +4,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
+// React Query
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 // Import your Navigation
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -13,9 +16,12 @@ SplashScreen.preventAutoHideAsync();
 const { width } = Dimensions.get('window');
 const THEME_COLOR = '#FF8C00'; // Orange
 
+// Create a client
+const queryClient = new QueryClient();
+
 export default function App() {
   const [isAppReady, setIsAppReady] = useState(false);
-  
+
   // Animation Values
   const fadeAnim = useRef(new Animated.Value(0)).current;  // Opacity
   const scaleAnim = useRef(new Animated.Value(0.5)).current; // Zoom
@@ -59,12 +65,12 @@ export default function App() {
     return (
       <View style={styles.splashContainer}>
         <StatusBar style="dark" />
-        
+
         {/* Animated Logo */}
         <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
-          <Image 
+          <Image
             // MAKE SURE THIS FILE EXISTS
-            source={require('./assets/orange-logo.png')} 
+            source={require('./assets/orange-logo.png')}
             style={styles.logo}
           />
         </Animated.View>
@@ -79,9 +85,11 @@ export default function App() {
 
   // --- RENDER: REAL APP ---
   return (
-    <SafeAreaProvider>
-      <AppNavigator />
-    </SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <AppNavigator />
+      </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -100,6 +108,6 @@ const styles = StyleSheet.create({
   },
   loaderContainer: {
     position: 'absolute',
-    bottom: 120, 
+    bottom: 120,
   }
 });

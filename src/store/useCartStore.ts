@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import { CartItem, Product } from '../types';
+import { Product } from '../api/services/productService';
+
+export interface CartItem extends Product {
+  quantity: number;
+}
 
 interface CartState {
   items: CartItem[];
@@ -13,11 +17,11 @@ export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   addItem: (product) => {
     set((state) => {
-      const existingItem = state.items.find((item) => item.id === product.id);
+      const existingItem = state.items.find((item) => item._id === product._id);
       if (existingItem) {
         return {
           items: state.items.map((item) =>
-            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+            item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
           ),
         };
       }
@@ -26,10 +30,13 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
   removeItem: (id) =>
     set((state) => ({
-      items: state.items.filter((item) => item.id !== id),
+      items: state.items.filter((item) => item._id !== id),
     })),
   clearCart: () => set({ items: [] }),
   totalPrice: () => {
-    return get().items.reduce((total, item) => total + item.price * item.quantity, 0);
+    return get().items.reduce((total, item) => {
+      const price = item.currentPrice || 0;
+      return total + price * item.quantity;
+    }, 0);
   },
 }));

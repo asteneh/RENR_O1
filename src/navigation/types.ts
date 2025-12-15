@@ -1,20 +1,22 @@
+import { NavigatorScreenParams } from '@react-navigation/native';
+
 export type TabParamList = {
-  Home: undefined;
-  Cart: undefined;
-  Login: undefined; 
-  Profile: undefined;
+  Home: { filter?: string };
+  Category: undefined;
+  Post: undefined;
 };
 
 export type RootStackParamList = {
-  Tabs: undefined;
+  Tabs: NavigatorScreenParams<TabParamList>;
   ProductDetails: { product: any };
-  PostProperty: undefined;   
-  SignUp: undefined;      
-  Login: undefined;   
-  Search: undefined;         
-  Filter: undefined;        
-  SearchResults: {          
-    query?: string; 
-    filters?: any; 
-  };   
+  PostProperty: undefined;
+  SignUp: undefined;
+  Login: undefined;
+  Profile: undefined; // Move Profile to Stack
+  Search: undefined;
+  Filter: undefined;
+  SearchResults: {
+    query?: string;
+    filters?: any;
+  };
 };
