@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
 import {
   View, Text, Image, TouchableOpacity, ScrollView,
-  FlatList, StyleSheet, Dimensions, StatusBar, ActivityIndicator
+  FlatList, StyleSheet, Dimensions, StatusBar, TextInput, useWindowDimensions
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, TabParamList } from '../../navigation/types';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,217 +13,163 @@ import { useHelloQuery } from '../../api/services/helloService';
 import { useProductsQuery, Product } from '../../api/services/productService';
 import { CONFIG } from '../../config';
 import SkeletonLoader from '../../components/SkeletonLoader';
-import RoleHeader from '../../components/RoleHeader';
-import { RouteProp, useRoute } from '@react-navigation/native';
-
 import { MOCK_REQUESTS } from '../../data/mockRequests';
 import RequestCard from '../../components/RequestCard';
+import ProductCard from '../../components/ProductCard';
+import SupplierHomeScreen from '../Supplier/SupplierHomeScreen';
+import { ViewMode } from '../../store/useAuthStore';
 
-const { width } = Dimensions.get('window');
+// Removed global width to use useWindowDimensions hook
+// const { width } = Dimensions.get('window');
 
 // --- CONSTANTS & THEME ---
-const THEME_COLOR = '#FF8C00'; // Dark Orange
-const BORDER_RADIUS = 12;       // Moderately rounded
-const CARD_WIDTH = width - 40; // Full width minus container padding
-const SPACING = 15;
-const SIDE_INSET = 20; // Standard padding
-const SNAP_INTERVAL = CARD_WIDTH + SPACING;
+const THEME_COLOR = '#FF8C00';
+const BORDER_RADIUS = 16;
+// const CARD_WIDTH = width;
+const SPACING = 20;
+// const SNAP_INTERVAL = CARD_WIDTH;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-
-// Filter Tabs
-const TABS = ['All', 'For Rent', 'For Sale'];
-
 type HomeScreenRouteProp = RouteProp<TabParamList, 'Home'>;
+
+const PREDEFINED_CATEGORIES = ['All', 'Excavators', 'Bulldozers', 'Trucks', 'Cranes'];
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<HomeScreenRouteProp>(); // Access route
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const currentRole = useAuthStore((state) => state.currentRole);
-  const [activeTab, setActiveTab] = useState('All');
-  const [helloLoading, setHelloLoading] = useState(true); // State for greeting loading
+  const route = useRoute<HomeScreenRouteProp>();
+  const { user, currentRole, viewMode, setViewMode } = useAuthStore();
+
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [helloLoading, setHelloLoading] = useState(true);
+  const { width } = useWindowDimensions();
+  const CARD_WIDTH = width - 40;
 
   // Data
   const { data: helloData } = useHelloQuery();
-  const helloText = helloData; // Assuming useHelloQuery returns the text directly or in a specific structure, adjust if needed.
   const { data: productsData, isLoading: productsLoading } = useProductsQuery();
   const products = productsData?.products || [];
 
-  // Filter Data
-  const featuredData = products.slice(0, 5); // Limit featured to 5 items
+  const featuredData = products.slice(0, 5);
 
-  // Filter logic (Adapt for API data if needed, or just filter client-side for now)
-  const filteredData = activeTab === 'All'
+  // Filter logic
+  const filteredData = activeCategory === 'All'
     ? products
-    : products; // TODO: Implement actual filtering based on API attributes if needed
+    : products.filter(p => p.category?.name === activeCategory); // Basic client-side filter simulation
 
   // --- CAROUSEL LOGIC ---
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  const [isAutoPlay, setIsAutoPlay] = useState(true);
 
   useEffect(() => {
-    if (featuredData.length === 0 || !isAutoPlay) return;
+    // Determine greeting based on time
+    const timer = setTimeout(() => setHelloLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
+  // Auto-scroll logic
+  useEffect(() => {
+    if (featuredData.length === 0) return;
     const interval = setInterval(() => {
       let nextIndex = activeIndex + 1;
       if (nextIndex >= featuredData.length) {
         nextIndex = 0;
       }
-
+      setActiveIndex(nextIndex);
       flatListRef.current?.scrollToIndex({
         index: nextIndex,
         animated: true,
-        viewPosition: 0,
       });
-      setActiveIndex(nextIndex);
-    }, 3000); // 3 seconds auto-scroll
-
+    }, 3000);
     return () => clearInterval(interval);
-  }, [activeIndex, featuredData.length, isAutoPlay]);
+  }, [activeIndex, featuredData.length]);
 
-  // Handle manual scroll interaction
-  const handleScrollBeginDrag = () => {
-    setIsAutoPlay(false); // Pause auto-scroll when user starts dragging
+  const onMomentumScrollEnd = (event: any) => {
+    const slideSize = event.nativeEvent.layoutMeasurement.width;
+    const index = event.nativeEvent.contentOffset.x / slideSize;
+    const roundIndex = Math.round(index);
+    setActiveIndex(roundIndex);
   };
-
-  const handleScrollEnd = (event: any) => {
-    // Calculate new index based on scroll position
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffsetX / SNAP_INTERVAL);
-    setActiveIndex(index);
-    setIsAutoPlay(true); // Resume auto-scroll
-  };
-
-  // Simulate loading delay for greeting
-  useEffect(() => {
-    const timer = setTimeout(() => setHelloLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // React to route params from Drawer
-  React.useEffect(() => {
-    if (route.params?.filter) {
-      setActiveTab(route.params.filter);
-    }
-  }, [route.params?.filter]);
-
 
   // --- RENDER SECTIONS ---
 
-  // 1. Featured Card Component (Horizontal)
-  const renderFeaturedItem = ({ item }: { item: Product }) => (
-    <TouchableOpacity
-      activeOpacity={0.9}
-      style={styles.featuredCard}
-      onPress={() => navigation.navigate('ProductDetails', { product: item })}
-    >
-      {/* Badge */}
-      <View style={[
-        styles.badge,
-        { backgroundColor: THEME_COLOR }
-      ]}>
-        <Text style={styles.badgeText}>For Sale</Text>
-      </View>
-
-      <Image
-        source={{ uri: item.productImages && item.productImages.length > 0 ? `${CONFIG.FILE_URL}/${item.productImages[0]}` : 'https://via.placeholder.com/200' }}
-        style={styles.featuredImage}
-      />
-
-      <View style={styles.featuredContent}>
-        <Text style={styles.featuredTitle} numberOfLines={1}>{item.title}</Text>
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={14} color="#666" />
-          <Text style={styles.locationText}>{item.location?.descripton || 'No Location'}</Text>
+  const renderStickyHeader = () => (
+    <View style={styles.stickyHeader}>
+      <View style={styles.headerTop}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={styles.logoText}>Gadal <Text style={{ color: '#000' }}>Market</Text></Text>
         </View>
-        <Text style={styles.featuredPrice}>
-          ETB {(item.currentPrice && typeof item.currentPrice === 'number') ? item.currentPrice.toLocaleString() : 'N/A'}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
 
-  // 2. Header Component (Contains Headline, Featured, and Filter Tabs)
-  const renderListHeader = () => (
-    <View style={styles.headerWrapper}>
-      {/* Search / Headline - Moved distinct from top bar */}
-      <View style={{ paddingHorizontal: 20, marginBottom: 20, marginTop: 10 }}>
-        <Text style={styles.headline}>Find heavy machinery</Text>
-      </View>
-
-      {/* Featured Listings Carousel */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Featured Listings</Text>
-        <TouchableOpacity><Text style={styles.seeAll}>See All</Text></TouchableOpacity>
-      </View>
-
-      <View>
-        <FlatList
-          ref={flatListRef}
-          data={featuredData}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: SIDE_INSET - SPACING / 2, // Center the first item
-            paddingBottom: 10
-          }}
-          renderItem={renderFeaturedItem}
-          keyExtractor={item => 'feat-' + item._id}
-          snapToAlignment="center"
-          snapToInterval={SNAP_INTERVAL}
-          decelerationRate="fast"
-          onScrollBeginDrag={handleScrollBeginDrag}
-          onMomentumScrollEnd={handleScrollEnd}
-          getItemLayout={(data, index) => (
-            { length: SNAP_INTERVAL, offset: SNAP_INTERVAL * index, index }
-          )}
-        />
-
-        {/* Pagination Dots */}
-        <View style={styles.paginationContainer}>
-          {featuredData.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                activeIndex === index ? styles.activeDot : styles.inactiveDot
-              ]}
-            />
-          ))}
-        </View>
-      </View>
-
-      {/* Recent Listings Title & Filter Tabs */}
-      <Text style={styles.sectionTitle}>Recent Listings</Text>
-
-      <View style={styles.tabContainer}>
-        {TABS.map((tab) => (
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}
+            style={styles.headerIconButton}
+            onPress={() => navigation.navigate('SupplierHome')}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab}
-            </Text>
+            <Ionicons name="briefcase-outline" size={24} color={THEME_COLOR} />
           </TouchableOpacity>
-        ))}
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => navigation.navigate('Search' as any)}
+          >
+            <Ionicons name="search-outline" size={24} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerIconButton}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#333" />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 
-  // --- TENANT DASHBOARD LOGIC ---
+  const renderWelcomeHeader = () => (
+    <View style={styles.headerContainer}>
+      <Text style={styles.greetingText}>Welcome 👋</Text>
+      <Text style={styles.subGreeting}>Find the best machinery for your project</Text>
+    </View>
+  );
+
+  const renderCategories = () => (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.categoryList}
+    >
+      {PREDEFINED_CATEGORIES.map((cat, index) => (
+        <TouchableOpacity
+          key={index}
+          style={[styles.categoryChip, activeCategory === cat && styles.activeChip]}
+          onPress={() => setActiveCategory(cat)}
+        >
+          <Text style={[styles.categoryText, activeCategory === cat && styles.activeChipText]}>
+            {cat}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+
+  const renderFeaturedItem = ({ item }: { item: Product }) => (
+    <View style={{ width: width, alignItems: 'center' }}>
+      <ProductCard
+        product={item}
+        style={{ width: CARD_WIDTH, marginHorizontal: 20 }}
+      />
+    </View>
+  );
+
+  const renderRecentItem = ({ item }: { item: Product }) => (
+    <View style={{ paddingHorizontal: 20 }}>
+      <ProductCard product={item} />
+    </View>
+  );
+
   const renderTenantDashboard = () => (
     <View style={styles.container}>
-      <View style={styles.headerWrapper}>
-        <View style={{ paddingHorizontal: 20, marginBottom: 20, marginTop: 10 }}>
-          <Text style={styles.headline}>My Requests</Text>
-          <Text style={{ color: '#666', marginTop: 5 }}>Manage your machine requirements</Text>
-        </View>
+      {renderStickyHeader()}
+      <View style={{ paddingHorizontal: 20, marginBottom: 15, marginTop: 10 }}>
+        <Text style={styles.sectionTitle}>My Requests</Text>
       </View>
-
       <FlatList
         data={MOCK_REQUESTS}
         keyExtractor={(item) => item.id}
@@ -238,228 +184,176 @@ export default function HomeScreen() {
     </View>
   );
 
-  // 3. Main Return
+  // --- MAIN RENDER ---
+  if (currentRole === 'Tenant') return renderTenantDashboard();
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FCFCFC" />
-      <RoleHeader />
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+        {renderStickyHeader()}
 
-      {currentRole === 'Tenant' ? (
-        renderTenantDashboard()
-      ) : (
-        /* EXISTING BUYER/SELLER VIEW */
-        productsLoading ? (
-          // --- SKELETON LOADING STATE ---
-          <View style={styles.skeletonContainer}>
-            <View style={{ paddingHorizontal: 20, marginBottom: 20, marginTop: 20 }}>
-              <SkeletonLoader width={200} height={30} />
-            </View>
-            {/* Featured Skeleton (Horizontal) */}
-            <View style={{ paddingHorizontal: 20, marginBottom: 30 }}>
-              <SkeletonLoader width={150} height={24} style={{ marginBottom: 15 }} />
-              <View style={{ flexDirection: 'row' }}>
-                <View style={{ marginRight: 15 }}>
-                  <SkeletonLoader width={CARD_WIDTH} height={250} borderRadius={12} />
-                </View>
+        <FlatList
+          data={filteredData}
+          keyExtractor={item => item._id}
+          ListHeaderComponent={
+            <>
+              {renderWelcomeHeader()}
+
+              {/* Featured Carousel */}
+              <View style={{ marginBottom: 20 }}>
+                <FlatList
+                  ref={flatListRef}
+                  data={featuredData}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item._id}
+                  renderItem={renderFeaturedItem}
+                  contentContainerStyle={{ paddingHorizontal: 0 }}
+                  snapToInterval={width}
+                  decelerationRate="fast"
+                  pagingEnabled={true}
+                  onMomentumScrollEnd={onMomentumScrollEnd}
+                  getItemLayout={(data, index) => (
+                    { length: width, offset: width * index, index }
+                  )}
+                />
               </View>
-            </View>
-          </View>
-        ) : filteredData.length > 0 ? (
-          <FlatList
-            data={filteredData}
-            keyExtractor={(item) => item._id}
-            ListHeaderComponent={renderListHeader()}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.mainListContent}
-            renderItem={({ item }) => (
-              // Recent Listing Card
-              <TouchableOpacity
-                style={styles.recentCard}
-                onPress={() => navigation.navigate('ProductDetails', { product: item })}
-              >
-                <View style={styles.recentImageWrapper}>
-                  <Image
-                    source={{ uri: item.productImages && item.productImages.length > 0 ? `${CONFIG.FILE_URL}/${item.productImages[0]}` : 'https://via.placeholder.com/200' }}
-                    style={styles.recentImage}
-                  />
-                  <View style={[styles.miniBadge, { backgroundColor: THEME_COLOR }]}>
-                    <Text style={styles.miniBadgeText}>Sale</Text>
-                  </View>
-                </View>
 
-                <View style={styles.recentDetails}>
-                  <Text style={styles.recentTitle} numberOfLines={1}>{item.title}</Text>
-                  <Text style={styles.recentLocation} numberOfLines={1}>
-                    {item.location?.descripton || 'No Location'}
-                  </Text>
+              {renderCategories()}
 
-                  <View style={styles.specsRow}>
-                    <MaterialCommunityIcons name="engine-outline" size={16} color="#888" />
-                    <Text style={styles.specsText}>{item.attributes?.[0]?.value || 'N/A'}</Text>
-                  </View>
-
-                  <Text style={styles.recentPrice}>
-                    ETB {(item.currentPrice && typeof item.currentPrice === 'number') ? item.currentPrice.toLocaleString() : 'N/A'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
-        ) : (
-          <View style={styles.centeredLoading}>
-            <Text style={{ color: '#888' }}>No listings found.</Text>
-          </View>
-        )
-      )}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Listings</Text>
+              </View>
+            </>
+          }
+          renderItem={renderRecentItem}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            productsLoading ? (
+              <View style={{ marginTop: 50, alignItems: 'center' }}>
+                <SkeletonLoader width={width - 40} height={100} />
+              </View>
+            ) : (
+              <View style={styles.centeredLoading}>
+                <Text>No items found.</Text>
+              </View>
+            )
+          }
+        />
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAFAFA' },
-  mainListContent: { paddingBottom: 30 },
-  headerWrapper: { paddingBottom: 10 },
 
-  // --- TOP BAR ---
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  // Header
+  stickyHeader: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    marginBottom: 20
+    paddingVertical: 10,
+    zIndex: 1000,
   },
-  greeting: { fontSize: 14, color: '#888' },
-  headline: { fontSize: 22, fontWeight: 'bold', color: '#111' },
-  topIcons: { flexDirection: 'row', gap: 10 },
-  roundBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: '#fff',
-    justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1, borderColor: '#eee'
-  },
-
-  // --- TITLES ---
-  sectionTitle: {
-    fontSize: 18, fontWeight: 'bold',
-    color: '#333', marginLeft: 20, marginBottom: 15, marginTop: 10
-  },
-  seeAll: {
-    fontSize: 14, color: THEME_COLOR, fontWeight: '600', marginRight: 20
-  },
-  sectionHeader: {
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 5, // Adjusted margin
   },
-
-  // --- FEATURED CARD ---
-  featuredList: { paddingHorizontal: 20, paddingBottom: 10 }, // Kept for type safety, though overridden inline
-  featuredCard: {
-    width: CARD_WIDTH,
-    backgroundColor: '#fff',
-    borderRadius: BORDER_RADIUS,
-    marginHorizontal: SPACING / 2, // Half spacing on each side
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#eee',
-    elevation: 3, // Slightly higher elevation
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 5,
+  logoText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: THEME_COLOR,
   },
-  featuredImage: { width: '100%', height: 180, resizeMode: 'cover' },
-  featuredContent: { padding: 12 },
-  featuredTitle: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 4 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  locationText: { color: '#666', fontSize: 13, marginLeft: 4 },
-  featuredPrice: { fontSize: 16, fontWeight: 'bold', color: THEME_COLOR },
-
-  badge: {
-    position: 'absolute', top: 12, left: 12, zIndex: 1,
-    paddingVertical: 4, paddingHorizontal: 10, borderRadius: 4
-  },
-  badgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
-
-  // --- TABS ---
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 0, // Reset inner padding since wrapper has margin
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: BORDER_RADIUS, // Sharp corners wrapper
-    marginHorizontal: 20,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-    height: 45,
-  },
-  tab: {
-    flex: 1,
+  headerIconButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRightWidth: 1,
-    borderRightColor: '#E5E5E5',
+    marginLeft: 8,
   },
-  activeTab: {
-    backgroundColor: '#fef3c7', // Very light orange bg for active
+  headerContainer: { paddingHorizontal: 20, paddingTop: 15, marginBottom: 15 },
+  greetingText: { fontSize: 24, fontWeight: 'bold', color: '#111' },
+  subGreeting: { fontSize: 14, color: '#666', marginTop: 4 },
+  notifButton: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: '#fff',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 1, borderColor: '#f0f0f0', elevation: 2
   },
-  tabText: { fontSize: 14, color: '#888', fontWeight: '500' },
-  activeTabText: { color: THEME_COLOR, fontWeight: 'bold' },
+  profileButtonActive: {
+    backgroundColor: THEME_COLOR,
+    borderColor: THEME_COLOR,
+    overflow: 'hidden',
+  },
+  avatarContainer: {
+    width: '100%', height: '100%',
+    justifyContent: 'center', alignItems: 'center'
+  },
+  avatarText: {
+    color: '#fff', fontSize: 18, fontWeight: 'bold'
+  },
+  notifDot: {
+    position: 'absolute', top: 10, right: 12, width: 8, height: 8,
+    borderRadius: 4, backgroundColor: 'red', borderWidth: 1, borderColor: '#fff'
+  },
 
-  // --- RECENT LIST ITEM (SIDE BY SIDE) ---
-  recentCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginBottom: 15,
-    borderRadius: BORDER_RADIUS, // Sharp corners
-    borderWidth: 1, borderColor: '#eee',
-    elevation: 1,
+
+  // Categories
+  categoryList: { paddingHorizontal: 20, paddingBottom: 20 },
+  categoryChip: {
+    paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#fff',
+    marginRight: 10, borderWidth: 1, borderColor: '#eee'
+  },
+  activeChip: { backgroundColor: THEME_COLOR, borderColor: THEME_COLOR },
+  categoryText: { color: '#666', fontWeight: '500' },
+  activeChipText: { color: '#fff', fontWeight: 'bold' },
+
+  // Sections
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#111' },
+  seeAll: { color: THEME_COLOR, fontWeight: '600' },
+
+  // Featured
+  featuredCard: {
+    height: 260, backgroundColor: '#fff',
+    borderRadius: 18,
+    marginRight: 0,
+    elevation: 4, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6,
     overflow: 'hidden'
   },
-  recentImageWrapper: { width: 110, height: 110 },
-  recentImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  recentDetails: { flex: 1, padding: 12, justifyContent: 'center' },
-  recentTitle: { fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 4 },
-  recentLocation: { fontSize: 13, color: '#666', marginBottom: 8 },
-  specsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  specsText: { fontSize: 12, color: '#888', marginLeft: 4 },
-  recentPrice: { fontSize: 15, fontWeight: 'bold', color: THEME_COLOR },
+  featuredImage: { width: '100%', height: '100%' },
+  featuredOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.1)' },
+  featuredTag: { position: 'absolute', top: 15, left: 15, backgroundColor: 'rgba(0,0,0,0.6)', padding: 6, borderRadius: 6 },
+  featuredTagText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  featuredContent: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#fff', padding: 15, borderTopLeftRadius: 18, borderTopRightRadius: 18
+  },
+  featuredTitle: { fontSize: 16, fontWeight: 'bold', color: '#111', marginBottom: 4 },
+  featuredPrice: { fontSize: 18, fontWeight: 'bold', color: THEME_COLOR, marginBottom: 4 },
+  locationRow: { flexDirection: 'row', alignItems: 'center' },
+  locationText: { color: '#888', fontSize: 12, marginLeft: 4 },
 
-  miniBadge: {
-    position: 'absolute', top: 8, left: 8,
-    paddingVertical: 2, paddingHorizontal: 6, borderRadius: 3
+  // Recent List
+  listCard: {
+    flexDirection: 'row', marginHorizontal: 20, marginBottom: 15,
+    backgroundColor: '#fff', borderRadius: 15, padding: 10,
+    elevation: 2, shadowColor: '#000', shadowOpacity: 0.05
   },
-  miniBadgeText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+  listImage: { width: 90, height: 90, borderRadius: 10, backgroundColor: '#eee' },
+  listContent: { flex: 1, marginLeft: 12, justifyContent: 'center' },
+  listTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 4 },
+  listPrice: { fontSize: 16, fontWeight: 'bold', color: THEME_COLOR, marginBottom: 8 },
+  listMetaRow: { flexDirection: 'row' },
+  iconTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5F5', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 6 },
+  iconTagText: { fontSize: 11, color: '#666', marginLeft: 4 },
+  favButton: { position: 'absolute', right: 10, top: 10 },
 
-  // Loading
-  skeletonContainer: {
-    flex: 1,
-    paddingTop: 10,
-  },
-  centeredLoading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  // Pagination
-  paginationContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 15,
-  },
-  dot: {
-    height: 6, // Slightly thinner
-    borderRadius: 3,
-    marginHorizontal: 3,
-  },
-  activeDot: {
-    width: 25, // Longer pill
-    backgroundColor: THEME_COLOR,
-  },
-  inactiveDot: {
-    width: 6, // Circle
-    backgroundColor: '#E0E0E0', // Lighter grey
-  }
+  centeredLoading: { flex: 1, justifyContent: 'center', alignItems: 'center' }
+
 });

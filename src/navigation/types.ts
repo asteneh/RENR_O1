@@ -2,8 +2,10 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type TabParamList = {
   Home: { filter?: string };
+  JobsTab: undefined;
   Category: undefined;
   Post: undefined;
+  Account: undefined;
 };
 
 export type RootStackParamList = {
@@ -19,4 +21,21 @@ export type RootStackParamList = {
     query?: string;
     filters?: any;
   };
+  Jobs: undefined;
+  ForgotPassword: undefined;
+  VerifyPhone: { phone: string; verificationId: string };
+  ResetPassword: { phone: string };
+  Favorites: undefined;
+  Messages: undefined;
+  Chat: { conversation: any };
+  Notification: undefined;
+  PostRequest: undefined;
+  SupplierHome: undefined;
+  EditProfile: undefined;
+  MyListings: undefined;
+  Followings: undefined;
+  MyRequests: undefined;
+  MyJobs: undefined;
+  MyPackages: undefined;
+  OperatorRegistration: undefined;
 };

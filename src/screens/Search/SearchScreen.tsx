@@ -18,14 +18,15 @@ export default function SearchScreen() {
       {/* Search Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        
+
         <View style={styles.searchBar}>
           <Ionicons name="search" size={20} color="#666" style={{ marginRight: 8 }} />
-          <TextInput 
+          <TextInput
             style={styles.input}
             placeholder="Enter keyword (e.g., 'villa')"
+            placeholderTextColor="#888"
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={handleSearch}
@@ -33,13 +34,13 @@ export default function SearchScreen() {
           />
           {query.length > 0 && (
             <TouchableOpacity onPress={() => setQuery('')}>
-                <Ionicons name="close-circle" size={18} color="#999" />
+              <Ionicons name="close-circle" size={18} color="#999" />
             </TouchableOpacity>
           )}
         </View>
 
-        <TouchableOpacity 
-          style={styles.filterBtn} 
+        <TouchableOpacity
+          style={styles.filterBtn}
           onPress={() => navigation.navigate('Filter')}
         >
           <Ionicons name="options-outline" size={24} color="#333" />
@@ -58,9 +59,9 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: { 
-    flexDirection: 'row', alignItems: 'center', padding: 15, 
-    borderBottomWidth: 1, borderBottomColor: '#f0f0f0' 
+  header: {
+    flexDirection: 'row', alignItems: 'center', padding: 15,
+    borderBottomWidth: 1, borderBottomColor: '#f0f0f0'
   },
   searchBar: {
     flex: 1, flexDirection: 'row', alignItems: 'center',

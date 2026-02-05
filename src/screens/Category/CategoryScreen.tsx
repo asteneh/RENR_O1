@@ -12,10 +12,10 @@ const CATEGORIES = [
     { id: '1', name: 'All', icon: 'grid-outline' },
     { id: '2', name: 'For Rent', icon: 'key-outline' },
     { id: '3', name: 'For Sale', icon: 'pricetag-outline' },
-    { id: '4', name: 'Heavy Machinery', icon: 'construct-outline' },
-    { id: '5', name: 'Trucks', icon: 'bus-outline' },
+    { id: '4', name: 'Machinery', icon: 'construct-outline' },
+    { id: '5', name: 'Vehicles', icon: 'car-sport-outline' },
     { id: '6', name: 'Excavators', icon: 'hammer-outline' },
-    { id: '7', name: 'Bulldozers', icon: 'car-sport-outline' },
+    { id: '7', name: 'Trucks', icon: 'bus-outline' },
 ];
 
 export default function CategoryScreen() {

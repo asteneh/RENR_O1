@@ -41,13 +41,36 @@ export default function TabNavigator() {
                 } else if (route.name === 'Category') {
                     iconName = focused ? 'grid' : 'grid-outline';
                 } else if (route.name === 'Post') {
-                    iconName = focused ? 'add-circle' : 'add-circle-outline';
+                    iconName = focused ? 'create' : 'create-outline';
+                } else if (route.name === 'Account') {
+                    iconName = focused ? 'person' : 'person-outline';
                 }
 
                 return <Ionicons name={iconName} size={size} color={color} />;
             },
         })}>
             <Tab.Screen name="Home" component={HomeScreen} />
+
+            <Tab.Screen
+                name="JobsTab"
+                component={Placeholder}
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        e.preventDefault();
+                        if (isAuthenticated) {
+                            (navigation as any).navigate('Jobs');
+                        } else {
+                            (navigation as any).navigate('Login');
+                        }
+                    },
+                })}
+                options={{
+                    title: 'Jobs',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={size} color={color} />
+                    ),
+                }}
+            />
 
             {/* Post Button (Middle) */}
             <Tab.Screen
@@ -56,7 +79,11 @@ export default function TabNavigator() {
                 listeners={({ navigation }) => ({
                     tabPress: (e) => {
                         e.preventDefault();
-                        (navigation as any).navigate('PostProperty');
+                        if (isAuthenticated) {
+                            (navigation as any).navigate('PostProperty');
+                        } else {
+                            (navigation as any).navigate('Login');
+                        }
                     },
                 })}
                 options={{
@@ -69,6 +96,22 @@ export default function TabNavigator() {
                 name="Category"
                 component={CategoryScreen}
                 options={{ title: 'Categories' }}
+            />
+
+            <Tab.Screen
+                name="Account"
+                component={Placeholder}
+                options={{ title: 'Account' }}
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        e.preventDefault();
+                        if (isAuthenticated) {
+                            (navigation as any).navigate('Profile');
+                        } else {
+                            (navigation as any).navigate('Login');
+                        }
+                    },
+                })}
             />
         </Tab.Navigator>
     );

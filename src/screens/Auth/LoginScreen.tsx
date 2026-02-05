@@ -1,79 +1,114 @@
 import React, { useState } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, 
-  KeyboardAvoidingView, Platform, ScrollView, StatusBar, 
-  Modal, FlatList
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  KeyboardAvoidingView, Platform, ScrollView, StatusBar,
+  Modal, ActivityIndicator, Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/useAuthStore'; 
+import { useAuthStore } from '../../store/useAuthStore';
 import { useNavigation } from '@react-navigation/native';
-const THEME_COLOR = '#FF8C00'; 
+import { useLogin, useGetOtp } from '../../api/services/authService';
 
-// 1. Define the Country Interface
-interface Country {
-  code: string;
-  name: string;
-  dial_code: string;
-  flag: string;
-}
-
-// 2. Apply the interface to the data array
-const COUNTRIES: Country[] = [
-  { code: 'ET', name: 'Ethiopia', dial_code: '+251', flag: '🇪🇹' },
-  { code: 'US', name: 'United States', dial_code: '+1', flag: '🇺🇸' },
-  { code: 'KE', name: 'Kenya', dial_code: '+254', flag: '🇰🇪' },
-  { code: 'GB', name: 'United Kingdom', dial_code: '+44', flag: '🇬🇧' },
-  { code: 'AE', name: 'UAE', dial_code: '+971', flag: '🇦🇪' },
-  { code: 'CN', name: 'China', dial_code: '+86', flag: '🇨🇳' },
-];
+const THEME_COLOR = '#FF8C00';
 
 export default function LoginScreen() {
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [signinError, setSigninError] = useState<string | null>(null);
+  const [showVerify, setShowVerify] = useState(false);
+
   const navigation = useNavigation<any>();
-  // 3. Type the state explicitly
-  const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[0]);
-  const [countryModalVisible, setCountryModalVisible] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
-  const login = useAuthStore((state) => state.login);
-  // 4. Fix the error by typing the prop: { item: Country }
-  const handleLogin = () => {
-    // Perform validation here...
-    login(); // <--- Updates state, Navigator switches to Profile
+  const loginState = useAuthStore((state) => state.login);
+  const loginMutation = useLogin();
+  const getOtpMutation = useGetOtp();
+
+  // Helper to handle input change matching the user's regex requirement (optional numbers/plus)
+  const handleEmailOrPhoneChange = (text: string) => {
+    // The reference strictly allows numbers/plus for "emailOrPhone". 
+    // If you want to allow emails too, remove this regex check.
+    // Based on user request "apply this logic", we follow the regex:
+    if (/^\+?[0-9]*$/.test(text)) {
+      setEmailOrPhone(text);
+    }
   };
-  const renderCountryItem = ({ item }: { item: Country }) => (
-    <TouchableOpacity 
-      style={styles.modalItem} 
-      onPress={() => {
-        setSelectedCountry(item);
-        setCountryModalVisible(false);
-      }}
-    >
-      <Text style={styles.modalItemFlag}>{item.flag}</Text>
-      <Text style={styles.modalItemName}>{item.name} ({item.dial_code})</Text>
-    </TouchableOpacity>
-  );
+
+  const handleLogin = () => {
+    setSigninError(null);
+    setShowVerify(false);
+
+    if (!emailOrPhone || !password) {
+      Alert.alert('Error', 'Please enter both phone number and password.');
+      return;
+    }
+
+    loginMutation.mutate({
+      emailOrPhone,
+      password
+    }, {
+      onSuccess: (data) => {
+        // Update global auth state (persisted)
+        // Adjust user object mapping based on response structure
+        const user = {
+          id: data.id,
+          email: data.email,
+          phoneNumber: data.phoneNumber
+        };
+        loginState(user, data.token);
+
+        Alert.alert("Success", "Welcome back!", [
+          { text: "OK", onPress: () => navigation.navigate('Tabs') }
+        ]);
+      },
+      onError: (error: any) => {
+        const msg = error?.response?.data?.message || "Login failed";
+        const reason = error?.response?.data?.reason;
+
+        setSigninError(msg);
+
+        if (reason === 'NotVerified') {
+          setShowVerify(true);
+        }
+      }
+    });
+  };
+
+  const handleVerify = () => {
+    if (!emailOrPhone) return;
+
+    getOtpMutation.mutate(emailOrPhone, {
+      onSuccess: (data) => {
+        navigation.navigate('VerifyPhone', {
+          verificationId: data?.verificationId,
+          phoneNumber: emailOrPhone
+        });
+      },
+      onError: (err: any) => {
+        Alert.alert('Error', 'Failed to send OTP');
+      }
+    });
+  };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      
+
       <LinearGradient
         colors={['#FFF3E0', '#FFFFFF', '#FFFFFF']}
         style={StyleSheet.absoluteFill}
       />
 
       <SafeAreaView style={{ flex: 1 }}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            
+
             <View style={styles.header}>
               <TouchableOpacity onPress={() => setSettingsModalVisible(true)}>
                 <Ionicons name="settings-outline" size={26} color="#444" />
@@ -81,65 +116,83 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.titleContainer}>
-              <Text style={styles.welcomeText}>Welcome Back!</Text>
-              <Text style={styles.subText}>Sign in to your account to continue</Text>
+              <Text style={styles.welcomeText}>Sign In</Text>
+              <Text style={styles.subText}>Welcome back! Please enter your details.</Text>
             </View>
 
             <View style={styles.formContainer}>
 
-              <View style={styles.inputWrapper}>
-                <TouchableOpacity 
-                  style={styles.flagContainer} 
-                  onPress={() => setCountryModalVisible(true)}
-                >
-                  <Text style={{ fontSize: 24 }}>{selectedCountry.flag}</Text>
-                  <Ionicons name="caret-down" size={12} color="#333" style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
+              {/* Error Alert */}
+              {signinError && (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{signinError}</Text>
+                  {showVerify && (
+                    <TouchableOpacity
+                      onPress={handleVerify}
+                      disabled={getOtpMutation.isPending}
+                      style={styles.verifyBtn}
+                    >
+                      <Text style={styles.verifyBtnText}>
+                        {getOtpMutation.isPending ? 'Sending...' : 'Verify'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
 
-                <Text style={styles.prefix}>{selectedCountry.dial_code}</Text>
-                
-                <TextInput 
+              <View style={styles.inputWrapper}>
+                <Ionicons name="call-outline" size={20} color="#888" style={styles.inputIcon} />
+                <TextInput
                   placeholder="Phone Number"
-                  keyboardType="phone-pad"
+                  placeholderTextColor="#888"
                   style={styles.textInput}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  maxLength={15}
+                  value={emailOrPhone}
+                  onChangeText={handleEmailOrPhoneChange}
                 />
               </View>
 
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
-                <TextInput 
+                <TextInput
                   placeholder="Password"
+                  placeholderTextColor="#888"
                   secureTextEntry={!showPassword}
                   style={styles.textInput}
                   value={password}
                   onChangeText={setPassword}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons 
-                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                    size={20} 
-                    color="#888" 
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#888"
                   />
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.forgotBtn}>
+              <TouchableOpacity
+                style={styles.forgotBtn}
+                onPress={() => navigation.navigate('ForgotPassword')}
+              >
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
 
-             <TouchableOpacity style={styles.loginBtn} onPress={handleLogin}>
-                <Text style={styles.loginBtnText}>Sign In</Text>
+              <TouchableOpacity
+                style={[styles.loginBtn, loginMutation.isPending && styles.disabledBtn]}
+                onPress={handleLogin}
+                disabled={loginMutation.isPending}
+              >
+                {loginMutation.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.loginBtnText}>Sign In</Text>
+                )}
               </TouchableOpacity>
 
-             <View style={styles.footer}>
+              <View style={styles.footer}>
                 <Text style={styles.footerText}>Don't have an account? </Text>
-                
-                {/* --- NAVIGATE TO SIGN UP --- */}
                 <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-                  <Text style={styles.signUpText}>Sign Up</Text>
+                  <Text style={styles.signUpText}>Register</Text>
                 </TouchableOpacity>
               </View>
 
@@ -156,14 +209,14 @@ export default function LoginScreen() {
         visible={settingsModalVisible}
         onRequestClose={() => setSettingsModalVisible(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={() => setSettingsModalVisible(false)}
         >
           <View style={styles.settingsBox}>
             <Text style={styles.settingsTitle}>Settings</Text>
-            
+
             <TouchableOpacity style={styles.settingOption}>
               <View style={[styles.settingIconBox, { backgroundColor: '#E3F2FD' }]}>
                 <Ionicons name="color-palette-outline" size={20} color="#1565C0" />
@@ -196,41 +249,16 @@ export default function LoginScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* --- COUNTRY PICKER MODAL --- */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={countryModalVisible}
-        onRequestClose={() => setCountryModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.countryModalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Country</Text>
-              <TouchableOpacity onPress={() => setCountryModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
-            </View>
-            <FlatList 
-              data={COUNTRIES}
-              keyExtractor={(item) => item.code}
-              renderItem={renderCountryItem}
-              showsVerticalScrollIndicator={false}
-            />
-          </View>
-        </View>
-      </Modal>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { padding: 25, flexGrow: 1 },
-  
+  scrollContent: { padding: 25, flexGrow: 1, justifyContent: 'center' },
+
   header: { alignItems: 'flex-end', marginBottom: 20 },
-  
+
   titleContainer: { alignItems: 'center', marginBottom: 40 },
   welcomeText: { fontSize: 28, fontWeight: 'bold', color: '#222', marginBottom: 10 },
   subText: { fontSize: 16, color: '#666' },
@@ -248,9 +276,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05, shadowRadius: 5,
   },
-  
-  flagContainer: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
-  prefix: { fontSize: 16, color: '#333', marginRight: 10, fontWeight: '500' },
 
   inputIcon: { marginRight: 10 },
   textInput: { flex: 1, fontSize: 16, color: '#333' },
@@ -259,12 +284,15 @@ const styles = StyleSheet.create({
   forgotText: { color: '#444', fontWeight: '500' },
 
   loginBtn: {
-    backgroundColor: THEME_COLOR, 
+    backgroundColor: THEME_COLOR,
     borderRadius: 15,
     paddingVertical: 18,
     alignItems: 'center',
     marginBottom: 30,
     elevation: 4
+  },
+  disabledBtn: {
+    backgroundColor: '#ccc'
   },
   loginBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 
@@ -275,14 +303,14 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end', 
+    justifyContent: 'flex-end',
   },
 
   settingsBox: {
     backgroundColor: '#fff',
     width: '70%',
     alignSelf: 'center',
-    marginTop: 'auto', 
+    marginTop: 'auto',
     marginBottom: 'auto',
     borderRadius: 20,
     padding: 20,
@@ -294,22 +322,16 @@ const styles = StyleSheet.create({
   settingText: { flex: 1, fontSize: 16, color: '#333', fontWeight: '500' },
   separator: { height: 1, backgroundColor: '#f0f0f0' },
 
-  countryModalContainer: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    height: '50%',
-    padding: 20,
-  },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold' },
-  modalItem: {
+  errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFEBEE',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 20
   },
-  modalItemFlag: { fontSize: 24, marginRight: 15 },
-  modalItemName: { fontSize: 16, color: '#333' },
+  errorText: { color: '#D32F2F', flex: 1 },
+  verifyBtn: { backgroundColor: '#D32F2F', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 20, marginLeft: 10 },
+  verifyBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 12 }
 });
