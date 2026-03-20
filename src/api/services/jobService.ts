@@ -67,6 +67,11 @@ export const fetchJobDetail = async (jobId: string): Promise<Job> => {
     return response.data;
 };
 
+export const createJob = async (jobData: any): Promise<Job> => {
+    const response = await apiClient.post<Job>('jobs', jobData);
+    return response.data;
+};
+
 // Hooks
 export const useJobsQuery = (params: JobQueryParams = {}) => {
     return useQuery({
@@ -87,6 +92,16 @@ export const useApplyToJobMutation = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: applyToJob,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        },
+    });
+};
+
+export const useCreateJobMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: createJob,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['jobs'] });
         },

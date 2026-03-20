@@ -1,70 +1,73 @@
-import React from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { notificationService } from '../../api/services/notificationService';
+import { socket } from '../../api/socket';
 
 const THEME_COLOR = '#FF8C00';
 
-interface Notification {
-    id: string;
-    title: string;
-    message: string;
-    time: string;
-    read: boolean;
-    type: 'info' | 'success' | 'alert';
-}
-
-const MOCK_NOTIFICATIONS: Notification[] = [
-    {
-        id: '1',
-        title: 'Listing Approved',
-        message: 'Your listing "Caterpillar Excavator 2020" has been approved and is now live.',
-        time: '2 hrs ago',
-        read: false,
-        type: 'success',
-    },
-    {
-        id: '2',
-        title: 'New Message',
-        message: 'You have a new message from a potential buyer concerning your Truck.',
-        time: '5 hrs ago',
-        read: true,
-        type: 'info',
-    },
-    {
-        id: '3',
-        title: 'System Update',
-        message: 'We have updated our terms of service. Please review the changes.',
-        time: '1 day ago',
-        read: true,
-        type: 'alert',
-    },
-    {
-        id: '4',
-        title: 'Welcome!',
-        message: 'Thanks for joining Gadal Market. Start posting your machinery today.',
-        time: '2 days ago',
-        read: true,
-        type: 'info',
-    },
-];
-
 export default function NotificationScreen({ navigation }: any) {
-    const renderItem = ({ item }: { item: Notification }) => (
+    const { user } = useAuthStore();
+    const { setUnreadNotifications } = useNotificationStore();
+    const queryClient = useQueryClient();
+    const userId = user?._id || '';
+
+    const { data: notifications, isLoading, refetch } = useQuery({
+        queryKey: ['notifications', userId],
+        queryFn: () => notificationService.getNotifications(userId),
+        enabled: !!userId,
+    });
+
+    const markSeenMutation = useMutation({
+        mutationFn: () => notificationService.updateSeen(userId),
+        onSuccess: () => {
+            setUnreadNotifications(0);
+            queryClient.invalidateQueries({ queryKey: ['notifications', userId] });
+        },
+    });
+
+    useEffect(() => {
+        if (userId) {
+            markSeenMutation.mutate();
+
+            socket.on('notification', (notification: any) => {
+                if (notification?.user === userId || notification?.isCampaign) {
+                    refetch();
+                }
+            });
+
+            return () => {
+                socket.off('notification');
+            };
+        }
+    }, [userId]);
+
+    const renderItem = ({ item }: { item: any }) => (
         <TouchableOpacity
-            style={[styles.card, !item.read && styles.unreadCard]}
+            style={[styles.card, !item.seen && styles.unreadCard]}
             activeOpacity={0.7}
+            onPress={() => {
+                if (item.product) {
+                    navigation.navigate('ProductDetails', { product: { _id: item.product } });
+                }
+            }}
         >
             <View style={[styles.iconBox, { backgroundColor: getIconColor(item.type) }]}>
                 <Ionicons name={getIconName(item.type)} size={24} color="#fff" />
             </View>
             <View style={styles.content}>
                 <View style={styles.headerRow}>
-                    <Text style={[styles.title, !item.read && styles.unreadText]}>{item.title}</Text>
-                    {!item.read && <View style={styles.dot} />}
+                    <Text style={[styles.title, !item.seen && styles.unreadText]}>
+                        {item.title || (item.product ? 'New Product Update' : 'System Update')}
+                    </Text>
+                    {!item.seen && <View style={styles.dot} />}
                 </View>
-                <Text style={styles.message} numberOfLines={2}>{item.message}</Text>
-                <Text style={styles.time}>{item.time}</Text>
+                <Text style={styles.message} numberOfLines={3}>{item.notification}</Text>
+                <Text style={styles.time}>{new Date(item.createdAt).toLocaleDateString()}</Text>
             </View>
         </TouchableOpacity>
     );
@@ -85,6 +88,14 @@ export default function NotificationScreen({ navigation }: any) {
         }
     };
 
+    if (isLoading && !notifications) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <ActivityIndicator size="large" color={THEME_COLOR} style={{ marginTop: 50 }} />
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -96,10 +107,13 @@ export default function NotificationScreen({ navigation }: any) {
             </View>
 
             <FlatList
-                data={MOCK_NOTIFICATIONS}
-                keyExtractor={(item) => item.id}
+                data={notifications}
+                keyExtractor={(item) => item._id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.list}
+                refreshControl={
+                    <RefreshControl refreshing={isLoading} onRefresh={refetch} tintColor={THEME_COLOR} />
+                }
                 ListEmptyComponent={<Text style={styles.emptyText}>No notifications yet.</Text>}
             />
         </SafeAreaView>

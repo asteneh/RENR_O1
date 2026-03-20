@@ -12,6 +12,8 @@ import ProductDetailsScreen from '../screens/ProductDetails/ProductDetailsScreen
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import SignUpScreen from '../screens/Auth/SignUpScreen';
+import CategoryScreen from '../screens/Category/CategoryScreen';
+import CartScreen from '../screens/Cart/CartScreen';
 import PostPropertyScreen from '../screens/Property/PostPropertyScreen';
 import JobsNavigator from './JobsNavigator';
 import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
@@ -33,6 +35,10 @@ import MyRequestsScreen from '../screens/Profile/MyRequestsScreen';
 import MyJobsScreen from '../screens/Profile/MyJobsScreen';
 import MyPackagesScreen from '../screens/Profile/MyPackagesScreen';
 import OperatorRegistrationScreen from '../screens/Jobs/OperatorRegistrationScreen';
+import EditListingScreen from '../screens/Profile/EditListingScreen';
+import TermsAndPrivacyScreen from '../screens/Auth/TermsAndPrivacyScreen';
+import PostJobScreen from '../screens/Profile/PostJobScreen';
+
 
 import { RootStackParamList } from './types';
 
@@ -54,6 +60,7 @@ export default function AppNavigator() {
 
         {/* Common Screens */}
         <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Category" component={CategoryScreen} options={{ headerShown: false }} />
 
         {/* Auth Screens (Available in Stack) */}
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
@@ -68,12 +75,12 @@ export default function AppNavigator() {
         <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Filter" component={FilterScreen} options={{ headerShown: true, title: 'Filters' }} />
         <Stack.Screen name="SearchResults" component={SearchResultsScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: true, title: 'My Profile' }} />
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
         {/* Property Screens */}
         <Stack.Screen
           name="PostProperty"
           component={PostPropertyScreen}
-          options={{ title: 'Post New Listing' }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Jobs"
@@ -125,7 +132,23 @@ export default function AppNavigator() {
           component={OperatorRegistrationScreen}
           options={{ title: 'Operator Registration' }}
         />
+        <Stack.Screen
+          name="EditListing"
+          component={EditListingScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="TermsAndPrivacy"
+          component={TermsAndPrivacyScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PostJob"
+          component={PostJobScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
+
     </NavigationContainer>
   );
 }

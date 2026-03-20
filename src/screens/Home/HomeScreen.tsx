@@ -1,23 +1,29 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Image, TouchableOpacity, ScrollView,
-  FlatList, StyleSheet, Dimensions, StatusBar, TextInput, useWindowDimensions
+  FlatList, StyleSheet, Dimensions, StatusBar, TextInput, useWindowDimensions,
+  RefreshControl
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, TabParamList } from '../../navigation/types';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useCartStore } from '../../store/useCartStore';
 import { useHelloQuery } from '../../api/services/helloService';
 import { useProductsQuery, Product } from '../../api/services/productService';
 import { CONFIG } from '../../config';
 import SkeletonLoader from '../../components/SkeletonLoader';
+import { useNotificationStore } from '../../store/useNotificationStore';
 import { MOCK_REQUESTS } from '../../data/mockRequests';
 import RequestCard from '../../components/RequestCard';
 import ProductCard from '../../components/ProductCard';
 import SupplierHomeScreen from '../Supplier/SupplierHomeScreen';
+import { useCategoriesByService } from '../../api/services/categoryService';
+import { ServiceEnums } from '../../constants/ServiceEnums';
 import { ViewMode } from '../../store/useAuthStore';
+
 
 // Removed global width to use useWindowDimensions hook
 // const { width } = Dimensions.get('window');
@@ -32,29 +38,57 @@ const SPACING = 20;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type HomeScreenRouteProp = RouteProp<TabParamList, 'Home'>;
 
-const PREDEFINED_CATEGORIES = ['All', 'Excavators', 'Bulldozers', 'Trucks', 'Cranes'];
+// type PREDEFINED_CATEGORIES = ['All', 'Excavators', 'Bulldozers', 'Trucks', 'Cranes'];
+
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<HomeScreenRouteProp>();
   const { user, currentRole, viewMode, setViewMode } = useAuthStore();
+  const cartItems = useCartStore((state) => state.items);
+  const unreadNotifications = useNotificationStore(state => state.unreadNotifications);
 
-  const [activeCategory, setActiveCategory] = useState('All');
+  const [activeCategoryId, setActiveCategoryId] = useState('All');
+
   const [helloLoading, setHelloLoading] = useState(true);
   const { width } = useWindowDimensions();
   const CARD_WIDTH = width - 40;
 
+  const insets = useSafeAreaInsets();
+
   // Data
   const { data: helloData } = useHelloQuery();
-  const { data: productsData, isLoading: productsLoading } = useProductsQuery();
+  const { data: productsData, isLoading: productsLoading, refetch: refetchProducts } = useProductsQuery({ state: 1 });
   const products = productsData?.products || [];
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchProducts();
+    }, [refetchProducts])
+  );
+
+  const { data: machineryCats } = useCategoriesByService(ServiceEnums.Machinery);
+  const { data: vehicleCats } = useCategoriesByService(ServiceEnums.Vehicle);
+
+  const dynamicCategories = [
+    { _id: 'All', name: 'All' },
+    ... (machineryCats || []),
+    ... (vehicleCats || [])
+  ];
+
 
   const featuredData = products.slice(0, 5);
 
+
   // Filter logic
-  const filteredData = activeCategory === 'All'
+  const filteredData = activeCategoryId === 'All'
     ? products
-    : products.filter(p => p.category?.name === activeCategory); // Basic client-side filter simulation
+    : products.filter(p => {
+      // Safe check for both ID and Name matches
+      const catId = p.category?._id || (typeof p.category === 'string' ? p.category : '');
+      return catId === activeCategoryId;
+    });
+
 
   // --- CAROUSEL LOGIC ---
   const [activeIndex, setActiveIndex] = useState(0);
@@ -65,6 +99,19 @@ export default function HomeScreen() {
     const timer = setTimeout(() => setHelloLoading(false), 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (route.params?.filterId) {
+      setActiveCategoryId(route.params.filterId);
+      // Clear the params after using them
+      navigation.setParams({ filterId: undefined, filterName: undefined } as any);
+    } else if (route.params?.filter) {
+      // Legacy handling for name-based filters if any
+      const found = dynamicCategories.find(c => c.name.toLowerCase() === route.params.filter?.toLowerCase());
+      if (found) setActiveCategoryId(found._id);
+      navigation.setParams({ filter: undefined } as any);
+    }
+  }, [route.params?.filterId, route.params?.filter]);
 
   // Auto-scroll logic
   useEffect(() => {
@@ -102,20 +149,28 @@ export default function HomeScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
             style={styles.headerIconButton}
-            onPress={() => navigation.navigate('SupplierHome')}
-          >
-            <Ionicons name="briefcase-outline" size={24} color={THEME_COLOR} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.headerIconButton}
             onPress={() => navigation.navigate('Search' as any)}
           >
             <Ionicons name="search-outline" size={24} color="#333" />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerIconButton}
+            onPress={() => navigation.navigate('Notification')}
           >
-            <Ionicons name="notifications-outline" size={24} color="#333" />
+            <View>
+              <Ionicons name="notifications-outline" size={24} color="#333" />
+              {unreadNotifications > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{unreadNotifications}</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => navigation.navigate('Category')}
+          >
+            <Ionicons name="ellipsis-vertical-outline" size={24} color="#333" />
           </TouchableOpacity>
         </View>
       </View>
@@ -135,19 +190,22 @@ export default function HomeScreen() {
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.categoryList}
     >
-      {PREDEFINED_CATEGORIES.map((cat, index) => (
+      {dynamicCategories.map((cat, index) => (
         <TouchableOpacity
           key={index}
-          style={[styles.categoryChip, activeCategory === cat && styles.activeChip]}
-          onPress={() => setActiveCategory(cat)}
+          style={[styles.categoryChip, activeCategoryId === cat._id && styles.activeChip]}
+          onPress={() => setActiveCategoryId(cat._id)}
         >
-          <Text style={[styles.categoryText, activeCategory === cat && styles.activeChipText]}>
-            {cat}
+          <Text style={[styles.categoryText, activeCategoryId === cat._id && styles.activeChipText]}>
+            {cat.name}
           </Text>
         </TouchableOpacity>
       ))}
+
+
     </ScrollView>
   );
+
 
   const renderFeaturedItem = ({ item }: { item: Product }) => (
     <View style={{ width: width, alignItems: 'center' }}>
@@ -187,15 +245,31 @@ export default function HomeScreen() {
   // --- MAIN RENDER ---
   if (currentRole === 'Tenant') return renderTenantDashboard();
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetchProducts();
+    setRefreshing(false);
+  }, [refetchProducts]);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         {renderStickyHeader()}
 
         <FlatList
           data={filteredData}
           keyExtractor={item => item._id}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[THEME_COLOR]}
+              tintColor={THEME_COLOR}
+            />
+          }
           ListHeaderComponent={
             <>
               {renderWelcomeHeader()}
@@ -270,12 +344,28 @@ const styles = StyleSheet.create({
     color: THEME_COLOR,
   },
   headerIconButton: {
-    width: 38,
-    height: 38,
+    padding: 8,
     borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: 4,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   headerContainer: { paddingHorizontal: 20, paddingTop: 15, marginBottom: 15 },
   greetingText: { fontSize: 24, fontWeight: 'bold', color: '#111' },

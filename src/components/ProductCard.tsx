@@ -10,11 +10,22 @@ import { Rating } from 'react-native-ratings';
 interface ProductCardProps {
     product: Product;
     style?: ViewStyle;
+    isManagementMode?: boolean;
+    onEdit?: (productId: string) => void;
+    onDelete?: (productId: string) => void;
+    onToggleAvailability?: (productId: string, currentStatus: number) => void;
 }
 
 const THEME_COLOR = '#FF8C00';
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, style }) => {
+const ProductCard: React.FC<ProductCardProps> = ({
+    product,
+    style,
+    isManagementMode,
+    onEdit,
+    onDelete,
+    onToggleAvailability
+}) => {
     const navigation = useNavigation<any>();
     const { user } = useAuthStore();
     const addFavMutation = useAddFavMutation();
@@ -44,7 +55,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, style }) => {
         <TouchableOpacity
             activeOpacity={0.9}
             style={[styles.card, style]}
-            onPress={() => navigation.navigate('ProductDetails', { product })}
+            onPress={() => !isManagementMode && navigation.navigate('ProductDetails', { product })}
         >
             <View style={styles.imageContainer}>
                 <Image
@@ -66,7 +77,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, style }) => {
                     )}
                 </View>
 
-                {!isMyProduct && (
+                {!isMyProduct && !isManagementMode && (
                     <TouchableOpacity style={styles.favButton} onPress={handleFavorite}>
                         <Ionicons
                             name={isLiked ? "heart" : "heart-outline"}
@@ -113,10 +124,38 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, style }) => {
                         </Text>
                     )}
                 </View>
+
+                {isManagementMode && (
+                    <View style={styles.managementRow}>
+                        <TouchableOpacity
+                            style={styles.mgmtBtn}
+                            onPress={() => onEdit?.(product._id)}
+                        >
+                            <Text style={styles.mgmtBtnText}>Edit</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.mgmtBtn}
+                            onPress={() => onToggleAvailability?.(product._id, product.derivedState)}
+                        >
+                            <Text style={styles.mgmtBtnText}>
+                                {product.derivedState === 1 ? 'Not Available' : 'Available'}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.deleteBtn}
+                            onPress={() => onDelete?.(product._id)}
+                        >
+                            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         </TouchableOpacity>
     );
 };
+
 
 const styles = StyleSheet.create({
     card: {
@@ -246,6 +285,36 @@ const styles = StyleSheet.create({
         color: '#AFAFAF',
         textDecorationLine: 'line-through',
     },
+    managementRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 15,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+        gap: 10,
+    },
+    mgmtBtn: {
+        flex: 1,
+        backgroundColor: '#F0F0F0',
+        paddingVertical: 8,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    mgmtBtnText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#535252',
+    },
+    deleteBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 8,
+        backgroundColor: '#FFF0F0',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
 });
+
 
 export default ProductCard;

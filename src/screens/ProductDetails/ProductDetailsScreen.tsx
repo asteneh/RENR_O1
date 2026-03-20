@@ -1,8 +1,13 @@
 import React, { useRef, useState } from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet,
-  Dimensions, StatusBar, Animated, ScrollView, Share, Alert
+  Dimensions, StatusBar, Animated as RNAnimated, ScrollView, Share, Alert, Modal, Pressable
+
 } from 'react-native';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+
+
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCartStore } from '../../store/useCartStore';
@@ -15,18 +20,20 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Rating } from 'react-native-ratings';
 import { format } from 'date-fns';
 import { TextInput as RNTextInput } from 'react-native';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 
 type DetailsRouteProp = RouteProp<RootStackParamList, 'ProductDetails'>;
 
 const { width } = Dimensions.get('window');
-const HEADER_HEIGHT = 400;
+const HEADER_HEIGHT = 350;
 const THEME_COLOR = '#FF8C00'; // Orange
 
 export default function ProductDetailsScreen() {
+  const { showNotification, showAlert } = useNotificationStore();
   const route = useRoute<DetailsRouteProp>();
   const navigation = useNavigation<any>();
   const product = route.params.product as Product;
-  const addItem = useCartStore((state) => state.addItem);
   const { user } = useAuthStore();
   const insets = useSafeAreaInsets();
 
@@ -36,7 +43,7 @@ export default function ProductDetailsScreen() {
   const { data: updatedProduct } = useSingleProductQuery(product._id);
   const displayProduct = updatedProduct || product;
 
-  const { data: reviews, isLoading: reviewsLoading } = useReviewsQuery(displayProduct._id);
+  const { data: reviews, isLoading: reviewsLoading, refetch: refetchReviews } = useReviewsQuery(displayProduct._id);
   const addFavMutation = useAddFavMutation();
   const removeFavMutation = useRemoveFavMutation();
   const createReviewMutation = useCreateReviewMutation(displayProduct._id);
@@ -47,25 +54,69 @@ export default function ProductDetailsScreen() {
   const [reviewRating, setReviewRating] = useState(0);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-  // Default to first image
-  const initialImage = (product.productImages && product.productImages.length > 0)
-    ? `${CONFIG.FILE_URL}/${product.productImages[0]}`
-    : 'https://via.placeholder.com/400';
+  const [activeImage, setActiveImage] = useState(
+    (product.productImages && product.productImages.length > 0)
+      ? `${CONFIG.FILE_URL}/${product.productImages[0]}`
+      : 'https://via.placeholder.com/400'
+  );
 
-  const [activeImage, setActiveImage] = useState(initialImage);
+  const [isZoomModalVisible, setIsZoomModalVisible] = useState(false);
+  const [zoomImage, setZoomImage] = useState('');
+
+  // Reanimated values for pinch-to-zoom
+  const scale = useSharedValue(1);
+  const focalX = useSharedValue(0);
+  const focalY = useSharedValue(0);
+
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((event) => {
+      scale.value = event.scale;
+      focalX.value = event.focalX;
+      focalY.value = event.focalY;
+    })
+    .onEnd(() => {
+      scale.value = withSpring(1);
+    });
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: focalX.value },
+        { translateY: focalY.value },
+        { translateX: -width / 2 },
+        { translateY: -HEADER_HEIGHT / 2 },
+        { scale: scale.value },
+        { translateX: -focalX.value },
+        { translateY: -focalY.value },
+        { translateX: width / 2 },
+        { translateY: HEADER_HEIGHT / 2 },
+      ],
+    };
+  });
+
 
   // Animation Value
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollY = useRef(new RNAnimated.Value(0)).current;
 
-  // Gallery Images (Full URLs)
-  const galleryImages = (product.productImages && product.productImages.length > 0)
-    ? product.productImages.map(img => `${CONFIG.FILE_URL}/${img}`)
-    : [];
+
+  // Gallery Images (Full URLs) - use displayProduct for reactivity
+  const galleryImages = React.useMemo(() => {
+    return (displayProduct.productImages && displayProduct.productImages.length > 0)
+      ? displayProduct.productImages.map(img => `${CONFIG.FILE_URL}/${img}`)
+      : [];
+  }, [displayProduct.productImages]);
+
+  // Update active image when displayProduct changes (e.g. after fetch)
+  React.useEffect(() => {
+    if (galleryImages.length > 0 && (!activeImage || activeImage === 'https://via.placeholder.com/400')) {
+      setActiveImage(galleryImages[0]);
+    }
+  }, [galleryImages, activeImage]);
 
   // 1. Image Animation Logic (Parallax + Zoom on pull down)
   const imageTranslateY = scrollY.interpolate({
     inputRange: [-HEADER_HEIGHT, 0, HEADER_HEIGHT],
-    outputRange: [-HEADER_HEIGHT / 2, 0, HEADER_HEIGHT * 0.75], // Moves slower than content
+    outputRange: [-HEADER_HEIGHT / 2, 0, HEADER_HEIGHT * 0.5], // Moves slower for depth effect
     extrapolate: 'clamp',
   });
 
@@ -80,19 +131,29 @@ export default function ProductDetailsScreen() {
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
       {/* --- 1. BACKGROUND ANIMATED IMAGE --- */}
-      <Animated.View style={[styles.headerImageContainer, {
+      <RNAnimated.View style={[styles.headerImageContainer, {
         height: HEADER_HEIGHT,
         transform: [{ translateY: imageTranslateY }, { scale: imageScale }]
       }]}>
-        <Image
-          source={{ uri: activeImage }}
-          style={styles.image}
-        />
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={{ flex: 1 }}
+          onPress={() => {
+            setZoomImage(activeImage);
+            setIsZoomModalVisible(true);
+          }}
+        >
+          <Image
+            source={{ uri: activeImage }}
+            style={styles.image}
+          />
+        </TouchableOpacity>
         <View style={styles.imageOverlay} />
-      </Animated.View>
+      </RNAnimated.View>
+
 
       {/* --- 2. FIXED TOP BAR (Back Button) --- */}
-      <SafeAreaView style={styles.topBar} edges={['top']}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity style={styles.roundBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
@@ -100,9 +161,9 @@ export default function ProductDetailsScreen() {
           <TouchableOpacity style={styles.roundBtn} onPress={async () => {
             try {
               await Share.share({
-                message: `Check out this product: ${product.title} - ${CONFIG.FILE_URL}/${product.productImages[0]}`,
-                url: `${CONFIG.FILE_URL}/${product.productImages[0]}`,
-                title: product.title
+                message: `Check out this product: ${displayProduct.title} - ${galleryImages[0]}`,
+                url: galleryImages[0],
+                title: displayProduct.title
               });
             } catch (error: any) {
               Alert.alert('Error', error.message);
@@ -126,18 +187,19 @@ export default function ProductDetailsScreen() {
             <Ionicons name={isLiked ? "heart" : "heart-outline"} size={22} color={isLiked ? THEME_COLOR : "#333"} />
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
 
       {/* --- 3. SCROLLABLE CONTENT --- */}
-      <Animated.ScrollView
-        contentContainerStyle={{ paddingTop: HEADER_HEIGHT - 40, paddingBottom: 100 }}
+      <RNAnimated.ScrollView
+        contentContainerStyle={{ paddingTop: HEADER_HEIGHT - 50, paddingBottom: 100 }}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
+        onScroll={RNAnimated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: true }
         )}
       >
+
         <View style={styles.contentContainer}>
 
           {/* Handle Bar Visual */}
@@ -270,7 +332,8 @@ export default function ProductDetailsScreen() {
                         onSuccess: () => {
                           setReviewText('');
                           setReviewRating(0);
-                          Alert.alert("Success", "Your review has been posted!");
+                          refetchReviews();
+                          showNotification("Your review has been posted!", "success");
                         }
                       });
                     }}
@@ -291,7 +354,15 @@ export default function ProductDetailsScreen() {
               <Text style={styles.sectionTitle}>Gallery</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.galleryScroll}>
                 {galleryImages.map((img, index) => (
-                  <TouchableOpacity key={index} onPress={() => setActiveImage(img)}>
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => {
+                      setActiveImage(img);
+                      setZoomImage(img);
+                      setIsZoomModalVisible(true);
+                    }}
+                  >
+
                     <Image
                       source={{ uri: img }}
                       style={[
@@ -312,13 +383,15 @@ export default function ProductDetailsScreen() {
               source={{ uri: displayProduct.consignee?.proflePic ? `${CONFIG.FILE_URL}/${displayProduct.consignee.proflePic}` : 'https://via.placeholder.com/45' }}
               style={styles.dealerAvatar}
             />
-            <View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.dealerName}>{displayProduct.consignee?.firstName} {displayProduct.consignee?.lastName}</Text>
               <Text style={styles.dealerSub}>{displayProduct.consignee?.followers?.length || 0} Followers</Text>
             </View>
+
             <TouchableOpacity style={styles.followBtn}>
               <Text style={styles.followBtnText}>Follow</Text>
             </TouchableOpacity>
+
           </View>
 
           {/* Action Buttons */}
@@ -335,21 +408,16 @@ export default function ProductDetailsScreen() {
               <Text style={[styles.actionIconText, isLiked && { color: THEME_COLOR }]}>Favorite</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.actionIconButton} onPress={() => setShowPhone(!showPhone)}>
-              <Ionicons name="call-outline" size={22} color="#333" />
-              <Text style={styles.actionIconText}>{showPhone ? displayProduct.consignee?.phoneNumber : 'Show Phone'}</Text>
-            </TouchableOpacity>
-
             <TouchableOpacity style={styles.actionIconButton} onPress={() => {
-              Alert.prompt(
+              showAlert(
                 "Offer Price",
                 `Enter your offer price (Current: ${displayProduct.currency?.sign} ${displayProduct.currentPrice.toLocaleString()})`,
                 [
                   { text: "Cancel", style: "cancel" },
-                  { text: "Send", onPress: (price?: string) => Alert.alert("Success", `Your offer of ${price} has been sent.`) }
+                  { text: "Send", onPress: (price?: string) => showNotification(`Your offer of ${price} has been sent.`, "success"), style: "default" }
                 ],
-                "plain-text",
-                ""
+                true,
+                "Ex: 50,000"
               );
             }}>
               <Ionicons name="pricetag-outline" size={22} color="#333" />
@@ -357,24 +425,48 @@ export default function ProductDetailsScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </Animated.ScrollView>
+      </RNAnimated.ScrollView>
 
-      <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 15) }]}>
-        <TouchableOpacity
-          style={styles.actionBtn}
-          onPress={() => {
-            addItem(displayProduct);
-            Alert.alert("Success", "Added to your list!", [
-              { text: "View List", onPress: () => navigation.navigate('Cart') },
-              { text: "Continue", style: "cancel" }
-            ]);
-          }}
-        >
-          <Ionicons name="cart-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-          <Text style={styles.actionBtnText}>Add to Cart</Text>
-        </TouchableOpacity>
-      </View>
+
+
+      {/* --- 4. IMAGE ZOOM MODAL --- */}
+      <Modal
+        visible={isZoomModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsZoomModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.zoomModalHeader}>
+              <TouchableOpacity
+                style={styles.zoomCloseBtn}
+                onPress={() => setIsZoomModalVisible(false)}
+              >
+                <Ionicons name="close" size={30} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.zoomImageContainer}>
+              <GestureDetector gesture={pinchGesture}>
+                <Animated.View style={[{ width: '100%', height: '80%' }, animatedStyle]}>
+                  <Image
+                    source={{ uri: zoomImage }}
+                    style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+                  />
+                </Animated.View>
+              </GestureDetector>
+            </View>
+
+            <View style={styles.zoomFooter}>
+              <Text style={styles.zoomFooterText}>Pinch to zoom</Text>
+            </View>
+          </SafeAreaView>
+        </View>
+
+      </Modal>
     </View>
+
   );
 }
 
@@ -388,14 +480,13 @@ const SpecItem = ({ icon, label, value }: any) => (
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#000' }, // Dark background for the image to sit on
 
   // IMAGE STYLES
   headerImageContainer: {
     position: 'absolute', top: 0, left: 0, right: 0,
     width: '100%',
     overflow: 'hidden',
-    zIndex: -1,
   },
   image: { width: '100%', height: '100%', resizeMode: 'cover' },
   imageOverlay: {
@@ -407,7 +498,7 @@ const styles = StyleSheet.create({
   topBar: {
     position: 'absolute', top: 0, left: 0, right: 0,
     flexDirection: 'row', justifyContent: 'space-between',
-    paddingHorizontal: 20, zIndex: 10, paddingTop: 10
+    paddingHorizontal: 20, zIndex: 100
   },
   roundBtn: {
     width: 40, height: 40, borderRadius: 20,
@@ -427,8 +518,8 @@ const styles = StyleSheet.create({
     shadowColor: "#000", shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 5
   },
 
-  handleBarWrapper: { alignItems: 'center', marginTop: 10, marginBottom: 10 },
-  handleBar: { width: 50, height: 5, backgroundColor: '#E0E0E0', borderRadius: 5 },
+  handleBarWrapper: { alignItems: 'center', marginTop: 12, marginBottom: 8 },
+  handleBar: { width: 40, height: 4, backgroundColor: '#E0E0E0', borderRadius: 2 },
 
   // INFO SECTION
   headerInfo: { marginTop: 5 },
@@ -525,4 +616,35 @@ const styles = StyleSheet.create({
     alignItems: 'center', borderWidth: 1, borderColor: '#EEE'
   },
   specLabel: { fontSize: 10, color: '#888' },
+
+  // ZOOM MODAL STYLES
+  zoomModalHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    zIndex: 1000,
+  },
+  zoomCloseBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomImageContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  zoomFooter: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  zoomFooterText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+  },
 });
+

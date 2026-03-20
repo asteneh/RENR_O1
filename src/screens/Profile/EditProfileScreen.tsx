@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput,
-    TouchableOpacity, Alert, ActivityIndicator, Image
+    TouchableOpacity, ActivityIndicator, Image
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useUserProfile, useUpdateUserProfile } from '../../api/services/userService';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 import { CONFIG } from '../../config';
 
 const THEME_COLOR = '#FF8C00';
@@ -15,6 +17,7 @@ const THEME_COLOR = '#FF8C00';
 export default function EditProfileScreen() {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
+    const { showNotification } = useNotificationStore();
     const { data: profile, isLoading } = useUserProfile();
     const updateMutation = useUpdateUserProfile();
 
@@ -53,10 +56,10 @@ export default function EditProfileScreen() {
 
         try {
             await updateMutation.mutateAsync(formData);
-            Alert.alert("Success", "Profile updated successfully");
+            showNotification("Profile updated successfully", "success");
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Failed to update profile");
+            showNotification(cleanErrorMessage(error), "error");
         }
     };
 
@@ -77,9 +80,9 @@ export default function EditProfileScreen() {
 
             try {
                 await updateMutation.mutateAsync(formData);
-                Alert.alert("Success", "Avatar updated");
+                showNotification("Avatar updated", "success");
             } catch (error: any) {
-                Alert.alert("Error", "Failed to upload image");
+                showNotification("Failed to upload image", "error");
             }
         }
     };

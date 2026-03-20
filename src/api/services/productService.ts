@@ -35,7 +35,13 @@ export interface Product {
         _id: string;
         name: string;
         icon: string;
+        serviceType?: number;
     };
+    brand?: {
+        _id: string;
+        description: string;
+    };
+    productType?: number;
     postType: {
         _id: string;
         name: string;
@@ -58,9 +64,12 @@ export interface Product {
     totalReviews: number;
     isFixed: boolean;
     transactionType: number; // 1 for Rent, 2 for Sale
+    derivedState: number; // 1 for Available, 2 for Unavailable
     youtubeLink?: string;
     createdAt: string;
 }
+
+
 
 export interface PostTypeDefinition {
     _id: string;
@@ -81,8 +90,8 @@ export interface ProductsResponse {
 }
 
 // SERVICE
-export const fetchProducts = async (): Promise<ProductsResponse> => {
-    const response = await apiClient.get<ProductsResponse>('products');
+export const fetchProducts = async (params?: any): Promise<ProductsResponse> => {
+    const response = await apiClient.get<ProductsResponse>('products', { params });
     return response.data;
 };
 
@@ -113,10 +122,10 @@ export const removeFromFav = async (productId: string, userId: string): Promise<
     return response.data;
 };
 
-export const useProductsQuery = () => {
+export const useProductsQuery = (params?: any) => {
     return useQuery({
-        queryKey: ['products'],
-        queryFn: fetchProducts,
+        queryKey: ['products', params],
+        queryFn: () => fetchProducts(params),
     });
 };
 
@@ -134,11 +143,36 @@ export const usePostTypesQuery = () => {
     });
 };
 
+export const updateProduct = async (data: any): Promise<any> => {
+    // If we're passing FormData (e.g. for images), we need multipart headers
+    const isFormData = data instanceof FormData;
+    const productId = isFormData ? (data as any)._parts.find((p: any) => p[0] === 'productId')?.[1] : data.productId;
+
+    const response = await apiClient.put(`products/${productId}`, data, {
+        headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+    });
+    return response.data;
+};
+
+
 export const useCreateProductMutation = () => {
     return useMutation({
         mutationFn: createProduct,
     });
 };
+
+export const useUpdateProductMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: updateProduct,
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['userAds'] });
+            queryClient.invalidateQueries({ queryKey: ['getSingleProduct', variables.productId] });
+        },
+    });
+};
+
 
 export const useAddFavMutation = () => {
     const queryClient = useQueryClient();

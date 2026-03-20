@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, StatusBar,
-  Modal, ActivityIndicator, Alert
+  Modal, ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 import { useNavigation } from '@react-navigation/native';
 import { useLogin, useGetOtp } from '../../api/services/authService';
 
@@ -20,10 +22,11 @@ export default function LoginScreen() {
   const [signinError, setSigninError] = useState<string | null>(null);
   const [showVerify, setShowVerify] = useState(false);
 
+  const { token, user, login: loginState } = useAuthStore();
+  const { setUnreadNotifications, incrementUnreadNotifications, showNotification } = useNotificationStore();
   const navigation = useNavigation<any>();
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
-  const loginState = useAuthStore((state) => state.login);
   const loginMutation = useLogin();
   const getOtpMutation = useGetOtp();
 
@@ -42,7 +45,7 @@ export default function LoginScreen() {
     setShowVerify(false);
 
     if (!emailOrPhone || !password) {
-      Alert.alert('Error', 'Please enter both phone number and password.');
+      showNotification("Please enter both email/phone and password", "error");
       return;
     }
 
@@ -54,23 +57,23 @@ export default function LoginScreen() {
         // Update global auth state (persisted)
         // Adjust user object mapping based on response structure
         const user = {
-          id: data.id,
+          _id: (data as any).id || (data as any)._id, // Support both formats and satisfy TS
           email: data.email,
           phoneNumber: data.phoneNumber
         };
         loginState(user, data.token);
 
-        Alert.alert("Success", "Welcome back!", [
-          { text: "OK", onPress: () => navigation.navigate('Tabs') }
-        ]);
+        showNotification("Welcome back!", "success");
+        navigation.navigate('Tabs');
       },
       onError: (error: any) => {
-        const msg = error?.response?.data?.message || "Login failed";
+        const msg = cleanErrorMessage(error);
+        showNotification(msg, "error");
+
         const reason = error?.response?.data?.reason;
-
-        setSigninError(msg);
-
         if (reason === 'NotVerified') {
+          // Set a generic error message for the UI to show the "Verify" button
+          setSigninError("Account not verified.");
           setShowVerify(true);
         }
       }
@@ -88,7 +91,7 @@ export default function LoginScreen() {
         });
       },
       onError: (err: any) => {
-        Alert.alert('Error', 'Failed to send OTP');
+        showNotification(cleanErrorMessage(err), 'error');
       }
     });
   };
@@ -102,7 +105,7 @@ export default function LoginScreen() {
         style={StyleSheet.absoluteFill}
       />
 
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}

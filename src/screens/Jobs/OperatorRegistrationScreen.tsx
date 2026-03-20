@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput,
-    TouchableOpacity, Alert, ActivityIndicator, Image
+    TouchableOpacity, ActivityIndicator, Image
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +10,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCategoriesByService } from '../../api/services/categoryService';
 import { useRegister } from '../../api/services/authService';
 import { useApplyToJobMutation } from '../../api/services/jobService';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 
 const THEME_COLOR = '#FF8C00';
 const EXPERIENCE_OPTIONS = [
@@ -23,6 +25,7 @@ export default function OperatorRegistrationScreen() {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const route = useRoute<any>();
+    const { showNotification } = useNotificationStore();
     const jobId = route.params?.jobId;
 
     const [activeStep, setActiveStep] = useState(0);
@@ -39,6 +42,7 @@ export default function OperatorRegistrationScreen() {
         experience: '',
         machineTypes: [] as string[],
         licenseFiles: [] as any[], // Picked images/files
+        agreedToTerms: false,
     });
 
     const [passwordsMatch, setPasswordsMatch] = useState(true);
@@ -75,21 +79,25 @@ export default function OperatorRegistrationScreen() {
     const validateStep = () => {
         if (activeStep === 0) {
             if (!form.firstName || !form.lastName || !form.phone || !form.password) {
-                Alert.alert("Error", "Please fill in all required fields.");
+                showNotification("Please fill in all required fields.", "error");
+                return false;
+            }
+            if (!form.agreedToTerms) {
+                showNotification("Please agree to the Terms of Service and Privacy Policy.", "error");
                 return false;
             }
             if (!passwordsMatch) {
-                Alert.alert("Error", "Passwords do not match.");
+                showNotification("Passwords do not match.", "error");
                 return false;
             }
             return true;
         } else if (activeStep === 1) {
             if (!form.experience) {
-                Alert.alert("Error", "Please select your years of experience.");
+                showNotification("Please select your years of experience.", "error");
                 return false;
             }
             if (form.machineTypes.length === 0) {
-                Alert.alert("Error", "Please select at least one machine type.");
+                showNotification("Please select at least one machine type.", "error");
                 return false;
             }
             return true;
@@ -130,7 +138,7 @@ export default function OperatorRegistrationScreen() {
             }
             setActiveStep(2);
         } catch (error: any) {
-            Alert.alert("Registration Failed", error.message || "Something went wrong");
+            showNotification(cleanErrorMessage(error), "error");
         }
     };
 
@@ -206,6 +214,26 @@ export default function OperatorRegistrationScreen() {
                             />
                             {!passwordsMatch && <Text style={styles.errorText}>Passwords do not match</Text>}
                         </View>
+
+                        <TouchableOpacity
+                            style={styles.checkboxContainer}
+                            onPress={() => setForm({ ...form, agreedToTerms: !form.agreedToTerms })}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.checkbox, form.agreedToTerms && styles.checkboxChecked]}>
+                                {form.agreedToTerms && <Ionicons name="checkmark" size={16} color="#fff" />}
+                            </View>
+                            <Text style={styles.termsText}>
+                                I agree to the{' '}
+                                <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsAndPrivacy')}>
+                                    Terms of Service
+                                </Text>{' '}
+                                and{' '}
+                                <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsAndPrivacy')}>
+                                    Privacy Policy
+                                </Text>
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 );
             case 1:
@@ -462,5 +490,36 @@ const styles = StyleSheet.create({
         borderRadius: 50,
         elevation: 4
     },
-    doneBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 18 }
+    doneBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 10,
+        marginBottom: 20,
+        paddingHorizontal: 2,
+    },
+    checkbox: {
+        width: 22,
+        height: 22,
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: THEME_COLOR,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    checkboxChecked: {
+        backgroundColor: THEME_COLOR,
+    },
+    termsText: {
+        flex: 1,
+        color: '#666',
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    termsLink: {
+        color: THEME_COLOR,
+        fontWeight: 'bold',
+        textDecorationLine: 'underline',
+    },
 });

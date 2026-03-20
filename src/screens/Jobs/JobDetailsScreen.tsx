@@ -1,13 +1,15 @@
 import React from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
-    TouchableOpacity, ActivityIndicator, Alert
+    TouchableOpacity, ActivityIndicator, Share
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { JobsStackParamList } from '../../navigation/JobsNavigator';
-import { useJobDetailQuery, useApplyToJobMutation } from '../../api/services/jobService';
+import { useJobDetailQuery, useApplyToJobMutation, Job } from '../../api/services/jobService';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 import { useAuthStore } from '../../store/useAuthStore';
 
 const THEME_COLOR = '#FF8C00';
@@ -18,44 +20,49 @@ export default function JobDetailsScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<JobDetailsRouteProp>();
     const { jobId } = route.params;
-    const { user, isAuthenticated } = useAuthStore();
+    const { user, isAuthenticated, token } = useAuthStore();
+    const { showNotification, showAlert } = useNotificationStore();
 
     const { data: job, isLoading } = useJobDetailQuery(jobId);
     const applyMutation = useApplyToJobMutation();
 
-    const isApplied = job?.appliedUsers.some(u => u.userId === (user?.id || user?._id));
+    const isApplied = job?.appliedUsers.some((u: any) => u.userId === (user?.id || user?._id));
 
     const handleApply = async () => {
-        if (isApplied) return Alert.alert("Already Applied", "You have already applied for this position.");
+        if (isApplied) return showAlert("Already Applied", "You have already applied for this position.");
 
-        Alert.alert(
-            "Apply for Job",
-            "Choose your application method:",
-            [
-                {
-                    text: "Easy Apply",
-                    onPress: async () => {
-                        if (!isAuthenticated) {
-                            return navigation.navigate('OperatorRegistration', { jobId });
-                        }
-                        try {
-                            await applyMutation.mutateAsync({ jobId, userId: user?.id || user?._id });
-                            Alert.alert("Success", "Application submitted successfully!");
-                        } catch (error: any) {
-                            Alert.alert("Error", error.message || "Failed to submit application");
-                        }
-                    }
-                },
-                {
-                    text: "Register & Apply",
-                    onPress: () => navigation.navigate('OperatorRegistration', { jobId })
-                },
-                {
-                    text: "Cancel",
-                    style: "cancel"
-                }
-            ]
-        );
+        if (!token) {
+            showAlert("Login Required", "Please login to apply for this job.", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Login", onPress: () => navigation.navigate('Login'), style: 'default' }
+            ]);
+            return;
+        }
+
+        if (user?.userType !== 'Operator') {
+            showAlert("Operator Only", "Only registered operators can apply for jobs. Would you like to register as an operator?", [
+                { text: "No", style: "cancel" },
+                { text: "Register", onPress: () => navigation.navigate('OperatorRegistration', { jobId }), style: "default" }
+            ]);
+            return;
+        }
+
+        try {
+            await applyMutation.mutateAsync({ jobId, userId: user.id });
+            showNotification("Application sent successfully!", "success");
+        } catch (error: any) {
+            showNotification(cleanErrorMessage(error), "error");
+        }
+    };
+
+    const handleShare = async () => {
+        try {
+            await Share.share({
+                message: `Check out this job: ${job?.jobTitle} at ${job?.companyName}\nLocation: ${job?.location || 'Remote'}\nSalary: ${job?.salary || 'Negotiable'}`,
+            });
+        } catch (error: any) {
+            showNotification(error.message, "error");
+        }
     };
 
     if (isLoading) {
@@ -81,7 +88,7 @@ export default function JobDetailsScreen() {
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Job Details</Text>
-                <TouchableOpacity style={styles.headerBtn}>
+                <TouchableOpacity style={styles.headerBtn} onPress={handleShare}>
                     <Ionicons name="share-outline" size={24} color="#333" />
                 </TouchableOpacity>
             </View>

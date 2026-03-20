@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ScrollView, StatusBar, Modal, FlatList, ActivityIndicator, Alert,
+  ScrollView, StatusBar, Modal, FlatList, ActivityIndicator,
   KeyboardAvoidingView, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRegister } from '../../api/services/authService';
 import { useCategoriesByService, useBrandsByCategory } from '../../api/services/categoryService';
 import { formatPhoneNumber } from '../../utils/formatPhoneNumber';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -31,6 +33,41 @@ const COUNTRIES: Country[] = [
   { code: 'CN', name: 'China', dial_code: '+86', flag: '🇨🇳' },
 ];
 
+const ROLES = [
+  "Akeray (leesor)",
+  "Buyer",
+  "Seller",
+  "Tekeray (lessee)",
+  "employee (Operator)",
+  "Employer"
+];
+
+const MEMBERSHIP_PLANS: any = {
+  "Akeray (leesor)": [
+    { id: 'basic', title: "Basic", price: 100, features: ["10 items to post/month", "3 Job vacancies/month"] },
+    { id: 'gold', title: "Gold", price: 200, features: ["25 items to post/month", "6 Job vacancies/month"] },
+    { id: 'premium', title: "Premium", price: 400, features: ["Unlimited items to Post/month", "Unlimited Job vacancies/month"] }
+  ],
+  "Buyer": [
+    { id: 'basic', title: "Basic", price: 50, features: ["10 buying request post/month"] },
+    { id: 'gold', title: "Gold", price: 100, features: ["15 buying request post/month"] },
+    { id: 'premium', title: "Premium", price: 200, features: ["Unlimited buying request post/month"] }
+  ],
+  "Seller": [
+    { id: 'basic', title: "Basic", price: 100, features: ["10 items to post/month", "3 Job vacancies/month"] },
+    { id: 'gold', title: "Gold", price: 200, features: ["30 units per month", "6 Job vacancies/month"] },
+    { id: 'premium', title: "Premium", price: 400, features: ["Unlimited items per month", "12 Job vacancies/month"] }
+  ],
+  "Tekeray (lessee)": [
+    { id: 'basic', title: "Basic", price: 100, features: ["10 items request post/month", "3 Job vacancies/month"] },
+    { id: 'gold', title: "Gold", price: 200, features: ["15 items request post/month", "6 Job vacancies/month"] },
+    { id: 'premium', title: "Premium", price: 400, features: ["Unlimited items to Post/month", "12 Job vacancies/month"] }
+  ],
+  "employee (Operator)": [
+    { id: 'basic', title: "Basic", price: 50, features: ["Standard operator status"] }
+  ]
+};
+
 export default function SignUpScreen() {
   const navigation = useNavigation<any>();
   const [firstName, setFirstName] = useState('');
@@ -42,21 +79,27 @@ export default function SignUpScreen() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[0]);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
 
   // New Fields
   const [step, setStep] = useState(1);
-  const [selectedRole, setSelectedRole] = useState<'Demand Side' | 'Supply Side' | 'Both' | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [showRoleModal, setShowRoleModal] = useState(false);
 
   // Step 2 Fields
-  const [machineryList, setMachineryList] = useState<any[]>([]);
+  const [machineryList, setMachineryList] = useState<{ category: any; brand: any; }[]>([]);
   const [legalDocuments, setLegalDocuments] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
-  const [selectedBrands, setSelectedBrands] = useState<any[]>([]);
+  const [selectedBrand, setSelectedBrand] = useState<any>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
+
+  // Membership Selection
+  const [selectedMembership, setSelectedMembership] = useState<any>(null);
+  const [postThroughGadal, setPostThroughGadal] = useState(false);
 
   const { data: categories } = useCategoriesByService(1);
   const { data: brands } = useBrandsByCategory(selectedCategory?._id);
@@ -80,38 +123,66 @@ export default function SignUpScreen() {
   };
 
   const addMachinery = () => {
-    if (selectedCategory) {
+    if (selectedCategory && selectedBrand) {
       setMachineryList([...machineryList, {
         category: selectedCategory,
-        brands: selectedBrands
+        brand: selectedBrand,
       }]);
       setSelectedCategory(null);
-      setSelectedBrands([]);
+      setSelectedBrand(null);
+    } else {
+      showNotification('Please select both category and brand.', 'error');
     }
   };
 
   const removeMachinery = (index: number) => {
-    setMachineryList(machineryList.filter((_, i) => i !== index));
+    const newList = [...machineryList];
+    newList.splice(index, 1);
+    setMachineryList(newList);
   };
 
-  const toggleBrand = (brand: any) => {
-    if (selectedBrands.some(b => b._id === brand._id)) {
-      setSelectedBrands(selectedBrands.filter(b => b._id !== brand._id));
-    } else {
-      setSelectedBrands([...selectedBrands, brand]);
-    }
-  };
+  const hasBelongingsRole = selectedRole === 'Seller' || selectedRole === 'Akeray (leesor)';
 
-  const hasBelongingsRole = selectedRole === 'Supply Side' || selectedRole === 'Both';
+  const { showNotification } = useNotificationStore();
 
   const handleRegister = () => {
     if (!firstName || !lastName || !phoneNumber || !password || !selectedRole) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+      showNotification('Please fill in all required fields.', 'error');
+      return;
+    }
+
+    // #1. Name word count restriction
+    const nameRegex = /^\S+$/; // No spaces
+    if (!nameRegex.test(firstName.trim())) {
+      showNotification('First name should be a single word.', 'error');
+      return;
+    }
+    if (!nameRegex.test(lastName.trim())) {
+      showNotification('Last name should be a single word.', 'error');
+      return;
+    }
+
+    // #3. Email validity
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (email && !emailRegex.test(email)) {
+      showNotification('Please enter a valid email address.', 'error');
+      return;
+    }
+
+    // #2. Phone number validity
+    const phoneRegex = /^\d{9,10}$/; // 9 or 10 digits
+    if (!phoneRegex.test(phoneNumber.replace(/\s/g, ''))) {
+      showNotification('Please enter a valid phone number (9-10 digits).', 'error');
+      return;
+    }
+
+    if (!agreedToTerms) {
+      showNotification('Please agree to the Terms of Service and Privacy Policy.', 'error');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      showNotification('Passwords do not match.', 'error');
       return;
     }
 
@@ -120,9 +191,25 @@ export default function SignUpScreen() {
       return;
     }
 
-    if (hasBelongingsRole && (machineryList.length === 0 || legalDocuments.length === 0)) {
-      Alert.alert('Error', 'Please add machinery and legal documents.');
+    if (step === 1 && !hasBelongingsRole) {
+      setStep(3);
       return;
+    }
+
+    if (step === 2) {
+      if (machineryList.length === 0 || legalDocuments.length === 0) {
+        showNotification('Please add machinery and legal documents.', 'error');
+        return;
+      }
+      setStep(3);
+      return;
+    }
+
+    if (step === 3) {
+      if (selectedRole !== 'Employer' && !postThroughGadal && !selectedMembership) {
+        showNotification('Please choose a membership or select "Process Through Gadal".', 'error');
+        return;
+      }
     }
 
     const fullPhoneNumber = `${selectedCountry.dial_code}${phoneNumber.replace(/^0+/, '')}`;
@@ -140,9 +227,15 @@ export default function SignUpScreen() {
     if (machineryList.length > 0) {
       payload.interestedProductArea = JSON.stringify(machineryList.map(item => ({
         category: item.category._id,
-        brands: item.brands.map((b: any) => b._id)
+        brands: [item.brand._id]
       })));
     }
+
+    if (selectedMembership) {
+      payload.membershipType = selectedMembership.id;
+      payload.membershipTitle = selectedMembership.title;
+    }
+    payload.postThroughGadal = postThroughGadal;
 
     // Prepare FormData for legalDocuments
     const formData = new FormData();
@@ -160,13 +253,12 @@ export default function SignUpScreen() {
 
     registerMutation.mutate(formData, {
       onSuccess: () => {
-        Alert.alert('Success', 'Account created! Please login.', [
-          { text: 'OK', onPress: () => navigation.navigate('Login') }
-        ]);
+        showNotification('Account created! Please login.', 'success');
+        navigation.navigate('Login');
       },
       onError: (error: any) => {
-        const errorMsg = error?.response?.data?.error || error?.message || 'Could not create account';
-        Alert.alert('Registration Failed', errorMsg);
+        const errorMsg = cleanErrorMessage(error);
+        showNotification(errorMsg, 'error');
       }
     });
   };
@@ -191,7 +283,7 @@ export default function SignUpScreen() {
         colors={['#FFF3E0', '#FFFFFF', '#FFFFFF']}
         style={StyleSheet.absoluteFill}
       />
-      <SafeAreaView style={{ flex: 1 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
@@ -294,27 +386,35 @@ export default function SignUpScreen() {
                 </View>
 
                 <Text style={styles.roleLabel}>I AM A:</Text>
-                <View style={styles.roleContainer}>
-                  {['Demand Side', 'Supply Side', 'Both'].map((role: any) => (
-                    <TouchableOpacity
-                      key={role}
-                      style={[
-                        styles.roleButton,
-                        selectedRole === role && styles.selectedRoleButton
-                      ]}
-                      onPress={() => setSelectedRole(role)}
-                    >
-                      <Text style={[
-                        styles.roleButtonText,
-                        selectedRole === role && styles.selectedRoleButtonText
-                      ]}>{role}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <TouchableOpacity
+                  style={styles.selector}
+                  onPress={() => setShowRoleModal(true)}
+                >
+                  <Text style={selectedRole ? styles.selectorText : styles.selectorPlaceholder}>
+                    {selectedRole || "Select your role"}
+                  </Text>
+                  <Ionicons name="chevron-down" size={20} color="#666" />
+                </TouchableOpacity>
 
-                <Text style={styles.termsText}>
-                  By registering, you agree to our Terms of Service and Privacy Policy
-                </Text>
+                <TouchableOpacity
+                  style={styles.checkboxContainer}
+                  onPress={() => setAgreedToTerms(!agreedToTerms)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+                    {agreedToTerms && <Ionicons name="checkmark" size={16} color="#fff" />}
+                  </View>
+                  <Text style={styles.termsText}>
+                    I agree to the{' '}
+                    <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsAndPrivacy')}>
+                      Terms of Service
+                    </Text>{' '}
+                    and{' '}
+                    <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsAndPrivacy')}>
+                      Privacy Policy
+                    </Text>
+                  </Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.btn, registerMutation.isPending && styles.disabledBtn]}
@@ -330,7 +430,7 @@ export default function SignUpScreen() {
                   )}
                 </TouchableOpacity>
               </>
-            ) : (
+            ) : step === 2 ? (
               <>
                 <View style={styles.stepTitleContainer}>
                   <TouchableOpacity onPress={() => setStep(1)} style={styles.backButton}>
@@ -355,18 +455,18 @@ export default function SignUpScreen() {
                     onPress={() => setShowBrandModal(true)}
                     disabled={!selectedCategory}
                   >
-                    <Text style={selectedBrands.length > 0 ? styles.selectorText : styles.selectorPlaceholder}>
-                      {selectedBrands.length > 0
-                        ? `${selectedBrands.length} Brand(s) Selected`
-                        : "Select Brand(s)"}
+                    <Text style={selectedBrand ? styles.selectorText : styles.selectorPlaceholder}>
+                      {selectedBrand
+                        ? selectedBrand.description
+                        : "Select Brand"}
                     </Text>
                     <Ionicons name="chevron-down" size={20} color="#666" />
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={[styles.addBtn, !selectedCategory && styles.disabledAddBtn]}
+                    style={[styles.addBtn, (!selectedCategory || !selectedBrand) && styles.disabledAddBtn]}
                     onPress={addMachinery}
-                    disabled={!selectedCategory}
+                    disabled={!selectedCategory || !selectedBrand}
                   >
                     <Text style={styles.addBtnText}>Add to List</Text>
                   </TouchableOpacity>
@@ -378,7 +478,7 @@ export default function SignUpScreen() {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.listItemTitle}>{item.category.name}</Text>
                         <Text style={styles.listItemSubtitle}>
-                          {item.brands.map((b: any) => b.description).join(', ') || 'No brands'}
+                          {item.brand.description}
                         </Text>
                       </View>
                       <TouchableOpacity onPress={() => removeMachinery(index)}>
@@ -408,6 +508,64 @@ export default function SignUpScreen() {
                 </View>
 
                 <TouchableOpacity
+                  style={[styles.btn, { marginTop: 20 }]}
+                  onPress={handleRegister}
+                >
+                  <Text style={styles.btnText}>Next: Membership</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={styles.stepTitleContainer}>
+                  <TouchableOpacity onPress={() => setStep(hasBelongingsRole ? 2 : 1)} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color="#333" />
+                  </TouchableOpacity>
+                  <Text style={styles.title}>Membership Plan</Text>
+                </View>
+
+                {selectedRole && selectedRole !== 'Employer' && (
+                  <TouchableOpacity
+                    style={[styles.gadalBtn, postThroughGadal && styles.activeGadalBtn]}
+                    onPress={() => {
+                      setPostThroughGadal(!postThroughGadal);
+                      setSelectedMembership(null);
+                    }}
+                  >
+                    <Ionicons name={postThroughGadal ? "checkbox" : "square-outline"} size={24} color={postThroughGadal ? "#fff" : THEME_COLOR} />
+                    <Text style={[styles.gadalBtnText, postThroughGadal && { color: '#fff' }]}>Process Through Gadal</Text>
+                  </TouchableOpacity>
+                )}
+
+                {(!postThroughGadal && MEMBERSHIP_PLANS[selectedRole || ""]) ? (
+                  <View style={styles.plansContainer}>
+                    {MEMBERSHIP_PLANS[selectedRole || ""].map((plan: any) => (
+                      <TouchableOpacity
+                        key={plan.id}
+                        style={[styles.planCard, selectedMembership?.id === plan.id && styles.activePlanCard]}
+                        onPress={() => setSelectedMembership(plan)}
+                      >
+                        <View style={styles.planHeader}>
+                          <Text style={styles.planTitle}>{plan.title}</Text>
+                          <Text style={styles.planPrice}>{plan.price} Birr</Text>
+                        </View>
+                        {plan.features.map((feature: string, idx: number) => (
+                          <View key={idx} style={styles.featureRow}>
+                            <Ionicons name="checkmark-circle" size={16} color={THEME_COLOR} />
+                            <Text style={styles.featureText}>{feature}</Text>
+                          </View>
+                        ))}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : !postThroughGadal && selectedRole !== 'Employer' && (
+                  <Text style={styles.noPlanText}>Please select a role first to see plans.</Text>
+                )}
+
+                {selectedRole === 'Employer' && (
+                  <Text style={styles.noPlanText}>Employers can register directly without a specific membership plan at this stage.</Text>
+                )}
+
+                <TouchableOpacity
                   style={[styles.btn, registerMutation.isPending && styles.disabledBtn, { marginTop: 20 }]}
                   onPress={handleRegister}
                   disabled={registerMutation.isPending}
@@ -415,7 +573,7 @@ export default function SignUpScreen() {
                   {registerMutation.isPending ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.btnText}>Agree and Register</Text>
+                    <Text style={styles.btnText}>Complete Registration</Text>
                   )}
                 </TouchableOpacity>
               </>
@@ -472,7 +630,7 @@ export default function SignUpScreen() {
                   style={styles.modalItem}
                   onPress={() => {
                     setSelectedCategory(item);
-                    setSelectedBrands([]);
+                    setSelectedBrand(null); // Clear selected brand when category changes
                     setShowCategoryModal(false);
                   }}
                 >
@@ -503,26 +661,65 @@ export default function SignUpScreen() {
               data={brands}
               keyExtractor={(item) => item._id}
               renderItem={({ item }) => {
-                const isSelected = selectedBrands.some(b => b._id === item._id);
+                const isSelected = selectedBrand?._id === item._id;
                 return (
                   <TouchableOpacity
+                    key={item._id}
                     style={styles.modalItem}
-                    onPress={() => toggleBrand(item)}
+                    onPress={() => {
+                      setSelectedBrand(item);
+                      setShowBrandModal(false);
+                    }}
                   >
+                    <Ionicons
+                      name={isSelected ? "radio-button-on" : "radio-button-off"}
+                      size={20}
+                      color={isSelected ? THEME_COLOR : "#666"}
+                    />
                     <Text style={[styles.modalItemName, isSelected && { color: THEME_COLOR, fontWeight: 'bold' }]}>
                       {item.description}
                     </Text>
-                    {isSelected && <Ionicons name="checkmark" size={20} color={THEME_COLOR} />}
                   </TouchableOpacity>
                 );
               }}
             />
-            <TouchableOpacity
-              style={[styles.btn, { marginTop: 10 }]}
-              onPress={() => setShowBrandModal(false)}
-            >
-              <Text style={styles.btnText}>Done</Text>
-            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* --- ROLE PICKER MODAL --- */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showRoleModal}
+        onRequestClose={() => setShowRoleModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.countryModalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Role</Text>
+              <TouchableOpacity onPress={() => setShowRoleModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={ROLES}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.modalItem}
+                  onPress={() => {
+                    setSelectedRole(item);
+                    setShowRoleModal(false);
+                  }}
+                >
+                  <Text style={[styles.modalItemName, selectedRole === item && { color: THEME_COLOR, fontWeight: 'bold' }]}>
+                    {item}
+                  </Text>
+                  {selectedRole === item && <Ionicons name="checkmark" size={20} color={THEME_COLOR} />}
+                </TouchableOpacity>
+              )}
+            />
           </View>
         </View>
       </Modal>
@@ -562,7 +759,28 @@ const styles = StyleSheet.create({
   roleButtonText: { fontSize: 12, color: '#666', fontWeight: 'bold' },
   selectedRoleButtonText: { color: THEME_COLOR },
 
-  termsText: { textAlign: 'center', color: '#666', fontSize: 13, marginBottom: 20, marginTop: 10 },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 10,
+    paddingHorizontal: 5
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: THEME_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxChecked: {
+    backgroundColor: THEME_COLOR,
+  },
+  termsText: { flex: 1, color: '#666', fontSize: 13 },
+  termsLink: { color: THEME_COLOR, fontWeight: 'bold', textDecorationLine: 'underline' },
   btn: { backgroundColor: THEME_COLOR, padding: 16, borderRadius: 12, alignItems: 'center' },
   disabledBtn: { backgroundColor: '#ccc' },
   btnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
@@ -626,4 +844,24 @@ const styles = StyleSheet.create({
   },
   modalItemFlag: { fontSize: 24, marginRight: 15 },
   modalItemName: { fontSize: 16, color: '#333' },
+
+  plansContainer: { marginTop: 10 },
+  planCard: {
+    backgroundColor: '#fff', padding: 16, borderRadius: 12, marginBottom: 15,
+    borderWidth: 2, borderColor: '#eee', elevation: 2
+  },
+  activePlanCard: { borderColor: THEME_COLOR, backgroundColor: '#FFF3E0' },
+  planHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
+  planTitle: { fontSize: 18, fontWeight: 'bold', color: '#222' },
+  planPrice: { fontSize: 16, fontWeight: 'bold', color: THEME_COLOR },
+  featureRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
+  featureText: { fontSize: 14, color: '#666', marginLeft: 8 },
+  noPlanText: { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 16 },
+
+  gadalBtn: {
+    flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 12,
+    borderWidth: 2, borderColor: THEME_COLOR, marginBottom: 20, backgroundColor: '#fff'
+  },
+  activeGadalBtn: { backgroundColor: THEME_COLOR },
+  gadalBtnText: { fontSize: 16, fontWeight: 'bold', color: THEME_COLOR, marginLeft: 10 },
 });

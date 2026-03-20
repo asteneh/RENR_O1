@@ -28,18 +28,25 @@ export default function TabNavigator() {
             tabBarActiveTintColor: THEME_COLOR,
             tabBarInactiveTintColor: 'gray',
             tabBarStyle: {
-                height: 60 + insets.bottom,
-                paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
-                paddingTop: 8,
+                height: 65 + insets.bottom,
+                paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+                paddingTop: 10,
                 backgroundColor: '#fff',
+                borderTopWidth: 1,
+                borderTopColor: '#f0f0f0',
+                elevation: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: -2 },
+                shadowOpacity: 0.05,
+                shadowRadius: 3,
             },
             tabBarIcon: ({ color, size, focused }) => {
                 let iconName: keyof typeof Ionicons.glyphMap = 'home';
 
                 if (route.name === 'Home') {
                     iconName = focused ? 'home' : 'home-outline';
-                } else if (route.name === 'Category') {
-                    iconName = focused ? 'grid' : 'grid-outline';
+                } else if (route.name === 'Requests') {
+                    iconName = focused ? 'list-sharp' : 'list-outline';
                 } else if (route.name === 'Post') {
                     iconName = focused ? 'create' : 'create-outline';
                 } else if (route.name === 'Account') {
@@ -93,9 +100,19 @@ export default function TabNavigator() {
             />
 
             <Tab.Screen
-                name="Category"
-                component={CategoryScreen}
-                options={{ title: 'Categories' }}
+                name="Requests"
+                component={Placeholder}
+                options={{ title: 'Requests' }}
+                listeners={({ navigation }) => ({
+                    tabPress: (e) => {
+                        e.preventDefault();
+                        if (isAuthenticated) {
+                            (navigation as any).navigate('SupplierHome');
+                        } else {
+                            (navigation as any).navigate('Login');
+                        }
+                    },
+                })}
             />
 
             <Tab.Screen

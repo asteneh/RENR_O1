@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useFollowings, useUnfollow, useUserProfile } from '../../api/services/userService';
+import { useNotificationStore } from '../../store/useNotificationStore';
 import { CONFIG } from '../../config';
 
 const THEME_COLOR = '#FF8C00';
@@ -13,13 +14,20 @@ export default function FollowingsScreen() {
     const { data: profile } = useUserProfile();
     const { data: followings, isLoading } = useFollowings(profile?._id || '');
     const unfollowMutation = useUnfollow();
+    const { showAlert, showNotification } = useNotificationStore();
 
     const handleUnfollow = (targetId: string) => {
-        Alert.alert("Unfollow", "Are you sure you want to unfollow this user?", [
+        showAlert("Unfollow", "Are you sure you want to unfollow this user?", [
             { text: "Cancel", style: 'cancel' },
             {
                 text: "Unfollow", style: 'destructive', onPress: () => {
-                    unfollowMutation.mutate({ user: profile?._id || '', userToUnfollow: targetId });
+                    unfollowMutation.mutate(
+                        { user: profile?._id || '', userToUnfollow: targetId },
+                        {
+                            onSuccess: () => showNotification("Unfollowed successfully", "success"),
+                            onError: () => showNotification("Failed to unfollow", "error")
+                        }
+                    );
                 }
             }
         ]);

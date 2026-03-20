@@ -31,11 +31,28 @@ export const updateUserProfile = async (formData: FormData): Promise<any> => {
     return response.data;
 };
 
-export const fetchUserAds = async (args: { userId: string, serviceType?: number }) => {
-    let url = `products?consignee=${args.userId}&recordStatus=1`;
+export const fetchUserAds = async (args: {
+    userId: string,
+    serviceType?: number,
+    derivedState?: number,
+    recordStatus?: number
+}) => {
+    let url = `products?consignee=${args.userId}`;
+
+    if (args.recordStatus !== undefined) {
+        url += `&recordStatus=${args.recordStatus}`;
+    } else {
+        url += `&recordStatus=1`;
+    }
+
     if (args.serviceType) {
         url += `&productType=${args.serviceType}`;
     }
+
+    if (args.derivedState) {
+        url += `&derivedState=${args.derivedState}`;
+    }
+
     const response = await apiClient.get(url);
     return response.data; // Expected { products: [...], metadata: {...} }
 };
@@ -58,13 +75,19 @@ export const useUpdateUserProfile = () => {
     });
 };
 
-export const useUserAds = (userId: string, serviceType?: number) => {
+export const useUserAds = (args: {
+    userId: string,
+    serviceType?: number,
+    derivedState?: number,
+    recordStatus?: number
+}) => {
     return useQuery({
-        queryKey: ['userAds', userId, serviceType],
-        queryFn: () => fetchUserAds({ userId, serviceType }),
-        enabled: !!userId,
+        queryKey: ['userAds', args.userId, args.serviceType, args.derivedState, args.recordStatus],
+        queryFn: () => fetchUserAds(args),
+        enabled: !!args.userId,
     });
 };
+
 
 export const fetchFollowings = async (userId: string) => {
     const response = await apiClient.get(`users/followings/${userId}`);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Image, Platform, KeyboardAvoidingView, Alert
+  ScrollView, ActivityIndicator, Image, Platform, KeyboardAvoidingView
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,8 @@ import {
 import { useLocations, useSubCities, useWeredas, useCurrencies } from '../../api/services/locationService';
 import { usePostTypesQuery, useCreateProductMutation } from '../../api/services/productService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 
 const THEME_COLOR = '#FF8C00';
 const STEPS = ['Type', 'Category', 'Details', 'Location', 'Media', 'Options'];
@@ -24,6 +26,7 @@ const STEPS = ['Type', 'Category', 'Details', 'Location', 'Media', 'Options'];
 export default function PostPropertyScreen({ navigation }: any) {
   const [currentStep, setCurrentStep] = useState(0);
   const insets = useSafeAreaInsets();
+  const { showNotification, showAlert } = useNotificationStore();
 
   // Form State
   const [selectedService, setSelectedService] = useState<number>(ServiceEnums.Machinery);
@@ -47,6 +50,7 @@ export default function PostPropertyScreen({ navigation }: any) {
   const [images, setImages] = useState<any[]>([]);
   const [legalDocs, setLegalDocs] = useState<any[]>([]);
   const [selectedPostType, setSelectedPostType] = useState<any>(null);
+  const [postThroughGadal, setPostThroughGadal] = useState(false);
 
   const user = useAuthStore(state => state.user);
 
@@ -61,69 +65,7 @@ export default function PostPropertyScreen({ navigation }: any) {
   const postTypesQuery = usePostTypesQuery();
   const createProductMutation = useCreateProductMutation();
 
-  // --- Components ---
-
-  const Stepper = () => (
-    <View style={styles.stepperContainer}>
-      {STEPS.map((step, index) => {
-        const isActive = index <= currentStep;
-        return (
-          <View key={index} style={styles.stepWrapper}>
-            <View style={[styles.stepCircle, isActive && styles.activeStepCircle]}>
-              {isActive ? <Ionicons name="checkmark" size={14} color="#fff" /> : <Text style={styles.stepNumber}>{index + 1}</Text>}
-            </View>
-            {/* <Text style={[styles.stepLabel, isActive && styles.activeStepLabel]}>{step}</Text> */}
-            {index < STEPS.length - 1 && <View style={styles.stepLine} />}
-          </View>
-        );
-      })}
-    </View>
-  );
-
-  // Step 1: select Service Type
-  const ServiceSelection = () => {
-    // Filter to show only Machinery and Vehicle
-    const ALLOWED_SERVICES = ['Machinery', 'Vehicle'];
-
-    return (
-      <View>
-        <Text style={styles.label}>Select Service</Text>
-        <View style={styles.gridContainer}>
-          {Object.entries(ServiceEnums)
-            .filter(([key]) => ALLOWED_SERVICES.includes(key))
-            .map(([key, value]) => (
-              <TouchableOpacity
-                key={key}
-                style={[styles.serviceCard, selectedService === value && styles.activeCard]}
-                onPress={() => {
-                  setSelectedService(value);
-                  setSelectedCategory(null);
-                }}
-              >
-                <Ionicons name={getServiceIcon(key)} size={32} color={selectedService === value ? THEME_COLOR : '#666'} />
-                <Text style={[styles.serviceText, selectedService === value && styles.activeText]}>{key}</Text>
-              </TouchableOpacity>
-            ))}
-        </View>
-
-        <Text style={styles.label}>Select Type</Text>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <TouchableOpacity
-            style={[styles.typeChip, transactionType === TransactionTypeEnums.Rent && styles.activeTypeChip]}
-            onPress={() => setTransactionType(TransactionTypeEnums.Rent)}
-          >
-            <Text style={[styles.typeChipText, transactionType === TransactionTypeEnums.Rent && styles.activeTypeChipText]}>Rent</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.typeChip, transactionType === TransactionTypeEnums.Sale && styles.activeTypeChip]}
-            onPress={() => setTransactionType(TransactionTypeEnums.Sale)}
-          >
-            <Text style={[styles.typeChipText, transactionType === TransactionTypeEnums.Sale && styles.activeTypeChipText]}>Sale</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
+  // --- Handlers ---
 
   const getServiceIcon = (key: string) => {
     switch (key) {
@@ -134,287 +76,31 @@ export default function PostPropertyScreen({ navigation }: any) {
     }
   };
 
-  // Step 2: Select Category
-  const CategorySelection = () => {
-    if (categoriesQuery.isLoading) return <ActivityIndicator size="large" color={THEME_COLOR} />;
+  const pickImage = async (isLegal = false) => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 1,
+    });
 
-    return (
-      <ScrollView style={{ maxHeight: 400 }}>
-        {categoriesQuery.data?.map((cat) => (
-          <TouchableOpacity
-            key={cat._id}
-            style={[styles.listItem, selectedCategory?._id === cat._id && styles.activeListItem]}
-            onPress={() => setSelectedCategory(cat)}
-          >
-            <Image source={{ uri: cat.icon }} style={{ width: 24, height: 24, marginRight: 10 }} />
-            <Text style={[styles.listText, selectedCategory?._id === cat._id && styles.activeText]}>{cat.name}</Text>
-            {selectedCategory?._id === cat._id && <Ionicons name="checkmark-circle" size={20} color={THEME_COLOR} />}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    );
-  };
-
-  // Step 3: Details & Attributes
-  const DetailsForm = () => {
-    return (
-      <View>
-        <Text style={styles.label}>Title</Text>
-        <TextInput style={styles.input} placeholder="Item Title" placeholderTextColor="#888" value={title} onChangeText={setTitle} />
-
-        <Text style={styles.label}>Description</Text>
-        <TextInput style={[styles.input, { height: 80 }]} placeholder="Describe your item..." placeholderTextColor="#888" multiline value={description} onChangeText={setDescription} />
-
-        <Text style={styles.label}>Price</Text>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <TextInput
-            style={[styles.input, { flex: 1 }]}
-            placeholder="Amount"
-            placeholderTextColor="#888"
-            keyboardType="numeric"
-            value={price}
-            onChangeText={setPrice}
-          />
-          <TouchableOpacity
-            style={styles.pickerBoxCompact}
-            onPress={() => {
-              // If multiple currencies exist, logic could go here
-              // For now, default to first currency found or ETB
-            }}
-          >
-            <Text>{selectedCurrency?.description || currenciesQuery.data?.[0]?.description || 'ETB'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-          <TouchableOpacity
-            onPress={() => setIsFixed(true)}
-            style={[styles.miniChip, isFixed && styles.activeMiniChip]}
-          >
-            <Text style={isFixed ? styles.activeMiniChipText : styles.miniChipText}>Fixed</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setIsFixed(false)}
-            style={[styles.miniChip, !isFixed && styles.activeMiniChip]}
-          >
-            <Text style={!isFixed ? styles.activeMiniChipText : styles.miniChipText}>Negotiable</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Brands if available */}
-        {brandsQuery.data && brandsQuery.data.length > 0 && (
-          <View style={{ marginTop: 15 }}>
-            <Text style={styles.label}>Brand</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-              {brandsQuery.data.map(brand => (
-                <TouchableOpacity
-                  key={brand._id}
-                  style={[styles.chip, selectedBrand?._id === brand._id && styles.activeChip]}
-                  onPress={() => setSelectedBrand(brand)}
-                >
-                  <Text style={[styles.chipText, selectedBrand?._id === brand._id && styles.activeChipText]}>{brand.description}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Dynamic Attributes */}
-        {attributesQuery.isLoading ? <ActivityIndicator color={THEME_COLOR} /> : (
-          <View style={{ marginTop: 20 }}>
-            <Text style={styles.sectionHeader}>Specifications</Text>
-            {attributesQuery.data?.map(attr => (
-              <View key={attr._id} style={{ marginTop: 10 }}>
-                <Text style={styles.labelSmall}>{attr.name}</Text>
-                {attr.isInsertion ? (
-                  <TextInput
-                    style={styles.input}
-                    placeholder={`Enter ${attr.name}`}
-                    placeholderTextColor="#888"
-                    value={attributeValues[attr.name] || ''}
-                    onChangeText={(val) => setAttributeValues({ ...attributeValues, [attr.name]: val })}
-                  />
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {attr.values.map(val => (
-                      <TouchableOpacity
-                        key={val}
-                        style={[
-                          styles.chip,
-                          attributeValues[attr.name] === val && styles.activeChip
-                        ]}
-                        onPress={() => setAttributeValues({ ...attributeValues, [attr.name]: val })}
-                      >
-                        <Text style={attributeValues[attr.name] === val ? styles.activeChipText : styles.chipText}>{val}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  // Step 4: Location
-  const LocationForm = () => (
-    <View>
-      <Text style={styles.label}>Select Location</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
-        {locationsQuery.data?.map(loc => (
-          <TouchableOpacity
-            key={loc._id}
-            style={[styles.chip, selectedLocation?._id === loc._id && styles.activeChip]}
-            onPress={() => {
-              setSelectedLocation(loc);
-              setSelectedSubCity(null);
-              setSelectedWereda(null);
-            }}
-          >
-            <Text style={selectedLocation?._id === loc._id ? styles.activeChipText : styles.chipText}>{loc.descripton}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {selectedLocation && subCitiesQuery.data && (
-        <>
-          <Text style={styles.label}>Select Sub-City</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
-            {subCitiesQuery.data?.map(sub => (
-              <TouchableOpacity
-                key={sub._id}
-                style={[styles.chip, selectedSubCity?._id === sub._id && styles.activeChip]}
-                onPress={() => {
-                  setSelectedSubCity(sub);
-                  setSelectedWereda(null);
-                }}
-              >
-                <Text style={selectedSubCity?._id === sub._id ? styles.activeChipText : styles.chipText}>{sub.descripton}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </>
-      )}
-
-      {selectedSubCity && weredasQuery.data && (
-        <>
-          <Text style={styles.label}>Select Wereda</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {weredasQuery.data?.map(wer => (
-              <TouchableOpacity
-                key={wer._id}
-                style={[styles.chip, selectedWereda?._id === wer._id && styles.activeChip]}
-                onPress={() => setSelectedWereda(wer)}
-              >
-                <Text style={selectedWereda?._id === wer._id ? styles.activeChipText : styles.chipText}>{wer.descripton}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </>
-      )}
-    </View>
-  );
-
-  // Step 5: Media
-  const MediaForm = () => {
-    const pickImage = async (isLegal = false) => {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        if (isLegal) {
-          setLegalDocs([...legalDocs, result.assets[0]]);
-        } else {
-          setImages([...images, result.assets[0]]);
-        }
+    if (!result.canceled) {
+      if (isLegal) {
+        setLegalDocs([...legalDocs, result.assets[0]]);
+      } else {
+        setImages([...images, result.assets[0]]);
       }
-    };
-
-    return (
-      <View>
-        <Text style={styles.label}>Product Photos</Text>
-        <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(false)}>
-          <Ionicons name="camera" size={40} color={THEME_COLOR} />
-          <Text style={{ color: '#666', marginTop: 10 }}>Tap to upload images</Text>
-        </TouchableOpacity>
-        <View style={styles.imageGrid}>
-          {images.map((img, idx) => (
-            <View key={idx} style={styles.imageWrapper}>
-              <Image source={{ uri: img.uri }} style={styles.thumbnail} />
-              <TouchableOpacity onPress={() => setImages(images.filter((_, i) => i !== idx))} style={styles.removeBtn}>
-                <Ionicons name="close-circle" size={20} color="red" />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-
-        <Text style={styles.label}>Legal Documents / Libre</Text>
-        <TouchableOpacity style={[styles.uploadBox, { height: 100 }]} onPress={() => pickImage(true)}>
-          <Ionicons name="document-text" size={30} color={THEME_COLOR} />
-          <Text style={{ color: '#666', marginTop: 5 }}>Upload PDF or Image</Text>
-        </TouchableOpacity>
-        <View style={styles.imageGrid}>
-          {legalDocs.map((doc, idx) => (
-            <View key={idx} style={styles.imageWrapper}>
-              <View style={[styles.thumbnail, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
-                {doc.mimeType === 'application/pdf' ? <Text>PDF</Text> : <Image source={{ uri: doc.uri }} style={styles.thumbnail} />}
-              </View>
-              <TouchableOpacity onPress={() => setLegalDocs(legalDocs.filter((_, i) => i !== idx))} style={styles.removeBtn}>
-                <Ionicons name="close-circle" size={20} color="red" />
-              </TouchableOpacity>
-            </View>
-          ))}
-        </View>
-
-        <Text style={styles.label}>YouTube Video Link</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="https://youtube.com/..."
-          placeholderTextColor="#888"
-          value={videoLink}
-          onChangeText={setVideoLink}
-        />
-      </View>
-    );
+    }
   };
 
-  // Step 6: Post Options
-  const OptionsForm = () => {
-    if (postTypesQuery.isLoading) return <ActivityIndicator size="large" color={THEME_COLOR} />;
-
-    return (
-      <View>
-        <Text style={styles.sectionHeader}>Choose Posting Package</Text>
-        {postTypesQuery.data?.map((option) => (
-          <TouchableOpacity
-            key={option._id}
-            style={[styles.packageCard, selectedPostType?._id === option._id && styles.activePackageCard]}
-            onPress={() => setSelectedPostType(option)}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.packageName}>{option.name}</Text>
-              <Text style={styles.packagePrice}>ETB {option.price}</Text>
-            </View>
-            {selectedPostType?._id === option._id && <Ionicons name="checkmark-circle" size={24} color={THEME_COLOR} />}
-          </TouchableOpacity>
-        ))}
-      </View>
-    );
-  };
 
   const handleNext = () => {
-    if (currentStep === 0 && !selectedService) return Alert.alert("Error", "Select a service type");
-    if (currentStep === 1 && !selectedCategory) return Alert.alert("Error", "Select a category");
+    if (currentStep === 0 && !selectedService) return showNotification("Select a service type", "error");
+    if (currentStep === 1 && !selectedCategory) return showNotification("Select a category", "error");
 
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      if (!selectedPostType) return Alert.alert("Error", "Please select a posting package");
+      if (!selectedPostType) return showNotification("Please select a posting package", "error");
       submitPost();
     }
   };
@@ -435,6 +121,7 @@ export default function PostPropertyScreen({ navigation }: any) {
       formData.append('consignee', user?.id || '');
       formData.append('postType', selectedPostType?._id);
       formData.append('youtubeLink', videoLink);
+      formData.append('postThroughGadal', `${postThroughGadal}`);
       formData.append('currency', selectedCurrency?._id || currenciesQuery.data?.[0]?._id);
 
       if (selectedBrand) {
@@ -475,16 +162,15 @@ export default function PostPropertyScreen({ navigation }: any) {
 
       createProductMutation.mutate(formData, {
         onSuccess: () => {
-          Alert.alert("Success", "Product posted successfully!", [
-            { text: "OK", onPress: () => navigation.navigate('Tabs') }
-          ]);
+          showNotification("Product posted successfully!", "success");
+          navigation.navigate('Tabs');
         },
         onError: (err: any) => {
-          Alert.alert("Error", err.message || "Failed to post product");
+          showNotification(cleanErrorMessage(err), "error");
         }
       });
     } catch (error) {
-      Alert.alert("Error", "Something went wrong building the form");
+      showNotification("Something went wrong building the form", "error");
     }
   };
 
@@ -495,18 +181,315 @@ export default function PostPropertyScreen({ navigation }: any) {
       </View>
 
       <View style={styles.stepperWrapper}>
-        <Stepper />
+        <View style={styles.stepperContainer}>
+          {STEPS.map((step, index) => {
+            const isActive = index <= currentStep;
+            return (
+              <View key={index} style={styles.stepWrapper}>
+                <View style={[styles.stepCircle, isActive && styles.activeStepCircle]}>
+                  {isActive ? <Ionicons name="checkmark" size={14} color="#fff" /> : <Text style={styles.stepNumber}>{index + 1}</Text>}
+                </View>
+                {index < STEPS.length - 1 && <View style={styles.stepLine} />}
+              </View>
+            );
+          })}
+        </View>
         <Text style={styles.stepTitle}>{STEPS[currentStep]}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {currentStep === 0 && <ServiceSelection />}
-        {currentStep === 1 && <CategorySelection />}
-        {currentStep === 2 && <DetailsForm />}
-        {currentStep === 3 && <LocationForm />}
-        {currentStep === 4 && <MediaForm />}
-        {currentStep === 5 && <OptionsForm />}
+        {currentStep === 0 && (
+          <View>
+            <Text style={styles.label}>Select Service</Text>
+            <View style={styles.gridContainer}>
+              {Object.entries(ServiceEnums)
+                .filter(([key]) => ['Machinery', 'Vehicle'].includes(key))
+                .map(([key, value]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.serviceCard, selectedService === value && styles.activeCard]}
+                    onPress={() => {
+                      setSelectedService(value);
+                      setSelectedCategory(null);
+                    }}
+                  >
+                    <Ionicons name={getServiceIcon(key)} size={32} color={selectedService === value ? THEME_COLOR : '#666'} />
+                    <Text style={[styles.serviceText, selectedService === value && styles.activeText]}>{key}</Text>
+                  </TouchableOpacity>
+                ))}
+            </View>
+
+            <Text style={styles.label}>Select Type</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                style={[styles.typeChip, transactionType === TransactionTypeEnums.Rent && styles.activeTypeChip]}
+                onPress={() => setTransactionType(TransactionTypeEnums.Rent)}
+              >
+                <Text style={[styles.typeChipText, transactionType === TransactionTypeEnums.Rent && styles.activeTypeChipText]}>Rent</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeChip, transactionType === TransactionTypeEnums.Sale && styles.activeTypeChip]}
+                onPress={() => setTransactionType(TransactionTypeEnums.Sale)}
+              >
+                <Text style={[styles.typeChipText, transactionType === TransactionTypeEnums.Sale && styles.activeTypeChipText]}>Sale</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {currentStep === 1 && (
+          <View>
+            {categoriesQuery.isLoading ? <ActivityIndicator size="large" color={THEME_COLOR} /> : (
+              <ScrollView style={{ maxHeight: 400 }}>
+                {categoriesQuery.data?.map((cat) => (
+                  <TouchableOpacity
+                    key={cat._id}
+                    style={[styles.listItem, selectedCategory?._id === cat._id && styles.activeListItem]}
+                    onPress={() => setSelectedCategory(cat)}
+                  >
+                    <Image source={{ uri: cat.icon }} style={{ width: 24, height: 24, marginRight: 10 }} />
+                    <Text style={[styles.listText, selectedCategory?._id === cat._id && styles.activeText]}>{cat.name}</Text>
+                    {selectedCategory?._id === cat._id && <Ionicons name="checkmark-circle" size={20} color={THEME_COLOR} />}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        )}
+
+        {currentStep === 2 && (
+          <View>
+            <Text style={styles.label}>Title</Text>
+            <TextInput style={styles.input} placeholder="Item Title" placeholderTextColor="#888" value={title} onChangeText={setTitle} />
+
+            <Text style={styles.label}>Description</Text>
+            <TextInput style={[styles.input, { height: 80 }]} placeholder="Describe your item..." placeholderTextColor="#888" multiline value={description} onChangeText={setDescription} />
+
+            <Text style={styles.label}>Price</Text>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Amount"
+                placeholderTextColor="#888"
+                keyboardType="numeric"
+                value={price}
+                onChangeText={setPrice}
+              />
+              <TouchableOpacity style={styles.pickerBoxCompact}>
+                <Text>{selectedCurrency?.description || currenciesQuery.data?.[0]?.description || 'ETB'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+              <TouchableOpacity
+                onPress={() => setIsFixed(true)}
+                style={[styles.miniChip, isFixed && styles.activeMiniChip]}
+              >
+                <Text style={isFixed ? styles.activeMiniChipText : styles.miniChipText}>Fixed</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setIsFixed(false)}
+                style={[styles.miniChip, !isFixed && styles.activeMiniChip]}
+              >
+                <Text style={!isFixed ? styles.activeMiniChipText : styles.miniChipText}>Negotiable</Text>
+              </TouchableOpacity>
+            </View>
+
+            {brandsQuery.data && brandsQuery.data.length > 0 && (
+              <View style={{ marginTop: 15 }}>
+                <Text style={styles.label}>Brand</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                  {brandsQuery.data.map(brand => (
+                    <TouchableOpacity
+                      key={brand._id}
+                      style={[styles.chip, selectedBrand?._id === brand._id && styles.activeChip]}
+                      onPress={() => setSelectedBrand(brand)}
+                    >
+                      <Text style={[styles.chipText, selectedBrand?._id === brand._id && styles.activeChipText]}>{brand.description}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {attributesQuery.isLoading ? <ActivityIndicator color={THEME_COLOR} /> : (
+              <View style={{ marginTop: 20 }}>
+                <Text style={styles.sectionHeader}>Specifications</Text>
+                {attributesQuery.data?.map(attr => (
+                  <View key={attr._id} style={{ marginTop: 10 }}>
+                    <Text style={styles.labelSmall}>{attr.name}</Text>
+                    {attr.isInsertion ? (
+                      <TextInput
+                        style={styles.input}
+                        placeholder={`Enter ${attr.name}`}
+                        placeholderTextColor="#888"
+                        value={attributeValues[attr.name] || ''}
+                        onChangeText={(val) => setAttributeValues({ ...attributeValues, [attr.name]: val })}
+                      />
+                    ) : (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        {attr.values.map(val => (
+                          <TouchableOpacity
+                            key={val}
+                            style={[styles.chip, attributeValues[attr.name] === val && styles.activeChip]}
+                            onPress={() => setAttributeValues({ ...attributeValues, [attr.name]: val })}
+                          >
+                            <Text style={attributeValues[attr.name] === val ? styles.activeChipText : styles.chipText}>{val}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {currentStep === 3 && (
+          <View>
+            <Text style={styles.label}>Select Location</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+              {locationsQuery.data?.map(loc => (
+                <TouchableOpacity
+                  key={loc._id}
+                  style={[styles.chip, selectedLocation?._id === loc._id && styles.activeChip]}
+                  onPress={() => {
+                    setSelectedLocation(loc);
+                    setSelectedSubCity(null);
+                    setSelectedWereda(null);
+                  }}
+                >
+                  <Text style={selectedLocation?._id === loc._id ? styles.activeChipText : styles.chipText}>{loc.descripton}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {selectedLocation && subCitiesQuery.data && (
+              <>
+                <Text style={styles.label}>Select Sub-City</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
+                  {subCitiesQuery.data?.map(sub => (
+                    <TouchableOpacity
+                      key={sub._id}
+                      style={[styles.chip, selectedSubCity?._id === sub._id && styles.activeChip]}
+                      onPress={() => {
+                        setSelectedSubCity(sub);
+                        setSelectedWereda(null);
+                      }}
+                    >
+                      <Text style={selectedSubCity?._id === sub._id ? styles.activeChipText : styles.chipText}>{sub.descripton}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
+            {selectedSubCity && weredasQuery.data && (
+              <>
+                <Text style={styles.label}>Select Wereda</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {weredasQuery.data?.map(wer => (
+                    <TouchableOpacity
+                      key={wer._id}
+                      style={[styles.chip, selectedWereda?._id === wer._id && styles.activeChip]}
+                      onPress={() => setSelectedWereda(wer)}
+                    >
+                      <Text style={selectedWereda?._id === wer._id ? styles.activeChipText : styles.chipText}>{wer.descripton}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+          </View>
+        )}
+
+        {currentStep === 4 && (
+          <View>
+            <Text style={styles.label}>Product Photos</Text>
+            <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(false)}>
+              <Ionicons name="camera" size={40} color={THEME_COLOR} />
+              <Text style={{ color: '#666', marginTop: 10 }}>Tap to upload images</Text>
+            </TouchableOpacity>
+            <View style={styles.imageGrid}>
+              {images.map((img, idx) => (
+                <View key={idx} style={styles.imageWrapper}>
+                  <Image source={{ uri: img.uri }} style={styles.thumbnail} />
+                  <TouchableOpacity onPress={() => setImages(images.filter((_, i) => i !== idx))} style={styles.removeBtn}>
+                    <Ionicons name="close-circle" size={20} color="red" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Legal Documents / Libre</Text>
+            <TouchableOpacity style={[styles.uploadBox, { height: 100 }]} onPress={() => pickImage(true)}>
+              <Ionicons name="document-text" size={30} color={THEME_COLOR} />
+              <Text style={{ color: '#666', marginTop: 5 }}>Upload PDF or Image</Text>
+            </TouchableOpacity>
+            <View style={styles.imageGrid}>
+              {legalDocs.map((doc, idx) => (
+                <View key={idx} style={styles.imageWrapper}>
+                  <View style={[styles.thumbnail, { backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center' }]}>
+                    {doc.mimeType === 'application/pdf' ? <Text>PDF</Text> : <Image source={{ uri: doc.uri }} style={styles.thumbnail} />}
+                  </View>
+                  <TouchableOpacity onPress={() => setLegalDocs(legalDocs.filter((_, i) => i !== idx))} style={styles.removeBtn}>
+                    <Ionicons name="close-circle" size={20} color="red" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+
+            <Text style={styles.label}>YouTube Video Link</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="https://youtube.com/..."
+              placeholderTextColor="#888"
+              value={videoLink}
+              onChangeText={setVideoLink}
+            />
+          </View>
+        )}
+
+        {currentStep === 5 && (
+          <View>
+            <Text style={styles.sectionHeader}>Choose Posting Package</Text>
+            {postTypesQuery.isLoading ? <ActivityIndicator size="large" color={THEME_COLOR} /> : (
+              postTypesQuery.data?.map((option) => (
+                <TouchableOpacity
+                  key={option._id}
+                  style={[styles.packageCard, selectedPostType?._id === option._id && styles.activePackageCard]}
+                  onPress={() => setSelectedPostType(option)}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.packageName}>{option.name}</Text>
+                    <Text style={styles.packagePrice}>ETB {option.price}</Text>
+                  </View>
+                  {selectedPostType?._id === option._id && <Ionicons name="checkmark-circle" size={24} color={THEME_COLOR} />}
+                </TouchableOpacity>
+              ))
+            )}
+
+            <View style={{ marginTop: 25, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 20 }}>
+              <TouchableOpacity 
+                style={styles.checkboxContainer} 
+                onPress={() => setPostThroughGadal(!postThroughGadal)}
+              >
+                <Ionicons 
+                  name={postThroughGadal ? "checkbox" : "square-outline"} 
+                  size={24} 
+                  color={THEME_COLOR} 
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.checkboxLabel}>Post through Gadal</Text>
+                  <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Your post will be shared on other Gadal network platforms.</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
+
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         {currentStep > 0 && (
@@ -616,4 +599,6 @@ const styles = StyleSheet.create({
   activePackageCard: { borderColor: THEME_COLOR, backgroundColor: '#FFF5E5' },
   packageName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   packagePrice: { fontSize: 14, color: THEME_COLOR, marginTop: 4 },
+  checkboxContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  checkboxLabel: { fontSize: 16, color: '#333', fontWeight: 'bold' }
 });

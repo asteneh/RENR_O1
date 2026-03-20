@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput,
-    TouchableOpacity, Alert, ActivityIndicator
+    TouchableOpacity, ActivityIndicator
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,14 +9,21 @@ import { useNavigation } from '@react-navigation/native';
 import { useCategoriesByService } from '../../api/services/categoryService';
 import { useCreateRequestMutation } from '../../api/services/requestService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 
 const THEME_COLOR = '#FF8C00';
 
 export default function PostRequestScreen() {
     const navigation = useNavigation<any>();
     const { user } = useAuthStore();
-    const { data: categories, isLoading: categoriesLoading } = useCategoriesByService(1); // 1 = Machinery
+    const { showNotification } = useNotificationStore();
+    const { data: machineries, isLoading: machineriesLoading } = useCategoriesByService(1); // Machinery
+    const { data: vehicles, isLoading: vehiclesLoading } = useCategoriesByService(3); // Vehicles
     const createMutation = useCreateRequestMutation();
+
+    const categories = [...(machineries || []), ...(vehicles || [])];
+    const categoriesLoading = machineriesLoading || vehiclesLoading;
 
     const [form, setForm] = useState({
         title: '',
@@ -25,6 +32,7 @@ export default function PostRequestScreen() {
         location: '',
         category: '',
         qty: '1',
+        postThroughGadal: false
     });
 
     const [loading, setLoading] = useState(false);
@@ -32,7 +40,7 @@ export default function PostRequestScreen() {
     const handlePost = async () => {
         if (!user) return navigation.navigate('Login');
         if (!form.title || !form.category || !form.description) {
-            return Alert.alert("Missing Info", "Please fill in title, category and description");
+            return showNotification("Please fill in title, category and description", "error");
         }
 
         try {
@@ -43,6 +51,7 @@ export default function PostRequestScreen() {
                 state: 'Pending',
                 location: form.location,
                 postedBy: user.id || user._id,
+                postThroughGadal: form.postThroughGadal,
                 productDetails: [{
                     category: form.category,
                     qty: parseInt(form.qty) || 1,
@@ -53,10 +62,10 @@ export default function PostRequestScreen() {
             };
 
             await createMutation.mutateAsync(submissionData);
-            Alert.alert("Success", "Your request has been posted!");
+            showNotification("Your request has been posted!", "success");
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert("Error", error.message || "Failed to post request");
+            showNotification(cleanErrorMessage(error), "error");
         }
     };
 
@@ -126,9 +135,20 @@ export default function PostRequestScreen() {
                     placeholderTextColor="#888"
                     multiline
                     numberOfLines={4}
-                    value={form.description}
                     onChangeText={(val) => setForm({ ...form, description: val })}
                 />
+
+                <TouchableOpacity 
+                    style={styles.checkboxContainer} 
+                    onPress={() => setForm(prev => ({ ...prev, postThroughGadal: !prev.postThroughGadal }))}
+                >
+                    <Ionicons 
+                        name={form.postThroughGadal ? "checkbox" : "square-outline"} 
+                        size={24} 
+                        color={THEME_COLOR} 
+                    />
+                    <Text style={styles.checkboxLabel}>Post through Gadal</Text>
+                </TouchableOpacity>
 
                 <TouchableOpacity
                     style={[styles.submitBtn, createMutation.isPending && styles.disabledBtn]}
@@ -181,5 +201,7 @@ const styles = StyleSheet.create({
     activeCatText: { color: THEME_COLOR, fontWeight: 'bold' },
     submitBtn: { backgroundColor: THEME_COLOR, paddingVertical: 15, borderRadius: 12, alignItems: 'center', marginTop: 30 },
     submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-    disabledBtn: { opacity: 0.7 }
+    disabledBtn: { opacity: 0.7 },
+    checkboxContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 15 },
+    checkboxLabel: { fontSize: 14, color: '#333', fontWeight: '500' }
 });

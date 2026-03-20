@@ -2,13 +2,15 @@ import React, { useState, useMemo } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TextInput,
     TouchableOpacity, ActivityIndicator,
-    RefreshControl, Alert
+    RefreshControl
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useJobsQuery, useApplyToJobMutation } from '../../api/services/jobService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
+import { cleanErrorMessage } from '../../utils/errorUtils';
 import JobCard from '../../components/JobCard';
 
 const THEME_COLOR = '#FF8C00';
@@ -18,6 +20,7 @@ export default function FindJobsScreen() {
     const insets = useSafeAreaInsets();
     const route = useRoute<any>();
     const { user, isAuthenticated } = useAuthStore();
+    const { showAlert, showNotification } = useNotificationStore();
 
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -55,7 +58,7 @@ export default function FindJobsScreen() {
     const handleApply = async (jobId: string, appliedUsers: any[]) => {
         const userId = user?.id || user?._id;
 
-        Alert.alert(
+        showAlert(
             "Apply for Job",
             "Choose your application method:",
             [
@@ -66,19 +69,21 @@ export default function FindJobsScreen() {
                             return navigation.navigate('OperatorRegistration', { jobId });
                         }
                         if (appliedUsers.some(u => u.userId === userId)) {
-                            return Alert.alert("Already Applied", "You have already applied for this position.");
+                            return showAlert("Already Applied", "You have already applied for this position.");
                         }
                         try {
                             await applyMutation.mutateAsync({ jobId, userId });
-                            Alert.alert("Success", "Application submitted successfully!");
+                            showNotification("Application submitted successfully!", "success");
                         } catch (error: any) {
-                            Alert.alert("Error", error.message || "Failed to submit application");
+                            showNotification(cleanErrorMessage(error), "error");
                         }
-                    }
+                    },
+                    style: 'default'
                 },
                 {
                     text: "Register & Apply",
-                    onPress: () => navigation.navigate('OperatorRegistration', { jobId })
+                    onPress: () => navigation.navigate('OperatorRegistration', { jobId }),
+                    style: 'default'
                 },
                 {
                     text: "Cancel",

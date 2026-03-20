@@ -50,7 +50,7 @@ export default function MyJobsScreen() {
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
@@ -58,7 +58,13 @@ export default function MyJobsScreen() {
                 <Text style={styles.headerTitle}>
                     {isOperator ? 'Applied Jobs' : 'My Posted Jobs'}
                 </Text>
-                <View style={{ width: 40 }} />
+                {!isOperator ? (
+                    <TouchableOpacity onPress={() => navigation.navigate('PostJob')} style={styles.addBtn}>
+                        <Ionicons name="add-circle" size={28} color={THEME_COLOR} />
+                    </TouchableOpacity>
+                ) : (
+                    <View style={{ width: 40 }} />
+                )}
             </View>
 
             {isLoading ? (
@@ -92,6 +98,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15, paddingVertical: 12, backgroundColor: '#fff',
     },
     backBtn: { padding: 8 },
+    addBtn: { padding: 8 },
     headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#111' },
     list: { padding: 15 },
     card: {

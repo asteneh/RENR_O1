@@ -1,26 +1,31 @@
 {
   "expo": {
-    "name": "New_Rent",
+    "name": "Gadal Market",
     "slug": "New_Rent",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/orange-logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "gadalmarket",
     "splash": {
       "image": "./assets/orange-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gadalmarket.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/orange-logo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.EcommerceApp"
+      "package": "com.gadalmarket"
     },
     "web": {
       "favicon": "./assets/favicon.png"

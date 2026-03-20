@@ -1,21 +1,34 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React from 'react'; // Refactored to fix hook order and syntax error
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useUserProfile } from '../../api/services/userService';
+import { useNotificationStore } from '../../store/useNotificationStore';
 import { CONFIG } from '../../config';
 
 const THEME_COLOR = '#FF8C00';
 
+const MenuOption = ({ icon, label, onPress, color = THEME_COLOR }: any) => (
+  <TouchableOpacity style={styles.menuItem} onPress={onPress}>
+    <View style={styles.menuLeft}>
+      <Ionicons name={icon} size={22} color={color} />
+      <Text style={styles.menuText}>{label}</Text>
+    </View>
+    <Ionicons name="chevron-forward" size={20} color="#ccc" />
+  </TouchableOpacity>
+);
+
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { logout, user: authUser } = useAuthStore();
+  const { showNotification, showAlert, unreadNotifications } = useNotificationStore();
   const { data: profile, isLoading, error, refetch } = useUserProfile();
 
   const handleLogout = () => {
-    Alert.alert("Logout", "Are you sure you want to logout?", [
+    showAlert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Logout", style: 'destructive', onPress: () => {
@@ -25,16 +38,6 @@ export default function ProfileScreen() {
       }
     ]);
   };
-
-  const MenuOption = ({ icon, label, onPress, color = THEME_COLOR }: any) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress}>
-      <View style={styles.menuLeft}>
-        <Ionicons name={icon} size={22} color={color} />
-        <Text style={styles.menuText}>{label}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color="#ccc" />
-    </TouchableOpacity>
-  );
 
   if (isLoading) return <View style={styles.center}><ActivityIndicator size="large" color={THEME_COLOR} /></View>;
 
@@ -51,7 +54,7 @@ export default function ProfileScreen() {
   const isOperator = profile?.userType === 'Operator';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
         {/* Header */}
@@ -67,15 +70,22 @@ export default function ProfileScreen() {
               <Text style={styles.userName}>{profile?.firstName} {profile?.lastName}</Text>
               <Text style={styles.userEmail}>{profile?.phoneNumber}</Text>
 
+              <Text style={styles.userRole}>{profile?.userType}</Text>
+
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={styles.statValue}>{profile?.postCount || 0}</Text>
-                  <Text style={styles.statLabel}>Ads</Text>
+                  <Text style={styles.statLabel}>Sales</Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{profile?.followers?.length || 0}</Text>
-                  <Text style={styles.statLabel}>Followers</Text>
+                  <Text style={styles.statValue}>0</Text>
+                  <Text style={styles.statLabel}>Buy</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>0</Text>
+                  <Text style={styles.statLabel}>Every</Text>
                 </View>
               </View>
             </View>
@@ -104,6 +114,27 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Activities</Text>
           <View style={styles.card}>
+            <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Notification')}>
+              <View style={styles.menuLeft}>
+                <Ionicons name="notifications-outline" size={22} color={THEME_COLOR} />
+                <Text style={styles.menuText}>Notifications</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {unreadNotifications > 0 && (
+                  <View style={styles.menuBadge}>
+                    <Text style={styles.menuBadgeText}>{unreadNotifications}</Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-forward" size={20} color="#ccc" />
+              </View>
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <MenuOption
+              icon="chatbubble-ellipses-outline"
+              label="Messages"
+              onPress={() => navigation.navigate('Messages')}
+            />
+            <View style={styles.divider} />
             <MenuOption
               icon="heart-outline"
               label="My Favorites"
@@ -187,11 +218,12 @@ const styles = StyleSheet.create({
   userName: { fontSize: 20, fontWeight: 'bold', color: '#111' },
   userEmail: { fontSize: 13, color: '#666', marginTop: 2 },
 
-  statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  statItem: { alignItems: 'center' },
+  userRole: { fontSize: 12, color: THEME_COLOR, fontWeight: 'bold', marginTop: 2, textTransform: 'uppercase' },
+  statsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 15 },
+  statItem: { alignItems: 'center', minWidth: 50 },
   statValue: { fontSize: 16, fontWeight: 'bold', color: '#333' },
-  statLabel: { fontSize: 11, color: '#888' },
-  statDivider: { width: 1, height: 15, backgroundColor: '#EEE', marginHorizontal: 15 },
+  statLabel: { fontSize: 10, color: '#888', marginTop: 2 },
+  statDivider: { width: 1, height: 15, backgroundColor: '#EEE', marginHorizontal: 10 },
 
   section: { paddingHorizontal: 20, marginTop: 25 },
   sectionTitle: { fontSize: 14, fontWeight: '600', color: '#888', marginBottom: 10, marginLeft: 5, textTransform: 'uppercase' },
@@ -219,4 +251,19 @@ const styles = StyleSheet.create({
     elevation: 4
   },
   logoutBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  menuBadge: {
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    paddingHorizontal: 6,
+  },
+  menuBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
 });

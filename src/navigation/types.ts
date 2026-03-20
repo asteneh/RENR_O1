@@ -1,16 +1,19 @@
 import { NavigatorScreenParams } from '@react-navigation/native';
 
 export type TabParamList = {
-  Home: { filter?: string };
+  Home: { filter?: string; filterId?: string; filterName?: string };
+
   JobsTab: undefined;
-  Category: undefined;
+  Requests: undefined;
   Post: undefined;
   Account: undefined;
 };
 
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList>;
+  Category: undefined;
   ProductDetails: { product: any };
+  Cart: undefined;
   PostProperty: undefined;
   SignUp: undefined;
   Login: undefined;
@@ -38,4 +41,7 @@ export type RootStackParamList = {
   MyJobs: undefined;
   MyPackages: undefined;
   OperatorRegistration: undefined;
+  EditListing: { productId: string };
+  TermsAndPrivacy: undefined;
+  PostJob: undefined;
 };
