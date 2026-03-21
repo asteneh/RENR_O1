@@ -66,6 +66,7 @@ export interface Product {
     transactionType: number; // 1 for Rent, 2 for Sale
     derivedState: number; // 1 for Available, 2 for Unavailable
     youtubeLink?: string;
+    postThroughGadal?: boolean;
     createdAt: string;
 }
 

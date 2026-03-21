@@ -54,6 +54,7 @@ export default function EditListingScreen({ navigation, route }: any) {
     const [existingImages, setExistingImages] = useState<string[]>([]);
     const [newImages, setNewImages] = useState<any[]>([]);
     const [selectedPostType, setSelectedPostType] = useState<any>(null);
+    const [postThroughGadal, setPostThroughGadal] = useState(false);
 
     const user = useAuthStore(state => state.user);
 
@@ -74,6 +75,7 @@ export default function EditListingScreen({ navigation, route }: any) {
             setSelectedWereda(product.wereda);
             setExistingImages(product.productImages || []);
             setSelectedPostType(product.postType);
+            setPostThroughGadal(product.postThroughGadal || false);
 
             // Attributes
             if (product.attributes) {
@@ -125,6 +127,7 @@ export default function EditListingScreen({ navigation, route }: any) {
             formData.append('category', selectedCategory?._id);
             formData.append('postType', selectedPostType?._id);
             formData.append('youtubeLink', videoLink);
+            formData.append('postThroughGadal', `${postThroughGadal}`);
             formData.append('currency', selectedCurrency?._id || currenciesQuery.data?.[0]?._id);
             formData.append('location', selectedLocation?._id);
             formData.append('subCity', selectedSubCity?._id);
@@ -465,6 +468,23 @@ export default function EditListingScreen({ navigation, route }: any) {
                                 {selectedPostType?._id === option._id && <Ionicons name="checkmark-circle" size={24} color={THEME_COLOR} />}
                             </TouchableOpacity>
                         ))}
+
+                        <View style={{ marginTop: 25, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 20 }}>
+                            <TouchableOpacity
+                                style={styles.checkboxContainer}
+                                onPress={() => setPostThroughGadal(!postThroughGadal)}
+                            >
+                                <Ionicons
+                                    name={postThroughGadal ? "checkbox" : "square-outline"}
+                                    size={24}
+                                    color={THEME_COLOR}
+                                />
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.checkboxLabel}>Post through Gadal</Text>
+                                    <Text style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Your post will be shared on other Gadal network platforms.</Text>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 )}
             </ScrollView>
@@ -543,4 +563,6 @@ const styles = StyleSheet.create({
     activePackageCard: { borderColor: THEME_COLOR, backgroundColor: '#FFF5E5' },
     packageName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
     packagePrice: { fontSize: 14, color: THEME_COLOR, marginTop: 4 },
+    checkboxContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    checkboxLabel: { fontSize: 16, color: '#333', fontWeight: 'bold' }
 });

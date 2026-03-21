@@ -101,10 +101,50 @@ export default function SignUpScreen() {
   const [selectedMembership, setSelectedMembership] = useState<any>(null);
   const [postThroughGadal, setPostThroughGadal] = useState(false);
 
+  // Error States
+  const [errors, setErrors] = useState<any>({});
+
   const { data: categories } = useCategoriesByService(1);
   const { data: brands } = useBrandsByCategory(selectedCategory?._id);
 
   const registerMutation = useRegister();
+
+  const validateFirstName = (val: string) => {
+    if (!val.trim()) return "First name is required";
+    if (!/^\S+$/.test(val.trim())) return "First name should be a single word";
+    return "";
+  };
+
+  const validateLastName = (val: string) => {
+    if (!val.trim()) return "Last name is required";
+    if (!/^\S+$/.test(val.trim())) return "Last name should be a single word";
+    return "";
+  };
+
+  const validateEmail = (val: string) => {
+    if (!val) return ""; // Email is optional in some contexts, but if provided, must be valid
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(val)) return "Please enter a valid email address";
+    return "";
+  };
+
+  const validatePhone = (val: string) => {
+    if (!val.trim()) return "Phone number is required";
+    const phoneRegex = /^\d{9,10}$/;
+    if (!phoneRegex.test(val.replace(/\s/g, ''))) return "Please enter a valid phone (9-10 digits)";
+    return "";
+  };
+
+  const validatePassword = (val: string) => {
+    if (!val) return "Password is required";
+    if (val.length < 6) return "Password must be at least 6 characters";
+    return "";
+  };
+
+  const validateConfirmPassword = (val: string, pass: string) => {
+    if (val !== pass) return "Passwords do not match";
+    return "";
+  };
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -146,43 +186,25 @@ export default function SignUpScreen() {
   const { showNotification } = useNotificationStore();
 
   const handleRegister = () => {
-    if (!firstName || !lastName || !phoneNumber || !password || !selectedRole) {
-      showNotification('Please fill in all required fields.', 'error');
-      return;
-    }
-
-    // #1. Name word count restriction
-    const nameRegex = /^\S+$/; // No spaces
-    if (!nameRegex.test(firstName.trim())) {
-      showNotification('First name should be a single word.', 'error');
-      return;
-    }
-    if (!nameRegex.test(lastName.trim())) {
-      showNotification('Last name should be a single word.', 'error');
-      return;
-    }
-
-    // #3. Email validity
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (email && !emailRegex.test(email)) {
-      showNotification('Please enter a valid email address.', 'error');
-      return;
-    }
-
-    // #2. Phone number validity
-    const phoneRegex = /^\d{9,10}$/; // 9 or 10 digits
-    if (!phoneRegex.test(phoneNumber.replace(/\s/g, ''))) {
-      showNotification('Please enter a valid phone number (9-10 digits).', 'error');
-      return;
-    }
-
-    if (!agreedToTerms) {
-      showNotification('Please agree to the Terms of Service and Privacy Policy.', 'error');
-      return;
-    }
-
     if (password !== confirmPassword) {
       showNotification('Passwords do not match.', 'error');
+      return;
+    }
+
+    // Check for any errors in the errors state
+    const currentErrors = {
+      firstName: validateFirstName(firstName),
+      lastName: validateLastName(lastName),
+      phone: validatePhone(phoneNumber),
+      email: validateEmail(email),
+      password: validatePassword(password),
+      confirmPassword: validateConfirmPassword(confirmPassword, password),
+    };
+
+    setErrors(currentErrors);
+
+    if (Object.values(currentErrors).some(err => err !== "")) {
+      showNotification('Please fix the errors in the form.', 'error');
       return;
     }
 
@@ -307,9 +329,13 @@ export default function SignUpScreen() {
                     placeholderTextColor="#888"
                     style={styles.input}
                     value={firstName}
-                    onChangeText={setFirstName}
+                    onChangeText={(val) => {
+                      setFirstName(val);
+                      setErrors({ ...errors, firstName: validateFirstName(val) });
+                    }}
                   />
                 </View>
+                {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
 
                 <View style={styles.inputContainer}>
                   <Ionicons name="person-outline" size={20} color="#FF8C00" style={styles.icon} />
@@ -318,9 +344,13 @@ export default function SignUpScreen() {
                     placeholderTextColor="#888"
                     style={styles.input}
                     value={lastName}
-                    onChangeText={setLastName}
+                    onChangeText={(val) => {
+                      setLastName(val);
+                      setErrors({ ...errors, lastName: validateLastName(val) });
+                    }}
                   />
                 </View>
+                {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
 
                 <View style={styles.inputContainer}>
                   <TouchableOpacity
@@ -338,9 +368,13 @@ export default function SignUpScreen() {
                     maxLength={15}
                     style={styles.input}
                     value={phoneNumber}
-                    onChangeText={setPhoneNumber}
+                    onChangeText={(val) => {
+                      setPhoneNumber(val);
+                      setErrors({ ...errors, phone: validatePhone(val) });
+                    }}
                   />
                 </View>
+                {errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
 
                 <View style={styles.inputContainer}>
                   <Ionicons name="mail-outline" size={20} color="#FF8C00" style={styles.icon} />
@@ -350,9 +384,13 @@ export default function SignUpScreen() {
                     keyboardType="email-address"
                     style={styles.input}
                     value={email}
-                    onChangeText={setEmail}
+                    onChangeText={(val) => {
+                      setEmail(val);
+                      setErrors({ ...errors, email: validateEmail(val) });
+                    }}
                   />
                 </View>
+                {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
 
                 <View style={styles.inputContainer}>
@@ -363,12 +401,20 @@ export default function SignUpScreen() {
                     secureTextEntry={!showPassword}
                     style={styles.input}
                     value={password}
-                    onChangeText={setPassword}
+                    onChangeText={(val) => {
+                      setPassword(val);
+                      setErrors({
+                        ...errors,
+                        password: validatePassword(val),
+                        confirmPassword: validateConfirmPassword(confirmPassword, val)
+                      });
+                    }}
                   />
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                     <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#888" />
                   </TouchableOpacity>
                 </View>
+                {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
                 <View style={styles.inputContainer}>
                   <Ionicons name="lock-closed-outline" size={20} color="#FF8C00" style={styles.icon} />
@@ -378,12 +424,16 @@ export default function SignUpScreen() {
                     secureTextEntry={!showConfirm}
                     style={styles.input}
                     value={confirmPassword}
-                    onChangeText={setConfirmPassword}
+                    onChangeText={(val) => {
+                      setConfirmPassword(val);
+                      setErrors({ ...errors, confirmPassword: validateConfirmPassword(val, password) });
+                    }}
                   />
                   <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
                     <Ionicons name={showConfirm ? "eye-outline" : "eye-off-outline"} size={20} color="#888" />
                   </TouchableOpacity>
                 </View>
+                {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
 
                 <Text style={styles.roleLabel}>I AM A:</Text>
                 <TouchableOpacity
@@ -742,6 +792,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3
   },
+  errorText: { color: 'red', fontSize: 12, marginTop: -10, marginBottom: 10, marginLeft: 5 },
   flagContainer: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   prefix: { fontSize: 16, color: '#333', marginRight: 10, fontWeight: '500' },
 

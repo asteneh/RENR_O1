@@ -21,6 +21,9 @@ export default function PostJobScreen() {
     const { showNotification } = useNotificationStore();
     const createJobMutation = useCreateJobMutation();
     const { data: machineries } = useCategoriesByService(1); // 1 for Machinery
+    const { data: vehicles } = useCategoriesByService(3); // 3 for Vehicles
+
+    const allCategories = [...(machineries || []), ...(vehicles || [])];
 
     const [formData, setFormData] = useState({
         companyName: '',
@@ -185,7 +188,7 @@ export default function PostJobScreen() {
 
                         <View style={styles.chipsContainer}>
                             {formData.machineType.map(id => {
-                                const machine = machineries?.find(m => m._id === id);
+                                const machine = allCategories?.find(m => m._id === id);
                                 return (
                                     <View key={id} style={styles.chip}>
                                         <Text style={styles.chipText}>{machine?.name || id}</Text>
@@ -307,7 +310,7 @@ export default function PostJobScreen() {
                             </TouchableOpacity>
                         </View>
                         <FlatList
-                            data={machineries}
+                            data={allCategories}
                             keyExtractor={item => item._id}
                             renderItem={({ item }) => (
                                 <TouchableOpacity
