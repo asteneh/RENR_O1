@@ -38,6 +38,7 @@ import OperatorRegistrationScreen from '../screens/Jobs/OperatorRegistrationScre
 import EditListingScreen from '../screens/Profile/EditListingScreen';
 import TermsAndPrivacyScreen from '../screens/Auth/TermsAndPrivacyScreen';
 import PostJobScreen from '../screens/Profile/PostJobScreen';
+import OtpVerifyRegistrationScreen from '../screens/Auth/OtpVerifyRegistrationScreen';
 
 
 import { RootStackParamList } from './types';
@@ -67,6 +68,7 @@ export default function AppNavigator() {
         <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: 'Recovery' }} />
         <Stack.Screen name="VerifyPhone" component={VerifyPhoneScreen} options={{ title: 'Verify' }} />
+        <Stack.Screen name="OtpVerifyRegistration" component={OtpVerifyRegistrationScreen} options={{ headerShown: false }} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: 'Reset Password' }} />
         <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'My Favorites' }} />
         <Stack.Screen name="Notification" component={NotificationScreen} options={{ headerShown: false }} />

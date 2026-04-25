@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, ScrollView,
     TouchableOpacity, ActivityIndicator, Share
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { JobsStackParamList } from '../../navigation/JobsNavigator';
@@ -22,6 +22,7 @@ export default function JobDetailsScreen() {
     const { jobId } = route.params;
     const { user, isAuthenticated, token } = useAuthStore();
     const { showNotification, showAlert } = useNotificationStore();
+    const insets = useSafeAreaInsets();
 
     const { data: job, isLoading } = useJobDetailQuery(jobId);
     const applyMutation = useApplyToJobMutation();
@@ -48,7 +49,7 @@ export default function JobDetailsScreen() {
         }
 
         try {
-            await applyMutation.mutateAsync({ jobId, userId: user.id });
+            await applyMutation.mutateAsync({ jobId, userId: user?.id || user?._id });
             showNotification("Application sent successfully!", "success");
         } catch (error: any) {
             showNotification(cleanErrorMessage(error), "error");
@@ -58,7 +59,7 @@ export default function JobDetailsScreen() {
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Check out this job: ${job?.jobTitle} at ${job?.companyName}\nLocation: ${job?.location || 'Remote'}\nSalary: ${job?.salary || 'Negotiable'}`,
+                message: `Check out this job: ${job?.jobTitle} at ${job?.companyName}\nLocation: ${job?.location || 'Remote'}\nSalary: ${job?.salary || 'Negotiable'}\n\nDownload Gadal Market: https://play.google.com/store/apps/details?id=com.gadalmarket&pcampaignid=web_share`,
             });
         } catch (error: any) {
             showNotification(error.message, "error");
@@ -145,7 +146,7 @@ export default function JobDetailsScreen() {
                 )}
             </ScrollView>
 
-            <View style={styles.footer}>
+            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                 <TouchableOpacity
                     style={[
                         styles.applyBtn,

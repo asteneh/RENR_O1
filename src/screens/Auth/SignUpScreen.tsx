@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import { useRegister } from '../../api/services/authService';
+import { useRegister, useGetOtp, useConfirmOtp } from '../../api/services/authService';
 import { useCategoriesByService, useBrandsByCategory } from '../../api/services/categoryService';
 import { formatPhoneNumber } from '../../utils/formatPhoneNumber';
 import { useNotificationStore } from '../../store/useNotificationStore';
@@ -41,6 +41,8 @@ const ROLES = [
   "employee (Operator)",
   "Employer"
 ];
+
+
 
 const MEMBERSHIP_PLANS: any = {
   "Akeray (leesor)": [
@@ -86,10 +88,15 @@ export default function SignUpScreen() {
 
   // New Fields
   const [step, setStep] = useState(1);
+  const [otpCode, setOtpCode] = useState(['', '', '', '']);
+  const [verificationId, setVerificationId] = useState('');
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+
+  // TODO: Change to string[] when backend supports multiple roles
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
 
-  // Step 2 Fields
+  // Step 2 Fields (Now Step 4)
   const [machineryList, setMachineryList] = useState<{ category: any; brand: any; }[]>([]);
   const [legalDocuments, setLegalDocuments] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
@@ -97,7 +104,7 @@ export default function SignUpScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
 
-  // Membership Selection
+  // Membership Selection (Now Step 5)
   const [selectedMembership, setSelectedMembership] = useState<any>(null);
   const [postThroughGadal, setPostThroughGadal] = useState(false);
 
@@ -108,6 +115,8 @@ export default function SignUpScreen() {
   const { data: brands } = useBrandsByCategory(selectedCategory?._id);
 
   const registerMutation = useRegister();
+  const otpMutation = useGetOtp();
+  const confirmMutation = useConfirmOtp();
 
   const validateFirstName = (val: string) => {
     if (!val.trim()) return "First name is required";
@@ -185,53 +194,111 @@ export default function SignUpScreen() {
 
   const { showNotification } = useNotificationStore();
 
-  const handleRegister = () => {
-    if (password !== confirmPassword) {
-      showNotification('Passwords do not match.', 'error');
-      return;
-    }
-
-    // Check for any errors in the errors state
+  const handleVerifyPhone = () => {
     const currentErrors = {
       firstName: validateFirstName(firstName),
       lastName: validateLastName(lastName),
       phone: validatePhone(phoneNumber),
-      email: validateEmail(email),
-      password: validatePassword(password),
-      confirmPassword: validateConfirmPassword(confirmPassword, password),
     };
-
     setErrors(currentErrors);
 
-    if (Object.values(currentErrors).some(err => err !== "")) {
-      showNotification('Please fix the errors in the form.', 'error');
+    if (currentErrors.firstName || currentErrors.lastName || currentErrors.phone) {
+      showNotification('Please fill in your name and phone correctly.', 'error');
       return;
     }
 
-    if (step === 1 && hasBelongingsRole) {
-      setStep(2);
+    const fullPhone = `${selectedCountry.dial_code}${phoneNumber.replace(/^0+/, '')}`;
+    otpMutation.mutate(fullPhone, {
+      onSuccess: (data: any) => {
+        setVerificationId(data.verificationId);
+        setStep(2);
+        showNotification('Verification code sent!', 'success');
+      },
+      onError: (error: any) => {
+        showNotification(cleanErrorMessage(error), 'error');
+      }
+    });
+  };
+
+  const handleConfirmOtp = () => {
+    const fullCode = otpCode.join('');
+    if (fullCode.length < 4) {
+      showNotification('Please enter the 4-digit code.', 'error');
       return;
     }
 
-    if (step === 1 && !hasBelongingsRole) {
-      setStep(3);
+    const fullPhone = `${selectedCountry.dial_code}${phoneNumber.replace(/^0+/, '')}`;
+    confirmMutation.mutate({
+      vid: verificationId,
+      phone: formatPhoneNumber(fullPhone),
+      code: fullCode
+    }, {
+      onSuccess: () => {
+        setIsPhoneVerified(true);
+        setStep(3);
+        showNotification('Phone verified successfully!', 'success');
+      },
+      onError: (error: any) => {
+        showNotification('Invalid verification code.', 'error');
+      }
+    });
+  };
+
+  const handleRegister = () => {
+    if (step === 1) {
+      handleVerifyPhone();
       return;
     }
 
     if (step === 2) {
-      if (machineryList.length === 0 || legalDocuments.length === 0) {
-        showNotification('Please add machinery and legal documents.', 'error');
-        return;
-      }
-      setStep(3);
+      handleConfirmOtp();
       return;
     }
 
     if (step === 3) {
-      if (selectedRole !== 'Employer' && !postThroughGadal && !selectedMembership) {
-        showNotification('Please choose a membership or select "Process Through Gadal".', 'error');
+      const currentErrors = {
+        email: validateEmail(email),
+        password: validatePassword(password),
+        confirmPassword: validateConfirmPassword(confirmPassword, password),
+      };
+      setErrors(currentErrors);
+
+      if (currentErrors.email || currentErrors.password || currentErrors.confirmPassword) {
+        showNotification('Please fix the errors.', 'error');
         return;
       }
+
+      if (!selectedRole) {
+        showNotification('Please select a role.', 'error');
+        return;
+      }
+
+      if (!agreedToTerms) {
+        showNotification('Please agree to the Terms and Privacy Policy.', 'error');
+        return;
+      }
+
+      if (hasBelongingsRole) {
+        setStep(4);
+      } else {
+        setStep(5);
+      }
+      return;
+    }
+
+    if (step === 4) {
+      if (machineryList.length === 0 || legalDocuments.length === 0) {
+        showNotification('Please add machinery and legal documents.', 'error');
+        return;
+      }
+      setStep(5);
+      return;
+    }
+
+    // Step 5 - Final Submit
+    if (selectedRole !== 'Employer' && !postThroughGadal && !selectedMembership) {
+      showNotification('Please choose a membership or select "Process Through Gadal".', 'error');
+      return;
     }
 
     const fullPhoneNumber = `${selectedCountry.dial_code}${phoneNumber.replace(/^0+/, '')}`;
@@ -259,7 +326,6 @@ export default function SignUpScreen() {
     }
     payload.postThroughGadal = postThroughGadal;
 
-    // Prepare FormData for legalDocuments
     const formData = new FormData();
     Object.keys(payload).forEach(key => {
       formData.append(key, payload[key]);
@@ -275,12 +341,11 @@ export default function SignUpScreen() {
 
     registerMutation.mutate(formData, {
       onSuccess: () => {
-        showNotification('Account created! Please login.', 'success');
+        showNotification('Account created successfully!', 'success');
         navigation.navigate('Login');
       },
       onError: (error: any) => {
-        const errorMsg = cleanErrorMessage(error);
-        showNotification(errorMsg, 'error');
+        showNotification(cleanErrorMessage(error), 'error');
       }
     });
   };
@@ -320,7 +385,7 @@ export default function SignUpScreen() {
             {step === 1 ? (
               <>
                 <Text style={styles.title}>Create Your Account</Text>
-                <Text style={styles.subtitle}>Fill in your details</Text>
+                <Text style={styles.subtitle}>Enter your name and phone to verify</Text>
 
                 <View style={styles.inputContainer}>
                   <Ionicons name="person-outline" size={20} color="#FF8C00" style={styles.icon} />
@@ -376,6 +441,75 @@ export default function SignUpScreen() {
                 </View>
                 {errors.phone ? <Text style={styles.errorText}>{errors.phone}</Text> : null}
 
+                <TouchableOpacity
+                  style={[styles.btn, otpMutation.isPending && styles.disabledBtn]}
+                  onPress={handleRegister}
+                  disabled={otpMutation.isPending}
+                >
+                  {otpMutation.isPending ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.btnText}>Verify Phone</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : step === 2 ? (
+              <>
+                <View style={styles.stepTitleContainer}>
+                  <TouchableOpacity onPress={() => setStep(1)} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color="#333" />
+                  </TouchableOpacity>
+                  <Text style={styles.title}>Verify OTP</Text>
+                </View>
+                <Text style={styles.subtitle}>Enter the 4-digit code sent to {selectedCountry.dial_code}{phoneNumber}</Text>
+
+                <View style={styles.otpRow}>
+                  {otpCode.map((digit, idx) => (
+                    <TextInput
+                      key={idx}
+                      style={styles.otpBox}
+                      value={digit}
+                      onChangeText={(val) => {
+                        const newOtp = [...otpCode];
+                        newOtp[idx] = val.replace(/[^0-9]/g, '').slice(-1);
+                        setOtpCode(newOtp);
+                      }}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      textAlign="center"
+                    />
+                  ))}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.btn, confirmMutation.isPending && styles.disabledBtn]}
+                  onPress={handleConfirmOtp}
+                  disabled={confirmMutation.isPending}
+                >
+                  {confirmMutation.isPending ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.btnText}>Verify & Continue</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.resendBtn}
+                  onPress={handleVerifyPhone}
+                  disabled={otpMutation.isPending}
+                >
+                  <Text style={styles.resendBtnText}>Resend Code</Text>
+                </TouchableOpacity>
+              </>
+            ) : step === 3 ? (
+              <>
+                <View style={styles.stepTitleContainer}>
+                  <TouchableOpacity onPress={() => setStep(1)} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color="#333" />
+                  </TouchableOpacity>
+                  <Text style={styles.title}>Account Details</Text>
+                </View>
+
                 <View style={styles.inputContainer}>
                   <Ionicons name="mail-outline" size={20} color="#FF8C00" style={styles.icon} />
                   <TextInput
@@ -391,7 +525,6 @@ export default function SignUpScreen() {
                   />
                 </View>
                 {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-
 
                 <View style={styles.inputContainer}>
                   <Ionicons name="lock-closed-outline" size={20} color="#FF8C00" style={styles.icon} />
@@ -441,7 +574,7 @@ export default function SignUpScreen() {
                   onPress={() => setShowRoleModal(true)}
                 >
                   <Text style={selectedRole ? styles.selectorText : styles.selectorPlaceholder}>
-                    {selectedRole || "Select your role"}
+                    {selectedRole || 'Select your role'}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#666" />
                 </TouchableOpacity>
@@ -467,23 +600,18 @@ export default function SignUpScreen() {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.btn, registerMutation.isPending && styles.disabledBtn]}
+                  style={[styles.btn]}
                   onPress={handleRegister}
-                  disabled={registerMutation.isPending}
                 >
-                  {registerMutation.isPending ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.btnText}>
-                      {hasBelongingsRole ? "Next Step" : "Register"}
-                    </Text>
-                  )}
+                  <Text style={styles.btnText}>
+                    {hasBelongingsRole ? "Next Step" : "Complete Registration"}
+                  </Text>
                 </TouchableOpacity>
               </>
-            ) : step === 2 ? (
+            ) : step === 4 ? (
               <>
                 <View style={styles.stepTitleContainer}>
-                  <TouchableOpacity onPress={() => setStep(1)} style={styles.backButton}>
+                  <TouchableOpacity onPress={() => setStep(3)} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                   </TouchableOpacity>
                   <Text style={styles.title}>Supplier Assets</Text>
@@ -567,7 +695,7 @@ export default function SignUpScreen() {
             ) : (
               <>
                 <View style={styles.stepTitleContainer}>
-                  <TouchableOpacity onPress={() => setStep(hasBelongingsRole ? 2 : 1)} style={styles.backButton}>
+                  <TouchableOpacity onPress={() => setStep(hasBelongingsRole ? 4 : 3)} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                   </TouchableOpacity>
                   <Text style={styles.title}>Membership Plan</Text>
@@ -586,9 +714,9 @@ export default function SignUpScreen() {
                   </TouchableOpacity>
                 )}
 
-                {(!postThroughGadal && MEMBERSHIP_PLANS[selectedRole || ""]) ? (
+                {(!postThroughGadal && MEMBERSHIP_PLANS[selectedRole || '']) ? (
                   <View style={styles.plansContainer}>
-                    {MEMBERSHIP_PLANS[selectedRole || ""].map((plan: any) => (
+                    {MEMBERSHIP_PLANS[selectedRole || ''].map((plan: any) => (
                       <TouchableOpacity
                         key={plan.id}
                         style={[styles.planCard, selectedMembership?.id === plan.id && styles.activePlanCard]}
@@ -738,6 +866,7 @@ export default function SignUpScreen() {
       </Modal>
 
       {/* --- ROLE PICKER MODAL --- */}
+      {/* TODO: Update to multi-select when backend supports string[] for userType */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -915,4 +1044,57 @@ const styles = StyleSheet.create({
   },
   activeGadalBtn: { backgroundColor: THEME_COLOR },
   gadalBtnText: { fontSize: 16, fontWeight: 'bold', color: THEME_COLOR, marginLeft: 10 },
+
+  // Multi-role selector
+  selectedRolesRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10, marginBottom: 4,
+  },
+  roleChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: '#FFF5E6', borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: THEME_COLOR,
+  },
+  roleChipText: { fontSize: 13, color: THEME_COLOR, fontWeight: '600' },
+
+  // Done button in role modal
+  roleDoneBtn: {
+    backgroundColor: THEME_COLOR, marginHorizontal: 20, marginVertical: 16,
+    paddingVertical: 14, borderRadius: 12, alignItems: 'center',
+  },
+  roleDoneBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+
+  // OTP Styles
+  otpRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: 30,
+    marginTop: 20,
+  },
+  otpBox: {
+    width: 60,
+    height: 70,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  resendBtn: {
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  resendBtnText: {
+    color: THEME_COLOR,
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

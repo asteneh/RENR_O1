@@ -57,7 +57,11 @@ export const registerUser = async (data: any) => {
 
 export const getOtp = async (phoneNumber: string) => {
     const formattedPhone = formatPhoneNumber(phoneNumber);
-    const response = await apiClient.post('auth/manuallyVerifyPhone', { phoneNumber: formattedPhone });
+    const formData = new FormData();
+    formData.append('phoneNumber', formattedPhone);
+    const response = await apiClient.post('auth/manuallyVerifyPhone', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data; // returns { verificationId }
 };
 

@@ -21,10 +21,22 @@ export default function SearchResultsScreen() {
     ...filters 
   });
 
-  const products = data?.products || [];
+  const queryLower = query?.toLowerCase() || '';
+  
+  // Use client-side filtering if backend 'search' parameter doesn't filter perfectly
+  const products = (data?.products || []).filter(p => {
+    if (!queryLower) return true;
+    return (
+        p.title?.toLowerCase().includes(queryLower) ||
+        p.description?.toLowerCase().includes(queryLower) ||
+        p.category?.name?.toLowerCase().includes(queryLower) ||
+        p.consignee?.firstName?.toLowerCase().includes(queryLower) ||
+        p.consignee?.lastName?.toLowerCase().includes(queryLower)
+    );
+  });
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" />
       
       {/* Search Bar Header */}

@@ -27,6 +27,7 @@ export type RootStackParamList = {
   Jobs: undefined;
   ForgotPassword: undefined;
   VerifyPhone: { phone: string; verificationId: string };
+  OtpVerifyRegistration: { phone: string; verificationId: string };
   ResetPassword: { phone: string };
   Favorites: undefined;
   Messages: undefined;

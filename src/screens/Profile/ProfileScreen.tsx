@@ -1,4 +1,4 @@
-import React from 'react'; // Refactored to fix hook order and syntax error
+import React, { useState } from 'react'; // Refactored to fix hook order and syntax error
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useUserProfile } from '../../api/services/userService';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { CONFIG } from '../../config';
+import ZoomableImageModal from '../../components/common/ZoomableImageModal';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -27,6 +28,9 @@ export default function ProfileScreen() {
   const { showNotification, showAlert, unreadNotifications } = useNotificationStore();
   const { data: profile, isLoading, error, refetch } = useUserProfile();
 
+  const [isZoomModalVisible, setIsZoomModalVisible] = useState(false);
+  const [zoomImage, setZoomImage] = useState('');
+
   const handleLogout = () => {
     showAlert("Logout", "Are you sure you want to logout?", [
       { text: "Cancel", style: "cancel" },
@@ -45,13 +49,17 @@ export default function ProfileScreen() {
     <View style={styles.center}>
       <Ionicons name="alert-circle-outline" size={48} color="#FF6B6B" />
       <Text style={{ marginTop: 10, color: '#666' }}>Failed to load profile details</Text>
-      <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 20, backgroundColor: THEME_COLOR, padding: 10, borderRadius: 8 }}>
-        <Text style={{ color: '#fff' }}>Retry</Text>
+      <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 20, backgroundColor: THEME_COLOR, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8, width: 200, alignItems: 'center' }}>
+        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Retry</Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity onPress={handleLogout} style={{ marginTop: 15, padding: 10 }}>
+        <Text style={{ color: '#FF6B6B', fontWeight: '600' }}>Logout from account</Text>
       </TouchableOpacity>
     </View>
   );
 
-  const isOperator = profile?.userType === 'Operator';
+  const isOperator = profile?.userType === 'employee (Operator)';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -60,17 +68,27 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.profileTop}>
-            <View style={styles.avatarContainer}>
+            <TouchableOpacity 
+              activeOpacity={0.9} 
+              style={styles.avatarContainer}
+              onPress={() => {
+                if (profile?.proflePic) {
+                  setZoomImage(`${CONFIG.FILE_URL}/${profile.proflePic}`);
+                  setIsZoomModalVisible(true);
+                }
+              }}
+            >
               <Image
                 source={{ uri: profile?.proflePic ? `${CONFIG.FILE_URL}/${profile.proflePic}` : 'https://via.placeholder.com/100' }}
                 style={styles.avatar}
               />
-            </View>
+            </TouchableOpacity>
             <View style={styles.userInfo}>
-              <Text style={styles.userName}>{profile?.firstName} {profile?.lastName}</Text>
+              <Text style={styles.userName}>
+                {profile?.firstName} {profile?.lastName}
+              </Text>
+              <Text style={styles.userRole}>({profile?.userType || 'User'})</Text>
               <Text style={styles.userEmail}>{profile?.phoneNumber}</Text>
-
-              <Text style={styles.userRole}>{profile?.userType}</Text>
 
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
@@ -185,13 +203,6 @@ export default function ProfileScreen() {
 
         {/* Bottom Actions */}
         <View style={styles.actionSection}>
-          <TouchableOpacity style={styles.agentBtn} onPress={() => navigation.navigate('OperatorRegistration')}>
-            <Ionicons name="briefcase-outline" size={20} color={THEME_COLOR} style={styles.btnIcon} />
-            <Text style={styles.agentBtnText}>
-              {isOperator ? 'Update Operator Profile' : 'Become an Operator'}
-            </Text>
-          </TouchableOpacity>
-
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={20} color="#fff" style={styles.btnIcon} />
             <Text style={styles.logoutBtnText}>Logout</Text>
@@ -199,6 +210,12 @@ export default function ProfileScreen() {
         </View>
 
       </ScrollView>
+
+      <ZoomableImageModal
+        visible={isZoomModalVisible}
+        imageUri={zoomImage}
+        onClose={() => setIsZoomModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

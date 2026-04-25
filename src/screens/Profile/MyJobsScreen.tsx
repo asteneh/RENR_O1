@@ -13,7 +13,7 @@ const THEME_COLOR = '#FF8C00';
 export default function MyJobsScreen() {
     const navigation = useNavigation<any>();
     const { data: profile } = useUserProfile();
-    const isOperator = profile?.userType === 'Operator';
+    const isOperator = profile?.userType === 'employee (Operator)';
 
     // If operator, fetch applied jobs. If other, fetch posted jobs.
     const { data: response, isLoading } = useJobsQuery(

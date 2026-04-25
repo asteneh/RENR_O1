@@ -57,7 +57,8 @@ export default function LoginScreen() {
         // Update global auth state (persisted)
         // Adjust user object mapping based on response structure
         const user = {
-          _id: (data as any).id || (data as any)._id, // Support both formats and satisfy TS
+          id: (data as any).id || (data as any)._id,
+          _id: (data as any).id || (data as any)._id,
           email: data.email,
           phoneNumber: data.phoneNumber
         };

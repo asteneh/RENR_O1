@@ -1,11 +1,10 @@
 import React, { useRef, useState } from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet,
-  Dimensions, StatusBar, Animated as RNAnimated, ScrollView, Share, Alert, Modal, Pressable
+  Dimensions, StatusBar, Animated as RNAnimated, ScrollView, Share, Alert, Modal, Pressable, Linking
 
 } from 'react-native';
-import { GestureDetector, Gesture } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import ZoomableImageModal from '../../components/common/ZoomableImageModal';
 
 
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
@@ -62,37 +61,6 @@ export default function ProductDetailsScreen() {
 
   const [isZoomModalVisible, setIsZoomModalVisible] = useState(false);
   const [zoomImage, setZoomImage] = useState('');
-
-  // Reanimated values for pinch-to-zoom
-  const scale = useSharedValue(1);
-  const focalX = useSharedValue(0);
-  const focalY = useSharedValue(0);
-
-  const pinchGesture = Gesture.Pinch()
-    .onUpdate((event) => {
-      scale.value = event.scale;
-      focalX.value = event.focalX;
-      focalY.value = event.focalY;
-    })
-    .onEnd(() => {
-      scale.value = withSpring(1);
-    });
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: focalX.value },
-        { translateY: focalY.value },
-        { translateX: -width / 2 },
-        { translateY: -HEADER_HEIGHT / 2 },
-        { scale: scale.value },
-        { translateX: -focalX.value },
-        { translateY: -focalY.value },
-        { translateX: width / 2 },
-        { translateY: HEADER_HEIGHT / 2 },
-      ],
-    };
-  });
 
 
   // Animation Value
@@ -378,20 +346,64 @@ export default function ProductDetailsScreen() {
 
           {/* Seller Info */}
           <Text style={styles.sectionTitle}>Seller Info</Text>
-          <View style={styles.dealerCard}>
-            <Image
-              source={{ uri: displayProduct.consignee?.proflePic ? `${CONFIG.FILE_URL}/${displayProduct.consignee.proflePic}` : 'https://via.placeholder.com/45' }}
-              style={styles.dealerAvatar}
-            />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.dealerName}>{displayProduct.consignee?.firstName} {displayProduct.consignee?.lastName}</Text>
-              <Text style={styles.dealerSub}>{displayProduct.consignee?.followers?.length || 0} Followers</Text>
+          <View style={styles.dealerCardContainer}>
+            <View style={styles.dealerCard}>
+              <Image
+                source={{ uri: displayProduct.consignee?.proflePic ? `${CONFIG.FILE_URL}/${displayProduct.consignee.proflePic}` : 'https://via.placeholder.com/45' }}
+                style={styles.dealerAvatar}
+              />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.dealerName}>{displayProduct.consignee?.firstName} {displayProduct.consignee?.lastName}</Text>
+                <Text style={styles.dealerSub}>{displayProduct.consignee?.followers?.length || 0} Followers</Text>
+              </View>
+
+              <TouchableOpacity style={styles.followBtn}>
+                <Text style={styles.followBtnText}>Follow</Text>
+              </TouchableOpacity>
+
             </View>
 
-            <TouchableOpacity style={styles.followBtn}>
-              <Text style={styles.followBtnText}>Follow</Text>
-            </TouchableOpacity>
+            <View style={styles.contactActionsRow}>
+              <TouchableOpacity 
+                style={styles.contactActionBtn}
+                onPress={() => setShowPhone(!showPhone)}
+              >
+                <Ionicons name="call-outline" size={20} color={THEME_COLOR} />
+                <Text style={styles.contactActionText}>
+                  {showPhone ? (displayProduct.consignee?.phoneNumber || (displayProduct.consignee as any)?.phone || 'N/A') : 'Show Phone'}
+                </Text>
+              </TouchableOpacity>
 
+              <TouchableOpacity 
+                style={styles.contactActionBtn}
+                onPress={() => {
+                  const phone = displayProduct.consignee?.phoneNumber || (displayProduct.consignee as any)?.phone;
+                  if (phone) {
+                    Linking.openURL(`sms:${phone}`);
+                  } else {
+                    Alert.alert('Phone number not available');
+                  }
+                }}
+              >
+                <Ionicons name="chatbubbles-outline" size={20} color={THEME_COLOR} />
+                <Text style={styles.contactActionText}>Chat</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.contactActionBtn}
+                onPress={() => {
+                  const telegram = (displayProduct.consignee as any)?.telegramUsername || displayProduct.consignee?.phoneNumber || (displayProduct.consignee as any)?.phone;
+                  if (telegram) {
+                    Linking.openURL(`https://t.me/${telegram.replace('+', '')}`);
+                  } else {
+                    Alert.alert('Telegram not available');
+                  }
+                }}
+              >
+                <Ionicons name="paper-plane-outline" size={20} color={THEME_COLOR} />
+                <Text style={styles.contactActionText}>Telegram</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Action Buttons */}
@@ -429,42 +441,11 @@ export default function ProductDetailsScreen() {
 
 
 
-      {/* --- 4. IMAGE ZOOM MODAL --- */}
-      <Modal
+      <ZoomableImageModal
         visible={isZoomModalVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsZoomModalVisible(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)' }}>
-          <SafeAreaView style={{ flex: 1 }}>
-            <View style={styles.zoomModalHeader}>
-              <TouchableOpacity
-                style={styles.zoomCloseBtn}
-                onPress={() => setIsZoomModalVisible(false)}
-              >
-                <Ionicons name="close" size={30} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.zoomImageContainer}>
-              <GestureDetector gesture={pinchGesture}>
-                <Animated.View style={[{ width: '100%', height: '80%' }, animatedStyle]}>
-                  <Image
-                    source={{ uri: zoomImage }}
-                    style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
-                  />
-                </Animated.View>
-              </GestureDetector>
-            </View>
-
-            <View style={styles.zoomFooter}>
-              <Text style={styles.zoomFooterText}>Pinch to zoom</Text>
-            </View>
-          </SafeAreaView>
-        </View>
-
-      </Modal>
+        imageUri={zoomImage}
+        onClose={() => setIsZoomModalVisible(false)}
+      />
     </View>
 
   );
@@ -480,13 +461,14 @@ const SpecItem = ({ icon, label, value }: any) => (
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' }, // Dark background for the image to sit on
+  container: { flex: 1, backgroundColor: '#F8F8F8' },
 
   // IMAGE STYLES
   headerImageContainer: {
     position: 'absolute', top: 0, left: 0, right: 0,
     width: '100%',
     overflow: 'hidden',
+    backgroundColor: '#000',
   },
   image: { width: '100%', height: '100%', resizeMode: 'cover' },
   imageOverlay: {
@@ -567,10 +549,12 @@ const styles = StyleSheet.create({
   galleryImg: { width: 80, height: 60, borderRadius: 8, marginRight: 10, backgroundColor: '#eee' },
 
   // DEALER
+  dealerCardContainer: {
+    backgroundColor: '#FAFAFA', borderRadius: 12, borderWidth: 1, borderColor: '#EEE', marginBottom: 20
+  },
   dealerCard: {
     flexDirection: 'row', alignItems: 'center',
-    padding: 15, backgroundColor: '#FAFAFA', borderRadius: 12,
-    borderWidth: 1, borderColor: '#EEE', marginBottom: 20
+    padding: 15, borderBottomWidth: 1, borderBottomColor: '#EEE'
   },
   dealerAvatar: {
     width: 45, height: 45, borderRadius: 25, backgroundColor: '#EEE',
@@ -580,6 +564,23 @@ const styles = StyleSheet.create({
   dealerSub: { fontSize: 13, color: '#777' },
   followBtn: { marginLeft: 'auto', backgroundColor: '#FEE2A1', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
   followBtnText: { color: '#000', fontWeight: 'bold', fontSize: 12 },
+
+  contactActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 12,
+  },
+  contactActionBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  contactActionText: {
+    marginTop: 5,
+    fontSize: 12,
+    color: '#333',
+    fontWeight: '500',
+  },
 
   actionButtonRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   actionIconButton: { alignItems: 'center', gap: 5, flex: 1 },
@@ -617,31 +618,6 @@ const styles = StyleSheet.create({
   },
   specLabel: { fontSize: 10, color: '#888' },
 
-  // ZOOM MODAL STYLES
-  zoomModalHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    zIndex: 1000,
-  },
-  zoomCloseBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  zoomImageContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  zoomFooter: {
-    padding: 20,
-    alignItems: 'center',
-  },
   zoomFooterText: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 14,

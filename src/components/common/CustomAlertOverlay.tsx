@@ -97,17 +97,20 @@ const CustomAlertOverlay = () => {
                         />
                     )}
 
-                    <View style={styles.buttonRow}>
+                    <View style={[styles.buttonRow, alert.buttons.length > 2 && { flexDirection: 'column', alignItems: 'stretch' }]}>
                         {alert.buttons.map((btn, index) => {
                             const isCancel = btn.style === 'cancel';
                             const isDestructive = btn.style === 'destructive';
+                            const isStacked = alert.buttons.length > 2;
 
                             return (
                                 <TouchableOpacity
                                     key={index}
                                     style={[
                                         styles.button,
-                                        index > 0 && { marginLeft: 12 },
+                                        !isStacked && index > 0 && { marginLeft: 12 },
+                                        isStacked && { width: '100%' },
+                                        isStacked && index > 0 && { marginTop: 10 },
                                         isCancel ? styles.cancelButton : styles.actionButton,
                                         isDestructive && { backgroundColor: '#FEE2E2' }
                                     ]}

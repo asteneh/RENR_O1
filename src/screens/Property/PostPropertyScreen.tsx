@@ -100,7 +100,7 @@ export default function PostPropertyScreen({ navigation }: any) {
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      if (!selectedPostType) return showNotification("Please select a posting package", "error");
+      if (!selectedPostType && !postThroughGadal) return showNotification("Please select a posting package", "error");
       submitPost();
     }
   };
@@ -118,8 +118,11 @@ export default function PostPropertyScreen({ navigation }: any) {
       formData.append('transactionType', `${transactionType}`);
       formData.append('productType', `${selectedService}`);
       formData.append('category', selectedCategory?._id);
-      formData.append('consignee', user?.id || '');
-      formData.append('postType', selectedPostType?._id);
+      formData.append('consignee', user?.id || user?._id || '');
+      // Only attach a postType if NOT using "Post through Gadal"
+      if (selectedPostType?._id && !postThroughGadal) {
+        formData.append('postType', selectedPostType._id);
+      }
       formData.append('youtubeLink', videoLink);
       formData.append('postThroughGadal', `${postThroughGadal}`);
       formData.append('currency', selectedCurrency?._id || currenciesQuery.data?.[0]?._id);
@@ -159,6 +162,17 @@ export default function PostPropertyScreen({ navigation }: any) {
           type: doc.mimeType || 'image/jpeg'
         } as any);
       });
+
+      // "Post through Gadal" flow: send sellerInformation so the backend
+      // generates a unique productId (required by the database unique index).
+      // Also send paymentAmount=0 to bypass the payment middleware entirely.
+      if (postThroughGadal) {
+        formData.append('paymentAmount', '0');
+        formData.append('sellerInformation', JSON.stringify({
+          postedVia: 'GadalApp',
+          userId: user?.id || user?._id || '',
+        }));
+      }
 
       createProductMutation.mutate(formData, {
         onSuccess: () => {
@@ -473,7 +487,12 @@ export default function PostPropertyScreen({ navigation }: any) {
             <View style={{ marginTop: 25, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 20 }}>
               <TouchableOpacity 
                 style={styles.checkboxContainer} 
-                onPress={() => setPostThroughGadal(!postThroughGadal)}
+                onPress={() => {
+                  const newVal = !postThroughGadal;
+                  setPostThroughGadal(newVal);
+                  // Clear any selected package so postType is never sent in Gadal mode
+                  if (newVal) setSelectedPostType(null);
+                }}
               >
                 <Ionicons 
                   name={postThroughGadal ? "checkbox" : "square-outline"} 
