@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, StatusBar, Modal, FlatList, ActivityIndicator,
@@ -91,6 +91,7 @@ export default function SignUpScreen() {
   const [otpCode, setOtpCode] = useState(['', '', '', '']);
   const [verificationId, setVerificationId] = useState('');
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const otpInputRefs = useRef<(TextInput | null)[]>([]);
 
   // TODO: Change to string[] when backend supports multiple roles
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
@@ -211,13 +212,44 @@ export default function SignUpScreen() {
     otpMutation.mutate(fullPhone, {
       onSuccess: (data: any) => {
         setVerificationId(data.verificationId);
+        if (data.code) {
+          setOtpCode(data.code.split(''));
+        }
         setStep(2);
         showNotification('Verification code sent!', 'success');
       },
       onError: (error: any) => {
+        // If it's our mock 400 error, we might still want to proceed with the code
+        const data = error?.response?.data;
+        if (data && data.verificationId === 'mock-id-1234') {
+          setVerificationId(data.verificationId);
+          if (data.code) {
+            setOtpCode(data.code.split(''));
+          }
+          setStep(2);
+          showNotification(data.message || 'MOCK MODE ENABLED', 'info');
+          return;
+        }
         showNotification(cleanErrorMessage(error), 'error');
       }
     });
+  };
+
+  const handleOtpCodeChange = (val: string, idx: number) => {
+    const newOtp = [...otpCode];
+    newOtp[idx] = val.replace(/[^0-9]/g, '').slice(-1);
+    setOtpCode(newOtp);
+
+    // Auto focus next box
+    if (val && idx < 3) {
+      otpInputRefs.current[idx + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyPress = (e: any, idx: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !otpCode[idx] && idx > 0) {
+      otpInputRefs.current[idx - 1]?.focus();
+    }
   };
 
   const handleConfirmOtp = () => {
@@ -467,16 +499,15 @@ export default function SignUpScreen() {
                   {otpCode.map((digit, idx) => (
                     <TextInput
                       key={idx}
+                      ref={(ref) => { otpInputRefs.current[idx] = ref; }}
                       style={styles.otpBox}
                       value={digit}
-                      onChangeText={(val) => {
-                        const newOtp = [...otpCode];
-                        newOtp[idx] = val.replace(/[^0-9]/g, '').slice(-1);
-                        setOtpCode(newOtp);
-                      }}
+                      onChangeText={(val) => handleOtpCodeChange(val, idx)}
+                      onKeyPress={(e) => handleOtpKeyPress(e, idx)}
                       keyboardType="number-pad"
                       maxLength={1}
                       textAlign="center"
+                      selectTextOnFocus
                     />
                   ))}
                 </View>

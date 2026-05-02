@@ -100,13 +100,28 @@ export default function OtpVerifyRegistrationScreen({ route, navigation }: any) 
         resendMutation.mutate(phone, {
             onSuccess: (data: any) => {
                 setVerificationId(data.verificationId);
-                setCode(['', '', '', '']);
+                if (data.code) {
+                    setCode(data.code.split(''));
+                } else {
+                    setCode(['', '', '', '']);
+                }
                 setResendCountdown(60);
                 setCanResend(false);
                 showNotification('A new code has been sent.', 'success');
-                inputRefs.current[0]?.focus();
+                inputRefs.current[data.code ? 3 : 0]?.focus();
             },
-            onError: () => {
+            onError: (error: any) => {
+                const data = error?.response?.data;
+                if (data && data.verificationId === 'mock-id-1234') {
+                    setVerificationId(data.verificationId);
+                    if (data.code) {
+                        setCode(data.code.split(''));
+                    }
+                    setResendCountdown(60);
+                    setCanResend(false);
+                    showNotification(data.message || 'MOCK MODE ENABLED', 'info');
+                    return;
+                }
                 showNotification('Failed to resend code. Please try again.', 'error');
             },
         });
