@@ -14,6 +14,7 @@ import { useCategoriesByService, useBrandsByCategory } from '../../api/services/
 import { formatPhoneNumber } from '../../utils/formatPhoneNumber';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
+import { UserRoles, UserRole, RoleLabels, RoleDescriptions, RoleIcons, RoleToBackend, MEMBERSHIP_PLANS, SELECTABLE_ROLES, getMergedMembershipPlans } from '../../constants/UserRoles';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -33,42 +34,8 @@ const COUNTRIES: Country[] = [
   { code: 'CN', name: 'China', dial_code: '+86', flag: '🇨🇳' },
 ];
 
-const ROLES = [
-  "Akeray (leesor)",
-  "Buyer",
-  "Seller",
-  "Tekeray (lessee)",
-  "employee (Operator)",
-  "Employer"
-];
-
-
-
-const MEMBERSHIP_PLANS: any = {
-  "Akeray (leesor)": [
-    { id: 'basic', title: "Basic", price: 100, features: ["10 items to post/month", "3 Job vacancies/month"] },
-    { id: 'gold', title: "Gold", price: 200, features: ["25 items to post/month", "6 Job vacancies/month"] },
-    { id: 'premium', title: "Premium", price: 400, features: ["Unlimited items to Post/month", "Unlimited Job vacancies/month"] }
-  ],
-  "Buyer": [
-    { id: 'basic', title: "Basic", price: 50, features: ["10 buying request post/month"] },
-    { id: 'gold', title: "Gold", price: 100, features: ["15 buying request post/month"] },
-    { id: 'premium', title: "Premium", price: 200, features: ["Unlimited buying request post/month"] }
-  ],
-  "Seller": [
-    { id: 'basic', title: "Basic", price: 100, features: ["10 items to post/month", "3 Job vacancies/month"] },
-    { id: 'gold', title: "Gold", price: 200, features: ["30 units per month", "6 Job vacancies/month"] },
-    { id: 'premium', title: "Premium", price: 400, features: ["Unlimited items per month", "12 Job vacancies/month"] }
-  ],
-  "Tekeray (lessee)": [
-    { id: 'basic', title: "Basic", price: 100, features: ["10 items request post/month", "3 Job vacancies/month"] },
-    { id: 'gold', title: "Gold", price: 200, features: ["15 items request post/month", "6 Job vacancies/month"] },
-    { id: 'premium', title: "Premium", price: 400, features: ["Unlimited items to Post/month", "12 Job vacancies/month"] }
-  ],
-  "employee (Operator)": [
-    { id: 'basic', title: "Basic", price: 50, features: ["Standard operator status"] }
-  ]
-};
+// Use SELECTABLE_ROLES from constants (excludes USER)
+// Users can select multiple roles during registration
 
 export default function SignUpScreen() {
   const navigation = useNavigation<any>();
@@ -93,8 +60,8 @@ export default function SignUpScreen() {
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const otpInputRefs = useRef<(TextInput | null)[]>([]);
 
-  // TODO: Change to string[] when backend supports multiple roles
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  // Multi-role selection
+  const [selectedRoles, setSelectedRoles] = useState<UserRole[]>([]);
   const [showRoleModal, setShowRoleModal] = useState(false);
 
   // Step 2 Fields (Now Step 4)
@@ -191,7 +158,18 @@ export default function SignUpScreen() {
     setMachineryList(newList);
   };
 
-  const hasBelongingsRole = selectedRole === 'Seller' || selectedRole === 'Akeray (leesor)';
+  const hasBelongingsRole = selectedRoles.includes(UserRoles.SELLER) || selectedRoles.includes(UserRoles.RENT_OWNER);
+  const hasEmployerRole = selectedRoles.includes(UserRoles.EMPLOYER);
+  const onlyEmployer = selectedRoles.length === 1 && selectedRoles[0] === UserRoles.EMPLOYER;
+
+  // Toggle a role in the multi-select array
+  const toggleRole = (role: UserRole) => {
+    setSelectedRoles(prev => 
+      prev.includes(role) 
+        ? prev.filter(r => r !== role) 
+        : [...prev, role]
+    );
+  };
 
   const { showNotification } = useNotificationStore();
 
@@ -209,11 +187,19 @@ export default function SignUpScreen() {
     }
 
     const fullPhone = `${selectedCountry.dial_code}${phoneNumber.replace(/^0+/, '')}`;
+    setOtpCode(['', '', '', '']); // Clear existing code before sending new one
+    
     otpMutation.mutate(fullPhone, {
       onSuccess: (data: any) => {
-        setVerificationId(data.verificationId);
-        if (data.code) {
-          setOtpCode(data.code.split(''));
+        // Extract from nested response if present (based on user feedback)
+        const vId = data?.verificationId || data?.response?.verificationId;
+        const code = data?.code || data?.response?.code || data?.response?.message;
+        
+        setVerificationId(vId);
+        if (code && typeof code === 'string') {
+          // If code is longer than 4, take last 4 or adjust accordingly
+          const codeArray = code.toString().slice(0, 4).split('');
+          setOtpCode(codeArray);
         }
         setStep(2);
         showNotification('Verification code sent!', 'success');
@@ -221,10 +207,13 @@ export default function SignUpScreen() {
       onError: (error: any) => {
         // If it's our mock 400 error, we might still want to proceed with the code
         const data = error?.response?.data;
-        if (data && data.verificationId === 'mock-id-1234') {
-          setVerificationId(data.verificationId);
-          if (data.code) {
-            setOtpCode(data.code.split(''));
+        if (data && (data.verificationId === 'mock-id-1234' || data.response?.verificationId === 'mock-id-1234')) {
+          const vId = data.verificationId || data.response?.verificationId;
+          const code = data.code || data.response?.code;
+          
+          setVerificationId(vId);
+          if (code) {
+            setOtpCode(code.toString().slice(0, 4).split(''));
           }
           setStep(2);
           showNotification(data.message || 'MOCK MODE ENABLED', 'info');
@@ -267,6 +256,7 @@ export default function SignUpScreen() {
     }, {
       onSuccess: () => {
         setIsPhoneVerified(true);
+        setOtpCode(['', '', '', '']); // Clear code after successful verification
         setStep(3);
         showNotification('Phone verified successfully!', 'success');
       },
@@ -300,8 +290,8 @@ export default function SignUpScreen() {
         return;
       }
 
-      if (!selectedRole) {
-        showNotification('Please select a role.', 'error');
+      if (selectedRoles.length === 0) {
+        showNotification('Please select at least one role.', 'error');
         return;
       }
 
@@ -328,13 +318,20 @@ export default function SignUpScreen() {
     }
 
     // Step 5 - Final Submit
-    if (selectedRole !== 'Employer' && !postThroughGadal && !selectedMembership) {
-      showNotification('Please choose a membership or select "Process Through Gadal".', 'error');
-      return;
-    }
+    // TODO: Re-enable membership validation when payment integration is complete
+    // For now, assume payment is granted
+    // const onlyEmployer = selectedRoles.length === 1 && selectedRoles[0] === UserRoles.EMPLOYER;
+    // if (!onlyEmployer && !postThroughGadal && !selectedMembership) {
+    //   showNotification('Please choose a membership or select "Process Through Gadal".', 'error');
+    //   return;
+    // }
 
     const fullPhoneNumber = `${selectedCountry.dial_code}${phoneNumber.replace(/^0+/, '')}`;
     const formattedPhone = formatPhoneNumber(fullPhoneNumber);
+
+    // Convert roles to backend-compatible values
+    const backendRoles = selectedRoles.map(r => RoleToBackend[r] || r);
+    const primaryBackendRole = backendRoles[0];
 
     const payload: any = {
       firstName,
@@ -342,7 +339,8 @@ export default function SignUpScreen() {
       email,
       phoneNumber: formattedPhone,
       password,
-      userType: selectedRole,
+      userType: primaryBackendRole, // Backend expects single string like 'Seller', 'Akeray'
+      roles: JSON.stringify(backendRoles), // Full roles array for multi-role support
     };
 
     if (machineryList.length > 0) {
@@ -372,7 +370,13 @@ export default function SignUpScreen() {
     });
 
     registerMutation.mutate(formData, {
-      onSuccess: () => {
+      onSuccess: async () => {
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage');
+          await AsyncStorage.setItem('pending_roles', JSON.stringify(selectedRoles));
+        } catch (e) {
+          console.log('AsyncStorage error:', e);
+        }
         showNotification('Account created successfully!', 'success');
         navigation.navigate('Login');
       },
@@ -488,7 +492,13 @@ export default function SignUpScreen() {
             ) : step === 2 ? (
               <>
                 <View style={styles.stepTitleContainer}>
-                  <TouchableOpacity onPress={() => setStep(1)} style={styles.backButton}>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setStep(1);
+                      setOtpCode(['', '', '', '']);
+                    }} 
+                    style={styles.backButton}
+                  >
                     <Ionicons name="arrow-back" size={24} color="#333" />
                   </TouchableOpacity>
                   <Text style={styles.title}>Verify OTP</Text>
@@ -535,7 +545,13 @@ export default function SignUpScreen() {
             ) : step === 3 ? (
               <>
                 <View style={styles.stepTitleContainer}>
-                  <TouchableOpacity onPress={() => setStep(1)} style={styles.backButton}>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setStep(1);
+                      setOtpCode(['', '', '', '']);
+                    }} 
+                    style={styles.backButton}
+                  >
                     <Ionicons name="arrow-back" size={24} color="#333" />
                   </TouchableOpacity>
                   <Text style={styles.title}>Account Details</Text>
@@ -599,16 +615,33 @@ export default function SignUpScreen() {
                 </View>
                 {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
 
-                <Text style={styles.roleLabel}>I AM A:</Text>
+                <Text style={styles.roleLabel}>I AM A: (select one or more)</Text>
                 <TouchableOpacity
                   style={styles.selector}
                   onPress={() => setShowRoleModal(true)}
                 >
-                  <Text style={selectedRole ? styles.selectorText : styles.selectorPlaceholder}>
-                    {selectedRole || 'Select your role'}
+                  <Text style={selectedRoles.length > 0 ? styles.selectorText : styles.selectorPlaceholder}>
+                    {selectedRoles.length > 0 
+                      ? `${selectedRoles.length} role${selectedRoles.length > 1 ? 's' : ''} selected` 
+                      : 'Select your roles'}
                   </Text>
                   <Ionicons name="chevron-down" size={20} color="#666" />
                 </TouchableOpacity>
+
+                {/* Selected roles chips */}
+                {selectedRoles.length > 0 && (
+                  <View style={styles.selectedRolesRow}>
+                    {selectedRoles.map(role => (
+                      <View key={role} style={styles.roleChip}>
+                        <Ionicons name={(RoleIcons[role] || 'person-outline') as any} size={14} color={THEME_COLOR} />
+                        <Text style={styles.roleChipText}>{RoleLabels[role]}</Text>
+                        <TouchableOpacity onPress={() => toggleRole(role)}>
+                          <Ionicons name="close-circle" size={16} color={THEME_COLOR} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
                 <TouchableOpacity
                   style={styles.checkboxContainer}
@@ -732,7 +765,7 @@ export default function SignUpScreen() {
                   <Text style={styles.title}>Membership Plan</Text>
                 </View>
 
-                {selectedRole && selectedRole !== 'Employer' && (
+                {selectedRoles.length > 0 && !onlyEmployer && (
                   <TouchableOpacity
                     style={[styles.gadalBtn, postThroughGadal && styles.activeGadalBtn]}
                     onPress={() => {
@@ -745,9 +778,12 @@ export default function SignUpScreen() {
                   </TouchableOpacity>
                 )}
 
-                {(!postThroughGadal && MEMBERSHIP_PLANS[selectedRole || '']) ? (
+                {!postThroughGadal && selectedRoles.length > 0 ? (
                   <View style={styles.plansContainer}>
-                    {MEMBERSHIP_PLANS[selectedRole || ''].map((plan: any) => (
+                    {getMergedMembershipPlans(selectedRoles).map((group) => (
+                      <View key={group.role}>
+                        <Text style={styles.planGroupLabel}>{group.roleName} Plans</Text>
+                        {group.plans.map((plan: any) => (
                       <TouchableOpacity
                         key={plan.id}
                         style={[styles.planCard, selectedMembership?.id === plan.id && styles.activePlanCard]}
@@ -765,12 +801,14 @@ export default function SignUpScreen() {
                         ))}
                       </TouchableOpacity>
                     ))}
+                      </View>
+                    ))}
                   </View>
-                ) : !postThroughGadal && selectedRole !== 'Employer' && (
+                ) : !postThroughGadal && !onlyEmployer && (
                   <Text style={styles.noPlanText}>Please select a role first to see plans.</Text>
                 )}
 
-                {selectedRole === 'Employer' && (
+                {onlyEmployer && (
                   <Text style={styles.noPlanText}>Employers can register directly without a specific membership plan at this stage.</Text>
                 )}
 
@@ -896,8 +934,7 @@ export default function SignUpScreen() {
         </View>
       </Modal>
 
-      {/* --- ROLE PICKER MODAL --- */}
-      {/* TODO: Update to multi-select when backend supports string[] for userType */}
+      {/* --- MULTI-ROLE PICKER MODAL --- */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -907,29 +944,49 @@ export default function SignUpScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.countryModalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Role</Text>
+              <Text style={styles.modalTitle}>Select Your Roles</Text>
               <TouchableOpacity onPress={() => setShowRoleModal(false)}>
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
+            <Text style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>You can select multiple roles</Text>
             <FlatList
-              data={ROLES}
+              data={SELECTABLE_ROLES}
               keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => {
-                    setSelectedRole(item);
-                    setShowRoleModal(false);
-                  }}
-                >
-                  <Text style={[styles.modalItemName, selectedRole === item && { color: THEME_COLOR, fontWeight: 'bold' }]}>
-                    {item}
-                  </Text>
-                  {selectedRole === item && <Ionicons name="checkmark" size={20} color={THEME_COLOR} />}
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const isSelected = selectedRoles.includes(item);
+                return (
+                  <TouchableOpacity
+                    style={[styles.modalItem, isSelected && { backgroundColor: '#FFF5E6' }]}
+                    onPress={() => toggleRole(item)}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View style={[styles.roleCheckbox, isSelected && styles.roleCheckboxChecked]}>
+                        {isSelected && <Ionicons name="checkmark" size={14} color="#fff" />}
+                      </View>
+                      <View style={{ marginLeft: 12, flex: 1 }}>
+                        <Text style={[styles.modalItemName, isSelected && { color: THEME_COLOR, fontWeight: 'bold' }]}>
+                          {RoleLabels[item as UserRole]}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                          {RoleDescriptions[item as UserRole]}
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name={(RoleIcons[item as UserRole] || 'person-outline') as any} size={20} color={isSelected ? THEME_COLOR : '#CCC'} />
+                  </TouchableOpacity>
+                );
+              }}
             />
+            <TouchableOpacity
+              style={[styles.roleDoneBtn, selectedRoles.length === 0 && { backgroundColor: '#CCC' }]}
+              disabled={selectedRoles.length === 0}
+              onPress={() => setShowRoleModal(false)}
+            >
+              <Text style={styles.roleDoneBtnText}>
+                Done ({selectedRoles.length} selected)
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1094,6 +1151,23 @@ const styles = StyleSheet.create({
     paddingVertical: 14, borderRadius: 12, alignItems: 'center',
   },
   roleDoneBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+
+  // Role checkbox in modal
+  roleCheckbox: {
+    width: 22, height: 22, borderRadius: 6,
+    borderWidth: 2, borderColor: THEME_COLOR,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  roleCheckboxChecked: {
+    backgroundColor: THEME_COLOR,
+  },
+
+  // Plan group label for multi-role membership
+  planGroupLabel: {
+    fontSize: 14, fontWeight: '700', color: THEME_COLOR,
+    marginTop: 15, marginBottom: 8,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
 
   // OTP Styles
   otpRow: {

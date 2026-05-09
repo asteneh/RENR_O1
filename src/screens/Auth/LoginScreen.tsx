@@ -53,15 +53,34 @@ export default function LoginScreen() {
       emailOrPhone,
       password
     }, {
-      onSuccess: (data) => {
+      onSuccess: async (data) => {
         // Update global auth state (persisted)
         // Adjust user object mapping based on response structure
-        const user = {
+        const user: any = {
           id: (data as any).id || (data as any)._id,
           _id: (data as any).id || (data as any)._id,
           email: data.email,
-          phoneNumber: data.phoneNumber
+          phoneNumber: data.phoneNumber,
+          // Include role fields so extractBackendRoles can populate multi-role state
+          userType: (data as any).userType,
+          roles: (data as any).roles,
+          role: (data as any).role,
+          membershipType: (data as any).membershipType,
         };
+
+        // Merge roles from registration if this is the first login after signup
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage');
+          const pendingRolesStr = await AsyncStorage.getItem('pending_roles');
+          if (pendingRolesStr) {
+            const pendingRoles = JSON.parse(pendingRolesStr);
+            user.roles = pendingRoles;
+            await AsyncStorage.removeItem('pending_roles');
+          }
+        } catch (e) {
+          console.log('Error merging pending roles:', e);
+        }
+
         loginState(user, data.token);
 
         showNotification("Welcome back!", "success");

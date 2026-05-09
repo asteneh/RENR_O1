@@ -19,6 +19,8 @@ import { usePostTypesQuery, useCreateProductMutation } from '../../api/services/
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
+import RoleAccessGuard from '../../components/common/RoleAccessGuard';
+import { FeatureActions } from '../../constants/UserRoles';
 
 const THEME_COLOR = '#FF8C00';
 const STEPS = ['Type', 'Category', 'Details', 'Location', 'Media', 'Options'];
@@ -188,7 +190,13 @@ export default function PostPropertyScreen({ navigation }: any) {
     }
   };
 
+  // Determine which feature to gate based on transaction type
+  const postFeature = transactionType === TransactionTypeEnums.Rent
+    ? FeatureActions.POST_RENT
+    : FeatureActions.POST_SALE;
+
   return (
+    <RoleAccessGuard feature={postFeature}>
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>New Listing</Text>
@@ -533,6 +541,7 @@ export default function PostPropertyScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
+    </RoleAccessGuard>
   );
 }
 

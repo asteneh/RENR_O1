@@ -21,6 +21,8 @@ import { format } from 'date-fns';
 import { TextInput as RNTextInput } from 'react-native';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
+import { useRoleAccess } from '../../components/common/RoleAccessGuard';
+import { FeatureActions } from '../../constants/UserRoles';
 
 type DetailsRouteProp = RouteProp<RootStackParamList, 'ProductDetails'>;
 
@@ -38,6 +40,9 @@ export default function ProductDetailsScreen() {
 
   const [showPhone, setShowPhone] = useState(false);
   const [activeTab, setActiveTab] = useState<'Description' | 'Reviews'>('Description');
+
+  // Role-based access check for viewing seller contact info
+  const sellerInfoAccess = useRoleAccess(FeatureActions.VIEW_SELLER_INFO);
 
   const { data: updatedProduct } = useSingleProductQuery(product._id);
   const displayProduct = updatedProduct || product;
@@ -364,6 +369,8 @@ export default function ProductDetailsScreen() {
             </View>
 
             <View style={styles.contactActionsRow}>
+              {sellerInfoAccess.allowed ? (
+                <>
               <TouchableOpacity 
                 style={styles.contactActionBtn}
                 onPress={() => setShowPhone(!showPhone)}
@@ -403,6 +410,27 @@ export default function ProductDetailsScreen() {
                 <Ionicons name="paper-plane-outline" size={20} color={THEME_COLOR} />
                 <Text style={styles.contactActionText}>Telegram</Text>
               </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.contactLockedBtn}
+                  onPress={() => {
+                    if (sellerInfoAccess.needsLogin) {
+                      navigation.navigate('Login');
+                    } else if (sellerInfoAccess.needsPayment) {
+                      showNotification('Upgrade your membership to view seller contact info.', 'info');
+                      navigation.navigate('MyPackages');
+                    } else {
+                      showNotification(sellerInfoAccess.blockedMessage || 'Your role cannot view seller info.', 'error');
+                    }
+                  }}
+                >
+                  <Ionicons name="lock-closed" size={20} color="#999" />
+                  <Text style={styles.contactLockedText}>
+                    {sellerInfoAccess.needsPayment ? 'Upgrade to View Contact' : sellerInfoAccess.needsLogin ? 'Login to View Contact' : 'Contact Restricted'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -580,6 +608,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
     fontWeight: '500',
+  },
+  contactLockedBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderStyle: 'dashed',
+  },
+  contactLockedText: {
+    fontSize: 13,
+    color: '#999',
+    fontWeight: '600',
   },
 
   actionButtonRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },

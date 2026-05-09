@@ -6,6 +6,11 @@ import { TabParamList } from './types';
 import { useAuthStore } from '../store/useAuthStore';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import {
+  FeatureActions,
+  canAccessMultiRole,
+  UserRoles,
+} from '../constants/UserRoles';
 
 // Screens
 import HomeScreen from '../screens/Home/HomeScreen';
@@ -21,6 +26,18 @@ function Placeholder() {
 export default function TabNavigator() {
     const insets = useSafeAreaInsets();
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const getUserRoles = useAuthStore((state) => state.getUserRoles);
+
+    const currentRoles = getUserRoles();
+
+    // Determine which tabs to show based on merged role capabilities
+    const canPostItems = canAccessMultiRole(currentRoles, FeatureActions.POST_SALE) || canAccessMultiRole(currentRoles, FeatureActions.POST_RENT);
+    const canPostJob = canAccessMultiRole(currentRoles, FeatureActions.POST_JOB);
+    const canViewRequests = canAccessMultiRole(currentRoles, FeatureActions.REQUEST_BUY) || canAccessMultiRole(currentRoles, FeatureActions.REQUEST_RENT);
+
+    // Operators and basic users can still view requests (browse is free)
+    const showRequestsTab = true; // Browsing requests is free for all
+    const showPostTab = isAuthenticated ? (canPostItems || canPostJob) : true;
 
     return (
         <Tab.Navigator screenOptions={({ route }) => ({
@@ -79,7 +96,8 @@ export default function TabNavigator() {
                 }}
             />
 
-            {/* Post Button (Middle) */}
+            {/* Post Button (Middle) - visible to roles that can post */}
+            {showPostTab && (
             <Tab.Screen
                 name="Post"
                 component={Placeholder}
@@ -87,6 +105,7 @@ export default function TabNavigator() {
                     tabPress: (e) => {
                         e.preventDefault();
                         if (isAuthenticated) {
+                            // Role guard will handle further checks inside the screen
                             (navigation as any).navigate('PostProperty');
                         } else {
                             (navigation as any).navigate('Login');
@@ -98,7 +117,9 @@ export default function TabNavigator() {
                     tabBarLabelStyle: { fontSize: 10, marginBottom: 5 }
                 }}
             />
+            )}
 
+            {showRequestsTab && (
             <Tab.Screen
                 name="Requests"
                 component={Placeholder}
@@ -114,6 +135,7 @@ export default function TabNavigator() {
                     },
                 })}
             />
+            )}
 
             <Tab.Screen
                 name="Account"

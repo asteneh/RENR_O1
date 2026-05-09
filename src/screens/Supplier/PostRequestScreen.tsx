@@ -15,6 +15,8 @@ import { useCreateRequestMutation } from '../../api/services/requestService';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
+import RoleAccessGuard from '../../components/common/RoleAccessGuard';
+import { FeatureActions } from '../../constants/UserRoles';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -147,7 +149,13 @@ export default function PostRequestScreen() {
         }
     };
 
+    // Determine which feature to gate based on request type
+    const requestFeature = form.requestType === 'To Rent'
+      ? FeatureActions.REQUEST_RENT
+      : FeatureActions.REQUEST_BUY;
+
     return (
+        <RoleAccessGuard feature={requestFeature}>
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
@@ -363,6 +371,7 @@ export default function PostRequestScreen() {
                 </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
+        </RoleAccessGuard>
     );
 }
 

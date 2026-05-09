@@ -12,6 +12,8 @@ import { useRegister } from '../../api/services/authService';
 import { useApplyToJobMutation } from '../../api/services/jobService';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
+import RoleAccessGuard from '../../components/common/RoleAccessGuard';
+import { FeatureActions } from '../../constants/UserRoles';
 
 const THEME_COLOR = '#FF8C00';
 const EXPERIENCE_OPTIONS = [
@@ -327,6 +329,7 @@ export default function OperatorRegistrationScreen() {
     };
 
     return (
+        <RoleAccessGuard feature={FeatureActions.JOIN_OPERATOR}>
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -374,6 +377,7 @@ export default function OperatorRegistrationScreen() {
                 </View>
             )}
         </SafeAreaView>
+        </RoleAccessGuard>
     );
 }
 

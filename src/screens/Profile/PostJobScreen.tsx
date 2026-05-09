@@ -10,6 +10,8 @@ import { useCreateJobMutation } from '../../api/services/jobService';
 import { useCategoriesByService } from '../../api/services/categoryService';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import RoleAccessGuard from '../../components/common/RoleAccessGuard';
+import { FeatureActions } from '../../constants/UserRoles';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -106,6 +108,7 @@ export default function PostJobScreen() {
     };
 
     return (
+        <RoleAccessGuard feature={FeatureActions.POST_JOB}>
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -335,6 +338,7 @@ export default function PostJobScreen() {
                 </View>
             </Modal>
         </SafeAreaView>
+        </RoleAccessGuard>
     );
 }
 

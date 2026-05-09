@@ -23,6 +23,7 @@ import SupplierHomeScreen from '../Supplier/SupplierHomeScreen';
 import { useCategoriesByService } from '../../api/services/categoryService';
 import { ServiceEnums } from '../../constants/ServiceEnums';
 import { ViewMode } from '../../store/useAuthStore';
+import { UserRoles } from '../../constants/UserRoles';
 
 
 // Removed global width to use useWindowDimensions hook
@@ -242,8 +243,9 @@ export default function HomeScreen() {
     </View>
   );
 
-  // --- MAIN RENDER ---
-  if (currentRole === 'Tenant') return renderTenantDashboard();
+  // Show tenant dashboard only if user's sole role is RENT_SEEKER
+  const userRolesArr = Array.isArray(currentRole) ? currentRole : [currentRole];
+  if (userRolesArr.length === 1 && userRolesArr[0] === UserRoles.RENT_SEEKER) return renderTenantDashboard();
 
   const [refreshing, setRefreshing] = useState(false);
 
