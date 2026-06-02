@@ -83,7 +83,6 @@ export default function LoginScreen() {
 
         loginState(user, data.token);
 
-        showNotification("Welcome back!", "success");
         navigation.navigate('Tabs');
       },
       onError: (error: any) => {

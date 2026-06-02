@@ -14,7 +14,7 @@ import { useCategoriesByService, useBrandsByCategory } from '../../api/services/
 import { formatPhoneNumber } from '../../utils/formatPhoneNumber';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
-import { UserRoles, UserRole, RoleLabels, RoleDescriptions, RoleIcons, RoleToBackend, MEMBERSHIP_PLANS, SELECTABLE_ROLES, getMergedMembershipPlans } from '../../constants/UserRoles';
+import { UserRoles, UserRole, RoleLabels, RoleDescriptions, RoleIcons, RoleToBackend, SELECTABLE_ROLES } from '../../constants/UserRoles';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -71,10 +71,6 @@ export default function SignUpScreen() {
   const [selectedBrand, setSelectedBrand] = useState<any>(null);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
-
-  // Membership Selection (Now Step 5)
-  const [selectedMembership, setSelectedMembership] = useState<any>(null);
-  const [postThroughGadal, setPostThroughGadal] = useState(false);
 
   // Error States
   const [errors, setErrors] = useState<any>({});
@@ -266,6 +262,67 @@ export default function SignUpScreen() {
     });
   };
 
+  const submitRegistration = (wantsPackageAfterRegistration: boolean) => {
+    const fullPhoneNumber = `${selectedCountry.dial_code}${phoneNumber.replace(/^0+/, '')}`;
+    const formattedPhone = formatPhoneNumber(fullPhoneNumber);
+
+    const backendRoles = selectedRoles.map(r => RoleToBackend[r] || r);
+    const primaryBackendRole = backendRoles[0];
+
+    const payload: any = {
+      firstName,
+      lastName,
+      email,
+      phoneNumber: formattedPhone,
+      password,
+      userType: primaryBackendRole,
+      roles: JSON.stringify(backendRoles),
+      wantsPackageAfterRegistration,
+      postThroughGadal: false,
+    };
+
+    if (machineryList.length > 0) {
+      payload.interestedProductArea = JSON.stringify(machineryList.map(item => ({
+        category: item.category._id,
+        brands: [item.brand._id]
+      })));
+    }
+
+    const formData = new FormData();
+    Object.keys(payload).forEach(key => {
+      formData.append(key, payload[key]);
+    });
+
+    legalDocuments.forEach((doc, index) => {
+      formData.append('legalDocuments', {
+        uri: doc.uri,
+        name: doc.fileName || `document_${index}.jpg`,
+        type: doc.mimeType || 'image/jpeg',
+      } as any);
+    });
+
+    registerMutation.mutate(formData, {
+      onSuccess: async () => {
+        try {
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage');
+          await AsyncStorage.setItem('pending_roles', JSON.stringify(selectedRoles));
+        } catch (e) {
+          console.log('AsyncStorage error:', e);
+        }
+        showNotification(
+          wantsPackageAfterRegistration
+            ? 'Account created. Please login, then buy a package from My Packages.'
+            : 'Account created successfully!',
+          'success'
+        );
+        navigation.navigate('Login');
+      },
+      onError: (error: any) => {
+        showNotification(cleanErrorMessage(error), 'error');
+      }
+    });
+  };
+
   const handleRegister = () => {
     if (step === 1) {
       handleVerifyPhone();
@@ -317,73 +374,7 @@ export default function SignUpScreen() {
       return;
     }
 
-    // Step 5 - Final Submit
-    // TODO: Re-enable membership validation when payment integration is complete
-    // For now, assume payment is granted
-    // const onlyEmployer = selectedRoles.length === 1 && selectedRoles[0] === UserRoles.EMPLOYER;
-    // if (!onlyEmployer && !postThroughGadal && !selectedMembership) {
-    //   showNotification('Please choose a membership or select "Process Through Gadal".', 'error');
-    //   return;
-    // }
-
-    const fullPhoneNumber = `${selectedCountry.dial_code}${phoneNumber.replace(/^0+/, '')}`;
-    const formattedPhone = formatPhoneNumber(fullPhoneNumber);
-
-    // Convert roles to backend-compatible values
-    const backendRoles = selectedRoles.map(r => RoleToBackend[r] || r);
-    const primaryBackendRole = backendRoles[0];
-
-    const payload: any = {
-      firstName,
-      lastName,
-      email,
-      phoneNumber: formattedPhone,
-      password,
-      userType: primaryBackendRole, // Backend expects single string like 'Seller', 'Akeray'
-      roles: JSON.stringify(backendRoles), // Full roles array for multi-role support
-    };
-
-    if (machineryList.length > 0) {
-      payload.interestedProductArea = JSON.stringify(machineryList.map(item => ({
-        category: item.category._id,
-        brands: [item.brand._id]
-      })));
-    }
-
-    if (selectedMembership) {
-      payload.membershipType = selectedMembership.id;
-      payload.membershipTitle = selectedMembership.title;
-    }
-    payload.postThroughGadal = postThroughGadal;
-
-    const formData = new FormData();
-    Object.keys(payload).forEach(key => {
-      formData.append(key, payload[key]);
-    });
-
-    legalDocuments.forEach((doc, index) => {
-      formData.append('legalDocuments', {
-        uri: doc.uri,
-        name: doc.fileName || `document_${index}.jpg`,
-        type: doc.mimeType || 'image/jpeg',
-      } as any);
-    });
-
-    registerMutation.mutate(formData, {
-      onSuccess: async () => {
-        try {
-          const AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage');
-          await AsyncStorage.setItem('pending_roles', JSON.stringify(selectedRoles));
-        } catch (e) {
-          console.log('AsyncStorage error:', e);
-        }
-        showNotification('Account created successfully!', 'success');
-        navigation.navigate('Login');
-      },
-      onError: (error: any) => {
-        showNotification(cleanErrorMessage(error), 'error');
-      }
-    });
+    submitRegistration(false);
   };
 
   const renderCountryItem = ({ item }: { item: Country }) => (
@@ -753,7 +744,7 @@ export default function SignUpScreen() {
                   style={[styles.btn, { marginTop: 20 }]}
                   onPress={handleRegister}
                 >
-                  <Text style={styles.btnText}>Next: Membership</Text>
+                  <Text style={styles.btnText}>Next: Registration Options</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -762,67 +753,50 @@ export default function SignUpScreen() {
                   <TouchableOpacity onPress={() => setStep(hasBelongingsRole ? 4 : 3)} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                   </TouchableOpacity>
-                  <Text style={styles.title}>Membership Plan</Text>
+                  <Text style={styles.title}>Registration Options</Text>
                 </View>
 
-                {selectedRoles.length > 0 && !onlyEmployer && (
-                  <TouchableOpacity
-                    style={[styles.gadalBtn, postThroughGadal && styles.activeGadalBtn]}
-                    onPress={() => {
-                      setPostThroughGadal(!postThroughGadal);
-                      setSelectedMembership(null);
-                    }}
-                  >
-                    <Ionicons name={postThroughGadal ? "checkbox" : "square-outline"} size={24} color={postThroughGadal ? "#fff" : THEME_COLOR} />
-                    <Text style={[styles.gadalBtnText, postThroughGadal && { color: '#fff' }]}>Process Through Gadal</Text>
-                  </TouchableOpacity>
-                )}
-
-                {!postThroughGadal && selectedRoles.length > 0 ? (
-                  <View style={styles.plansContainer}>
-                    {getMergedMembershipPlans(selectedRoles).map((group) => (
-                      <View key={group.role}>
-                        <Text style={styles.planGroupLabel}>{group.roleName} Plans</Text>
-                        {group.plans.map((plan: any) => (
-                      <TouchableOpacity
-                        key={plan.id}
-                        style={[styles.planCard, selectedMembership?.id === plan.id && styles.activePlanCard]}
-                        onPress={() => setSelectedMembership(plan)}
-                      >
-                        <View style={styles.planHeader}>
-                          <Text style={styles.planTitle}>{plan.title}</Text>
-                          <Text style={styles.planPrice}>{plan.price} Birr</Text>
-                        </View>
-                        {plan.features.map((feature: string, idx: number) => (
-                          <View key={idx} style={styles.featureRow}>
-                            <Ionicons name="checkmark-circle" size={16} color={THEME_COLOR} />
-                            <Text style={styles.featureText}>{feature}</Text>
-                          </View>
-                        ))}
-                      </TouchableOpacity>
-                    ))}
-                      </View>
-                    ))}
-                  </View>
-                ) : !postThroughGadal && !onlyEmployer && (
-                  <Text style={styles.noPlanText}>Please select a role first to see plans.</Text>
-                )}
-
-                {onlyEmployer && (
-                  <Text style={styles.noPlanText}>Employers can register directly without a specific membership plan at this stage.</Text>
-                )}
+                <Text style={styles.subtitle}>
+                  Choose whether to register with a package or continue without one.
+                </Text>
 
                 <TouchableOpacity
-                  style={[styles.btn, registerMutation.isPending && styles.disabledBtn, { marginTop: 20 }]}
-                  onPress={handleRegister}
+                  style={[styles.optionCard, registerMutation.isPending && styles.disabledOptionCard]}
                   disabled={registerMutation.isPending}
+                  onPress={() => submitRegistration(true)}
                 >
-                  {registerMutation.isPending ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.btnText}>Complete Registration</Text>
-                  )}
+                  <View style={styles.optionIconWrap}>
+                    <Ionicons name="notifications-outline" size={28} color={THEME_COLOR} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.optionTitle}>Register & Buy Package</Text>
+                    <Text style={styles.optionText}>
+                      If you buy a package, you will receive app and SMS notifications when requests or approved posts match the categories and brands you selected.
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={22} color="#999" />
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.optionCard, styles.simpleOptionCard, registerMutation.isPending && styles.disabledOptionCard]}
+                  disabled={registerMutation.isPending}
+                  onPress={() => submitRegistration(false)}
+                >
+                  <View style={styles.optionIconWrap}>
+                    <Ionicons name="person-add-outline" size={28} color={THEME_COLOR} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.optionTitle}>Just Register</Text>
+                    <Text style={styles.optionText}>
+                      Create your account now and buy a package later from My Packages.
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={22} color="#999" />
+                </TouchableOpacity>
+
+                {registerMutation.isPending && (
+                  <ActivityIndicator color={THEME_COLOR} style={{ marginTop: 20 }} />
+                )}
               </>
             )}
           </ScrollView>
@@ -1125,6 +1099,47 @@ const styles = StyleSheet.create({
   featureRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5 },
   featureText: { fontSize: 14, color: '#666', marginLeft: 8 },
   noPlanText: { textAlign: 'center', color: '#888', marginTop: 40, fontSize: 16 },
+
+  optionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 2,
+    borderColor: THEME_COLOR,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  simpleOptionCard: {
+    borderColor: '#eee',
+  },
+  disabledOptionCard: {
+    opacity: 0.6,
+  },
+  optionIconWrap: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFF3E0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#222',
+    marginBottom: 5,
+  },
+  optionText: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 19,
+  },
 
   gadalBtn: {
     flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 12,

@@ -21,6 +21,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
+import { checkPackageBeforePosting } from '../../api/services/packageService';
 
 const THEME_COLOR = '#FF8C00';
 const STEPS = ['Type', 'Category', 'Details', 'Location', 'Media', 'Options'];
@@ -53,6 +54,7 @@ export default function PostPropertyScreen({ navigation }: any) {
   const [legalDocs, setLegalDocs] = useState<any[]>([]);
   const [selectedPostType, setSelectedPostType] = useState<any>(null);
   const [postThroughGadal, setPostThroughGadal] = useState(false);
+  const [checkingPackage, setCheckingPackage] = useState(false);
 
   const user = useAuthStore(state => state.user);
 
@@ -95,7 +97,33 @@ export default function PostPropertyScreen({ navigation }: any) {
   };
 
 
-  const handleNext = () => {
+  const validatePackageBeforePosting = async () => {
+    if (!selectedPostType?._id || postThroughGadal) return true;
+
+    setCheckingPackage(true);
+    try {
+      const eligibility = await checkPackageBeforePosting(selectedPostType._id);
+      if (!eligibility.canPost) {
+        showAlert(
+          'Package Required',
+          eligibility.message || 'You need an active package with remaining posts before posting.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Buy Package', onPress: () => navigation.navigate('MyPackages') },
+          ]
+        );
+        return false;
+      }
+      return true;
+    } catch (error: any) {
+      showNotification(cleanErrorMessage(error), 'error');
+      return false;
+    } finally {
+      setCheckingPackage(false);
+    }
+  };
+
+  const handleNext = async () => {
     if (currentStep === 0 && !selectedService) return showNotification("Select a service type", "error");
     if (currentStep === 1 && !selectedCategory) return showNotification("Select a category", "error");
 
@@ -103,6 +131,8 @@ export default function PostPropertyScreen({ navigation }: any) {
       setCurrentStep(currentStep + 1);
     } else {
       if (!selectedPostType && !postThroughGadal) return showNotification("Please select a posting package", "error");
+      const canPost = await validatePackageBeforePosting();
+      if (!canPost) return;
       submitPost();
     }
   };
@@ -529,11 +559,11 @@ export default function PostPropertyScreen({ navigation }: any) {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.nextBtn, createProductMutation.isPending && { opacity: 0.6 }]}
+          style={[styles.nextBtn, (createProductMutation.isPending || checkingPackage) && { opacity: 0.6 }]}
           onPress={handleNext}
-          disabled={createProductMutation.isPending}
+          disabled={createProductMutation.isPending || checkingPackage}
         >
-          {createProductMutation.isPending ? (
+          {createProductMutation.isPending || checkingPackage ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.nextBtnText}>{currentStep === STEPS.length - 1 ? "Post Item" : "Next"}</Text>

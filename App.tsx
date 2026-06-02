@@ -20,6 +20,8 @@ import { socket } from './src/api/socket';
 import { useAuthStore } from './src/store/useAuthStore';
 import { useNotificationStore } from './src/store/useNotificationStore';
 import { notificationService } from './src/api/services/notificationService';
+import { useThemeStore } from './src/store/useThemeStore';
+
 
 // 1. Keep Native Screen visible until we are ready
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +42,8 @@ export default function App() {
 
   const { token, user } = useAuthStore();
   const { setUnreadNotifications, incrementUnreadNotifications, showNotification } = useNotificationStore();
+  const { theme } = useThemeStore();
+
 
   useEffect(() => {
     if (token && user?._id) {
@@ -134,7 +138,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <View style={{ flex: 1 }}>
-            <StatusBar style="dark" />
+            <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
             <AppNavigator />
             <ToastOverlay />
             <CustomAlertOverlay />

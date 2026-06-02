@@ -5,7 +5,27 @@
 export const cleanErrorMessage = (error: any): string => {
     if (typeof error === 'string') return error;
 
-    const rawMessage = error?.response?.data?.message || error?.message || 'Something went wrong';
+    if (typeof error?.response?.data === 'string') return error.response.data;
+
+    const normalizeMessage = (value: any): string => {
+        if (!value) return '';
+        if (typeof value === 'string') return value;
+        if (Array.isArray(value)) return value.map(normalizeMessage).filter(Boolean).join(', ');
+        if (typeof value === 'object') {
+            return Object.entries(value)
+                .map(([key, nestedValue]) => `${key}: ${normalizeMessage(nestedValue)}`)
+                .filter(Boolean)
+                .join('; ');
+        }
+        return String(value);
+    };
+
+    const rawMessage = normalizeMessage(
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.response?.data?.details?.message ||
+        error?.message
+    ) || 'Something went wrong';
 
     // Pattern for Mongoose validation errors
     if (rawMessage.includes('validation failed:')) {

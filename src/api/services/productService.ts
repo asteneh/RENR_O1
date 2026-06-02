@@ -157,8 +157,15 @@ export const updateProduct = async (data: any): Promise<any> => {
 
 
 export const useCreateProductMutation = () => {
+    const queryClient = useQueryClient();
+
     return useMutation({
         mutationFn: createProduct,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+            queryClient.invalidateQueries({ queryKey: ['userAds'] });
+            queryClient.invalidateQueries({ queryKey: ['userPackages'] });
+        },
     });
 };
 

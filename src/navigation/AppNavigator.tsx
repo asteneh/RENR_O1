@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { LinkingOptions, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as NavigationBar from 'expo-navigation-bar';
 
@@ -39,11 +39,20 @@ import EditListingScreen from '../screens/Profile/EditListingScreen';
 import TermsAndPrivacyScreen from '../screens/Auth/TermsAndPrivacyScreen';
 import PostJobScreen from '../screens/Profile/PostJobScreen';
 import OtpVerifyRegistrationScreen from '../screens/Auth/OtpVerifyRegistrationScreen';
-
+import AppSettingsScreen from '../screens/Profile/AppSettingsScreen';
 
 import { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: ['gadalmarket://', 'gadalmarket:///'],
+  config: {
+    screens: {
+      MyPackages: 'payment-return',
+    },
+  },
+};
 
 export default function AppNavigator() {
   useEffect(() => {
@@ -54,7 +63,7 @@ export default function AppNavigator() {
   }, []);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator>
         {/* Main Tabs */}
         <Stack.Screen name="Tabs" component={TabNavigator} options={{ headerShown: false }} />
@@ -147,6 +156,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="PostJob"
           component={PostJobScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AppSettings"
+          component={AppSettingsScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>
