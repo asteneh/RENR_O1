@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput,
-    TouchableOpacity, ActivityIndicator
+    TouchableOpacity, ActivityIndicator, BackHandler
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
     useCategoriesByService,
     useBrandsByCategory,
@@ -149,6 +149,18 @@ export default function PostRequestScreen() {
         }
     };
 
+    const handleBack = useCallback(() => {
+        navigation.goBack();
+        return true;
+    }, [navigation]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
+            return () => subscription.remove();
+        }, [handleBack])
+    );
+
     // Determine which feature to gate based on request type
     const requestFeature = form.requestType === 'To Rent'
       ? FeatureActions.REQUEST_RENT
@@ -159,7 +171,7 @@ export default function PostRequestScreen() {
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
+                <TouchableOpacity onPress={handleBack}>
                     <Ionicons name="close" size={28} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Post a Request</Text>

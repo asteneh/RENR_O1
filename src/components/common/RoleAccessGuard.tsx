@@ -15,6 +15,7 @@ import {
   getMergedMembershipPlans,
   MembershipPlan,
 } from '../../constants/UserRoles';
+import { formatEtb } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -159,7 +160,7 @@ function PaywallModal({ visible, roles, onClose, onSelectPlan }: PaywallModalPro
                   >
                     <View style={styles.planHeader}>
                       <Text style={styles.planTitle}>{plan.title}</Text>
-                      <Text style={styles.planPrice}>{plan.price} Birr</Text>
+                      <Text style={styles.planPrice}>{formatEtb(plan.price)}</Text>
                     </View>
                     {plan.features.map((feat, idx) => (
                       <View key={idx} style={styles.featureRow}>

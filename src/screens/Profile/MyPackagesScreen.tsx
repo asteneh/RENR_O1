@@ -17,6 +17,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { CONFIG } from '../../config';
+import { formatEtb } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
 const TEST_PACKAGE_PRICE = 1;
@@ -229,7 +230,7 @@ export default function MyPackagesScreen({ route }: any) {
                 <View style={styles.planHeader}>
                     <View>
                         <Text style={styles.planName}>{item.name}</Text>
-                        <Text style={styles.planPrice}>ETB {TEST_PACKAGE_PRICE}</Text>
+                        <Text style={styles.planPrice}>{formatEtb(TEST_PACKAGE_PRICE)}</Text>
                     </View>
                     <Ionicons name="diamond-outline" size={26} color={THEME_COLOR} />
                 </View>

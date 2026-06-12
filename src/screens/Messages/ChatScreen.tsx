@@ -1,34 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useMessages, useSendMessage } from '../../api/services/messageService';
 import { Ionicons } from '@expo/vector-icons';
+import { CONFIG } from '../../config';
+import { formatEtb } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
 
-export default function ChatScreen({ route }: any) {
+export default function ChatScreen({ route, navigation }: any) {
     const { conversation } = route.params;
     const insets = useSafeAreaInsets();
     const user = useAuthStore(state => state.user);
     const userId = user?.id || user?._id;
 
-    // We assume backend endpoint fetchMessages takes conversationID or partner ID. 
-    // Adapting to 'useMessages' hook which uses 'fetchMessages(userId)'.
-    // If backend only fetches ALL messages, client filtering is needed or hook adjustment.
-    // For now we mimic chat UI.
-    const { data: messages, refetch } = useMessages(conversation?._id);
+    // Fetch full conversation details
+    const { data: conversationDetail, refetch } = useMessages(conversation?._id);
     const sendMutation = useSendMessage();
     const [text, setText] = useState('');
 
+    const messages = conversationDetail?.conversations || [];
+    const product = conversationDetail?.product;
+
+    // Reverse messages for inverted FlatList (newest at bottom, oldest at top)
+    const sortedMessages = React.useMemo(() => {
+        return messages ? [...messages].reverse() : [];
+    }, [messages]);
+
     const handleSend = () => {
         if (!text.trim()) return;
+
+        const partnerId = conversation.productOwner?._id === userId 
+            ? (conversation.interestedParty?._id || conversation.interestedParty)
+            : (conversation.productOwner?._id || conversation.productOwner);
 
         sendMutation.mutate({
             conversationId: conversation._id,
             sender: userId,
             text,
-            receiver: conversation.members.find((m: string) => m !== userId)
+            receiver: partnerId
         }, {
             onSuccess: () => {
                 setText('');
@@ -39,22 +50,42 @@ export default function ChatScreen({ route }: any) {
 
     const renderItem = ({ item }: { item: any }) => {
         const isMe = item.sender === userId;
+        const msgText = item.message?.message || (typeof item.message === 'string' ? item.message : '');
+
         return (
             <View style={[styles.msgContainer, isMe ? styles.myMsg : styles.otherMsg]}>
-                <Text style={[styles.msgText, isMe ? styles.myMsgText : styles.otherMsgText]}>{item.text}</Text>
+                <Text style={[styles.msgText, isMe ? styles.myMsgText : styles.otherMsgText]}>{msgText}</Text>
             </View>
         );
     };
 
     return (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+            {product && (
+                <TouchableOpacity
+                    style={styles.productHeader}
+                    onPress={() => navigation.navigate('ProductDetails', { product })}
+                >
+                    <Image
+                        source={{ uri: product.productImages && product.productImages.length > 0 ? `${CONFIG.FILE_URL}/${product.productImages[0]}` : 'https://via.placeholder.com/60' }}
+                        style={styles.productImg}
+                    />
+                    <View style={styles.productInfo}>
+                        <Text style={styles.productTitle} numberOfLines={1}>{product.title}</Text>
+                        <Text style={styles.productPrice}>{formatEtb(product.currentPrice)}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#666" />
+                </TouchableOpacity>
+            )}
+
             <FlatList
-                data={messages}
+                data={sortedMessages}
                 keyExtractor={(item) => item._id}
                 renderItem={renderItem}
                 inverted
                 contentContainerStyle={{ padding: 15 }}
             />
+            
             <View style={styles.inputContainer}>
                 <TextInput
                     style={styles.input}
@@ -74,6 +105,18 @@ export default function ChatScreen({ route }: any) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f5f5f5' },
+    productHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        padding: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#eee',
+    },
+    productImg: { width: 45, height: 45, borderRadius: 6, marginRight: 10, backgroundColor: '#eee' },
+    productInfo: { flex: 1 },
+    productTitle: { fontSize: 14, fontWeight: 'bold', color: '#333' },
+    productPrice: { fontSize: 13, color: THEME_COLOR, fontWeight: '600', marginTop: 2 },
     msgContainer: { maxWidth: '80%', padding: 10, borderRadius: 10, marginBottom: 10 },
     myMsg: { alignSelf: 'flex-end', backgroundColor: THEME_COLOR, borderBottomRightRadius: 2 },
     otherMsg: { alignSelf: 'flex-start', backgroundColor: '#fff', borderBottomLeftRadius: 2 },

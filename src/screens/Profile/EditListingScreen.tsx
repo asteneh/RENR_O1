@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, TextInput, StyleSheet, TouchableOpacity,
-    ScrollView, ActivityIndicator, Image, Platform, KeyboardAvoidingView
+    ScrollView, ActivityIndicator, Image, Platform, KeyboardAvoidingView, BackHandler
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,6 +21,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { CONFIG } from '../../config';
+import { formatEtb, formatNumberWithCommas, getEtbCurrency, unformatNumber } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
 const STEPS = ['Type', 'Category', 'Details', 'Location', 'Media', 'Options'];
@@ -66,7 +68,7 @@ export default function EditListingScreen({ navigation, route }: any) {
             setSelectedBrand(product.brand);
             setTitle(product.title);
             setDescription(product.description);
-            setPrice(product.currentPrice.toString());
+            setPrice(formatNumberWithCommas(product.currentPrice));
             setIsFixed(product.isFixed);
             setSelectedCurrency(product.currency);
             setVideoLink(product.youtubeLink || '');
@@ -98,6 +100,7 @@ export default function EditListingScreen({ navigation, route }: any) {
     const currenciesQuery = useCurrencies();
     const postTypesQuery = usePostTypesQuery();
     const updateProductMutation = useUpdateProductMutation();
+    const etbCurrency = getEtbCurrency(currenciesQuery.data || []);
 
     if (isProductLoading) return <View style={styles.center}><ActivityIndicator size="large" color={THEME_COLOR} /></View>;
 
@@ -117,10 +120,11 @@ export default function EditListingScreen({ navigation, route }: any) {
         try {
             const formData = new FormData();
             formData.append('productId', productId);
+            const numericPrice = unformatNumber(price);
             formData.append('title', title);
             formData.append('description', description);
-            formData.append('currentPrice', price);
-            formData.append('previousPrice', price);
+            formData.append('currentPrice', numericPrice);
+            formData.append('previousPrice', numericPrice);
             formData.append('isFixed', `${isFixed}`);
             formData.append('transactionType', `${transactionType}`);
             formData.append('productType', `${selectedService}`);
@@ -128,7 +132,7 @@ export default function EditListingScreen({ navigation, route }: any) {
             formData.append('postType', selectedPostType?._id);
             formData.append('youtubeLink', videoLink);
             formData.append('postThroughGadal', `${postThroughGadal}`);
-            formData.append('currency', selectedCurrency?._id || currenciesQuery.data?.[0]?._id);
+            formData.append('currency', etbCurrency?._id || selectedCurrency?._id || currenciesQuery.data?.[0]?._id);
             formData.append('location', selectedLocation?._id);
             formData.append('subCity', selectedSubCity?._id);
             formData.append('wereda', selectedWereda?._id);
@@ -178,10 +182,27 @@ export default function EditListingScreen({ navigation, route }: any) {
         }
     };
 
+    const handleBack = useCallback(() => {
+        if (currentStep > 2) {
+            setCurrentStep(prev => prev - 1);
+            return true;
+        }
+
+        navigation.goBack();
+        return true;
+    }, [currentStep, navigation]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
+            return () => subscription.remove();
+        }, [handleBack])
+    );
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
+                <TouchableOpacity onPress={handleBack}>
                     <Ionicons name="chevron-back" size={28} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Edit Listing</Text>
@@ -271,7 +292,7 @@ export default function EditListingScreen({ navigation, route }: any) {
                 {currentStep === 2 && (
                     <View>
                         <Text style={styles.label}>Title</Text>
-                        <TextInput style={styles.input} placeholder="Item Title" placeholderTextColor="#888" value={title} onChangeText={setTitle} />
+                        <TextInput style={styles.input} placeholder="Example: Komatsu 350, 2015" placeholderTextColor="#888" value={title} onChangeText={setTitle} />
 
                         <Text style={styles.label}>Description</Text>
                         <TextInput style={[styles.input, { height: 80 }]} placeholder="Describe your item..." placeholderTextColor="#888" multiline value={description} onChangeText={setDescription} />
@@ -280,14 +301,14 @@ export default function EditListingScreen({ navigation, route }: any) {
                         <View style={{ flexDirection: 'row', gap: 10 }}>
                             <TextInput
                                 style={[styles.input, { flex: 1 }]}
-                                placeholder="Amount"
+                                placeholder="Amount in ETB"
                                 placeholderTextColor="#888"
                                 keyboardType="numeric"
                                 value={price}
-                                onChangeText={setPrice}
+                                onChangeText={(value) => setPrice(formatNumberWithCommas(value))}
                             />
                             <View style={styles.pickerBoxCompact}>
-                                <Text>{selectedCurrency?.sign || 'ETB'}</Text>
+                                <Text>ETB</Text>
                             </View>
                         </View>
 
@@ -425,8 +446,11 @@ export default function EditListingScreen({ navigation, route }: any) {
                                 }
                             }}
                         >
-                            <Ionicons name="camera" size={40} color={THEME_COLOR} />
-                            <Text style={{ color: '#666', marginTop: 10 }}>Tap to add more images</Text>
+                            <View style={styles.cropUploadButton}>
+                                <Ionicons name="crop-outline" size={24} color="#fff" />
+                                <Text style={styles.cropUploadButtonText}>Crop & Upload Photo</Text>
+                            </View>
+                            <Text style={styles.uploadHint}>Select a photo, then adjust the crop before saving.</Text>
                         </TouchableOpacity>
                         <View style={styles.imageGrid}>
                             {existingImages.map((img, idx) => (
@@ -463,7 +487,7 @@ export default function EditListingScreen({ navigation, route }: any) {
                             >
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.packageName}>{option.name}</Text>
-                                    <Text style={styles.packagePrice}>ETB {option.price}</Text>
+                                    <Text style={styles.packagePrice}>{formatEtb(option.price)}</Text>
                                 </View>
                                 {selectedPostType?._id === option._id && <Ionicons name="checkmark-circle" size={24} color={THEME_COLOR} />}
                             </TouchableOpacity>
@@ -492,7 +516,7 @@ export default function EditListingScreen({ navigation, route }: any) {
 
             <View style={styles.footer}>
                 {currentStep > 2 && (
-                    <TouchableOpacity style={styles.backBtn} onPress={() => setCurrentStep(currentStep - 1)}>
+                    <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
                         <Text style={styles.backBtnText}>Back</Text>
                     </TouchableOpacity>
                 )}
@@ -541,7 +565,33 @@ const styles = StyleSheet.create({
     activeChip: { backgroundColor: THEME_COLOR },
     chipText: { color: '#333' },
     activeChipText: { color: '#fff', fontWeight: 'bold' },
-    uploadBox: { height: 100, borderWidth: 2, borderColor: '#ddd', borderStyle: 'dashed', borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fafafa' },
+    uploadBox: { height: 150, borderWidth: 2, borderColor: '#ddd', borderStyle: 'dashed', borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fafafa' },
+    cropUploadButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: THEME_COLOR,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    cropUploadButtonText: {
+        color: '#fff',
+        fontSize: 15,
+        fontWeight: 'bold',
+    },
+    uploadHint: {
+        color: '#666',
+        fontSize: 12,
+        marginTop: 10,
+        textAlign: 'center',
+        paddingHorizontal: 15,
+    },
     imageGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 20 },
     imageWrapper: { width: 80, height: 80, marginRight: 10, marginBottom: 10 },
     thumbnail: { width: '100%', height: '100%', borderRadius: 8 },

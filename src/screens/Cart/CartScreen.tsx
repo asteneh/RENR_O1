@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CONFIG } from '../../config/index';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
+import { formatEtb } from '../../utils/currency';
 
 export default function CartScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -59,7 +60,7 @@ export default function CartScreen({ navigation }: any) {
       />
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.itemPrice}>ETB {item.currentPrice?.toLocaleString()}</Text>
+        <Text style={styles.itemPrice}>{formatEtb(item.currentPrice)}</Text>
         <View style={styles.quantityContainer}>
           <Text style={styles.quantityText}>Qty: {item.quantity}</Text>
         </View>
@@ -104,7 +105,7 @@ export default function CartScreen({ navigation }: any) {
         <View style={styles.footer}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.totalValue}>ETB {totalPrice().toLocaleString()}</Text>
+            <Text style={styles.totalValue}>{formatEtb(totalPrice())}</Text>
           </View>
           <TouchableOpacity
             style={[styles.checkoutBtn, createOrderMutation.isPending && styles.disabledBtn]}

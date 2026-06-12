@@ -6,6 +6,7 @@ import { CONFIG } from '../config';
 import { Product, useAddFavMutation, useRemoveFavMutation } from '../api/services/productService';
 import { useAuthStore } from '../store/useAuthStore';
 import { Rating } from 'react-native-ratings';
+import { formatEtb } from '../utils/currency';
 
 interface ProductCardProps {
     product: Product;
@@ -116,11 +117,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
                 <View style={styles.priceRow}>
                     <Text style={styles.price}>
-                        {product.currency?.sign} {product.currentPrice.toLocaleString()}
+                        {formatEtb(product.currentPrice)}
                     </Text>
                     {product.previousPrice > product.currentPrice && (
                         <Text style={styles.previousPrice}>
-                            {product.currency?.sign} {product.previousPrice.toLocaleString()}
+                            {formatEtb(product.previousPrice)}
                         </Text>
                     )}
                 </View>

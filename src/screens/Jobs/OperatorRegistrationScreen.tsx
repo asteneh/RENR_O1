@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput,
-    TouchableOpacity, ActivityIndicator, Image
+    TouchableOpacity, ActivityIndicator, Image, BackHandler
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCategoriesByService } from '../../api/services/categoryService';
 import { useRegister } from '../../api/services/authService';
@@ -112,6 +112,23 @@ export default function OperatorRegistrationScreen() {
             setActiveStep(prev => prev + 1);
         }
     };
+
+    const handleBack = useCallback(() => {
+        if (activeStep > 0 && activeStep < 2) {
+            setActiveStep(prev => prev - 1);
+            return true;
+        }
+
+        navigation.goBack();
+        return true;
+    }, [activeStep, navigation]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
+            return () => subscription.remove();
+        }, [handleBack])
+    );
 
     const handleSubmit = async () => {
         if (!validateStep()) return;
@@ -332,7 +349,7 @@ export default function OperatorRegistrationScreen() {
         <RoleAccessGuard feature={FeatureActions.JOIN_OPERATOR}>
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
                     <Ionicons name="chevron-back" size={28} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Operator Registration</Text>
@@ -357,7 +374,7 @@ export default function OperatorRegistrationScreen() {
             {activeStep < 2 && (
                 <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                     {activeStep > 0 && (
-                        <TouchableOpacity style={styles.prevBtn} onPress={() => setActiveStep(prev => prev - 1)}>
+                        <TouchableOpacity style={styles.prevBtn} onPress={handleBack}>
                             <Text style={styles.prevBtnText}>Back</Text>
                         </TouchableOpacity>
                     )}

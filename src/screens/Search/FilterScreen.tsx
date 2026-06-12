@@ -5,6 +5,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { formatEtb } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -86,7 +87,7 @@ export default function FilterScreen() {
         {/* Price Range Simulation */}
         <View style={styles.section}>
             <Text style={styles.label}>Price Range</Text>
-            <Text style={styles.rangeText}>1,000 Birr - 1,000,000,000 Birr</Text>
+            <Text style={styles.rangeText}>{formatEtb(1000)} - {formatEtb(1000000000)}</Text>
             <View style={styles.sliderTrack}>
                 <View style={styles.sliderFill} />
                 <View style={[styles.thumb, { left: 0 }]} />

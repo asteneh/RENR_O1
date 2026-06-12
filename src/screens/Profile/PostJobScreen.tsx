@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-    ActivityIndicator, Modal, FlatList, KeyboardAvoidingView, Platform
+    ActivityIndicator, Modal, FlatList, KeyboardAvoidingView, Platform, BackHandler
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCreateJobMutation } from '../../api/services/jobService';
 import { useCategoriesByService } from '../../api/services/categoryService';
 import { useNotificationStore } from '../../store/useNotificationStore';
@@ -107,11 +107,33 @@ export default function PostJobScreen() {
         });
     };
 
+    const handleBack = useCallback(() => {
+        if (showMachineModal) {
+            setShowMachineModal(false);
+            return true;
+        }
+
+        if (showTypeModal) {
+            setShowTypeModal(false);
+            return true;
+        }
+
+        navigation.goBack();
+        return true;
+    }, [navigation, showMachineModal, showTypeModal]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
+            return () => subscription.remove();
+        }, [handleBack])
+    );
+
     return (
         <RoleAccessGuard feature={FeatureActions.POST_JOB}>
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Post New Job</Text>
@@ -279,7 +301,7 @@ export default function PostJobScreen() {
             </KeyboardAvoidingView>
 
             {/* Job Type Modal */}
-            <Modal visible={showTypeModal} transparent animationType="fade">
+            <Modal visible={showTypeModal} transparent animationType="fade" onRequestClose={handleBack}>
                 <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowTypeModal(false)}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Select Job Type</Text>
@@ -303,7 +325,7 @@ export default function PostJobScreen() {
             </Modal>
 
             {/* Machine Type Modal */}
-            <Modal visible={showMachineModal} transparent animationType="slide">
+            <Modal visible={showMachineModal} transparent animationType="slide" onRequestClose={handleBack}>
                 <View style={styles.modalOverlay}>
                     <View style={[styles.modalContent, { maxHeight: '70%', width: '90%' }]}>
                         <View style={styles.modalHeader}>

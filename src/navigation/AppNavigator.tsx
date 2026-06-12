@@ -79,9 +79,9 @@ export default function AppNavigator() {
         <Stack.Screen name="VerifyPhone" component={VerifyPhoneScreen} options={{ title: 'Verify' }} />
         <Stack.Screen name="OtpVerifyRegistration" component={OtpVerifyRegistrationScreen} options={{ headerShown: false }} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: 'Reset Password' }} />
-        <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ title: 'My Favorites' }} />
+        <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Notification" component={NotificationScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: 'Messages' }} />
+        <Stack.Screen name="Messages" component={MessagesScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
         <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Filter" component={FilterScreen} options={{ headerShown: true, title: 'Filters' }} />

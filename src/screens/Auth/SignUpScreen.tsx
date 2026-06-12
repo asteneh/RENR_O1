@@ -1,12 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, StatusBar, Modal, FlatList, ActivityIndicator,
-  KeyboardAvoidingView, Platform
+  KeyboardAvoidingView, Platform, BackHandler
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useRegister, useGetOtp, useConfirmOtp } from '../../api/services/authService';
@@ -168,6 +168,31 @@ export default function SignUpScreen() {
   };
 
   const { showNotification } = useNotificationStore();
+
+  const getPreviousStep = useCallback((currentStep: number) => {
+    if (currentStep === 5 && !hasBelongingsRole) {
+      return 3;
+    }
+
+    return Math.max(1, currentStep - 1);
+  }, [hasBelongingsRole]);
+
+  const handleBack = useCallback(() => {
+    if (step > 1) {
+      setStep(getPreviousStep(step));
+      return true;
+    }
+
+    navigation.goBack();
+    return true;
+  }, [getPreviousStep, navigation, step]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
+      return () => subscription.remove();
+    }, [handleBack])
+  );
 
   const handleVerifyPhone = () => {
     const currentErrors = {
@@ -357,19 +382,11 @@ export default function SignUpScreen() {
         return;
       }
 
-      if (hasBelongingsRole) {
-        setStep(4);
-      } else {
-        setStep(5);
-      }
+      setStep(hasBelongingsRole ? 4 : 5);
       return;
     }
 
     if (step === 4) {
-      if (machineryList.length === 0 || legalDocuments.length === 0) {
-        showNotification('Please add machinery and legal documents.', 'error');
-        return;
-      }
       setStep(5);
       return;
     }
@@ -403,7 +420,7 @@ export default function SignUpScreen() {
           style={{ flex: 1 }}
         >
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
+            <TouchableOpacity onPress={handleBack}>
               <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
           </View>
@@ -414,7 +431,7 @@ export default function SignUpScreen() {
                 <Text style={styles.title}>Create Your Account</Text>
                 <Text style={styles.subtitle}>Enter your name and phone to verify</Text>
 
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, errors.firstName && styles.inputError]}>
                   <Ionicons name="person-outline" size={20} color="#FF8C00" style={styles.icon} />
                   <TextInput
                     placeholder="First Name"
@@ -429,7 +446,7 @@ export default function SignUpScreen() {
                 </View>
                 {errors.firstName ? <Text style={styles.errorText}>{errors.firstName}</Text> : null}
 
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, errors.lastName && styles.inputError]}>
                   <Ionicons name="person-outline" size={20} color="#FF8C00" style={styles.icon} />
                   <TextInput
                     placeholder="Last Name"
@@ -444,7 +461,7 @@ export default function SignUpScreen() {
                 </View>
                 {errors.lastName ? <Text style={styles.errorText}>{errors.lastName}</Text> : null}
 
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, errors.phone && styles.inputError]}>
                   <TouchableOpacity
                     style={styles.flagContainer}
                     onPress={() => setCountryModalVisible(true)}
@@ -487,7 +504,7 @@ export default function SignUpScreen() {
                     onPress={() => {
                       setStep(1);
                       setOtpCode(['', '', '', '']);
-                    }} 
+                    }}
                     style={styles.backButton}
                   >
                     <Ionicons name="arrow-back" size={24} color="#333" />
@@ -537,10 +554,7 @@ export default function SignUpScreen() {
               <>
                 <View style={styles.stepTitleContainer}>
                   <TouchableOpacity 
-                    onPress={() => {
-                      setStep(1);
-                      setOtpCode(['', '', '', '']);
-                    }} 
+                    onPress={() => setStep(2)}
                     style={styles.backButton}
                   >
                     <Ionicons name="arrow-back" size={24} color="#333" />
@@ -548,7 +562,7 @@ export default function SignUpScreen() {
                   <Text style={styles.title}>Account Details</Text>
                 </View>
 
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, errors.email && styles.inputError]}>
                   <Ionicons name="mail-outline" size={20} color="#FF8C00" style={styles.icon} />
                   <TextInput
                     placeholder="Email"
@@ -564,7 +578,7 @@ export default function SignUpScreen() {
                 </View>
                 {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, errors.password && styles.inputError]}>
                   <Ionicons name="lock-closed-outline" size={20} color="#FF8C00" style={styles.icon} />
                   <TextInput
                     placeholder="Password"
@@ -587,7 +601,7 @@ export default function SignUpScreen() {
                 </View>
                 {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, errors.confirmPassword && styles.inputError]}>
                   <Ionicons name="lock-closed-outline" size={20} color="#FF8C00" style={styles.icon} />
                   <TextInput
                     placeholder="Confirm Password"
@@ -659,7 +673,7 @@ export default function SignUpScreen() {
                   onPress={handleRegister}
                 >
                   <Text style={styles.btnText}>
-                    {hasBelongingsRole ? "Next Step" : "Complete Registration"}
+                    {hasBelongingsRole ? "Next Step" : "Registration Options"}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -669,8 +683,11 @@ export default function SignUpScreen() {
                   <TouchableOpacity onPress={() => setStep(3)} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                   </TouchableOpacity>
-                  <Text style={styles.title}>Supplier Assets</Text>
+                  <Text style={styles.title}>Notification Interests</Text>
                 </View>
+                <Text style={styles.subtitle}>
+                  Choose machinery types and brands to receive request notifications after you buy a package. You can skip this now.
+                </Text>
 
                 <View style={styles.assetForm}>
                   <TouchableOpacity
@@ -721,30 +738,17 @@ export default function SignUpScreen() {
                   ))}
                 </View>
 
-                <View style={styles.documentSection}>
-                  <View style={styles.docHeader}>
-                    <Text style={styles.docTitle}>Legal Documents</Text>
-                    <TouchableOpacity style={styles.uploadBtn} onPress={handlePickImage}>
-                      <Text style={styles.uploadBtnText}>Upload Files</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.docSubtitle}>Please attach relevant legal documents (Images).</Text>
-
-                  {legalDocuments.map((doc, index) => (
-                    <View key={index} style={styles.docItem}>
-                      <Text style={styles.docName} numberOfLines={1}>Document {index + 1}</Text>
-                      <TouchableOpacity onPress={() => removeImage(index)}>
-                        <Ionicons name="close-circle" size={20} color="red" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-
                 <TouchableOpacity
                   style={[styles.btn, { marginTop: 20 }]}
                   onPress={handleRegister}
                 >
                   <Text style={styles.btnText}>Next: Registration Options</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.skipBtn}
+                  onPress={() => setStep(5)}
+                >
+                  <Text style={styles.skipBtnText}>Skip for now</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -981,8 +985,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 12,
     paddingHorizontal: 15, paddingVertical: 14,
     marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#fff',
     elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 3
   },
+  inputError: { borderColor: '#E53935', backgroundColor: '#FFF7F7' },
   errorText: { color: 'red', fontSize: 12, marginTop: -10, marginBottom: 10, marginLeft: 5 },
   flagContainer: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
   prefix: { fontSize: 16, color: '#333', marginRight: 10, fontWeight: '500' },
@@ -1026,6 +1033,8 @@ const styles = StyleSheet.create({
   btn: { backgroundColor: THEME_COLOR, padding: 16, borderRadius: 12, alignItems: 'center' },
   disabledBtn: { backgroundColor: '#ccc' },
   btnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  skipBtn: { padding: 14, alignItems: 'center', marginTop: 8 },
+  skipBtnText: { color: THEME_COLOR, fontWeight: '700', fontSize: 15 },
 
   stepTitleContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   backButton: { marginRight: 15 },

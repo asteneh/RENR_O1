@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useConversations } from '../../api/services/messageService';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,43 +12,69 @@ export default function MessagesScreen({ navigation }: any) {
     const userId = user?.id || user?._id; // Adapt to auth state
     const { data: conversations, isLoading, error } = useConversations(userId);
 
-    const renderItem = ({ item }: { item: any }) => (
-        <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate('Chat', { conversation: item })}
-        >
-            <View style={styles.avatar}>
-                <Ionicons name="person" size={20} color="#fff" />
-            </View>
-            <View style={styles.content}>
-                <Text style={styles.name}>User {item.members?.find((m: string) => m !== userId) || 'User'}</Text>
-                <Text style={styles.message} numberOfLines={1}>{item.lastMessage || 'Start content...'}</Text>
-            </View>
-            <Text style={styles.date}>{new Date(item.updatedAt).toLocaleDateString()}</Text>
-        </TouchableOpacity>
-    );
+    const renderItem = ({ item }: { item: any }) => {
+        const partner = item.productOwner?._id === userId ? item.interestedParty : item.productOwner;
+        const partnerName = partner ? `${partner.firstName} ${partner.lastName}` : 'User';
+        const lastMsgText = item.lastConversation?.message?.message || 'Start content...';
+
+        return (
+            <TouchableOpacity
+                style={styles.card}
+                onPress={() => navigation.navigate('Chat', { conversation: item })}
+            >
+                <View style={styles.avatar}>
+                    <Ionicons name="person" size={20} color="#fff" />
+                </View>
+                <View style={styles.content}>
+                    <Text style={styles.name}>{partnerName}</Text>
+                    <Text style={styles.message} numberOfLines={1}>{lastMsgText}</Text>
+                </View>
+                <Text style={styles.date}>
+                    {item.lastConversation?.updatedAt ? new Date(item.lastConversation.updatedAt).toLocaleDateString() : new Date(item.updatedAt).toLocaleDateString()}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
 
     if (!userId) return <View style={styles.center}><Text>Please login to view messages.</Text></View>;
     if (isLoading) return <ActivityIndicator size="large" color={THEME_COLOR} style={{ flex: 1 }} />;
     if (error) return <View style={styles.center}><Text>Error loading messages</Text></View>;
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.header}>Messages</Text>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Ionicons name="chevron-back" size={28} color="#333" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Messages</Text>
+                <View style={{ width: 28 }} />
+            </View>
             <FlatList
                 data={conversations}
                 keyExtractor={(item) => item._id}
                 renderItem={renderItem}
+                contentContainerStyle={styles.list}
                 ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20 }}>No conversations found.</Text>}
             />
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f9f9f9', padding: 15 },
+    container: { flex: 1, backgroundColor: '#F8F9FA' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { fontSize: 22, fontWeight: 'bold', marginBottom: 15 },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0'
+    },
+    headerTitle: { fontSize: 18, fontWeight: 'bold' },
+    list: { padding: 15, paddingBottom: 30 },
     card: { flexDirection: 'row', backgroundColor: '#fff', padding: 15, borderRadius: 12, marginBottom: 10, alignItems: 'center', elevation: 1 },
     avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ccc', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
     content: { flex: 1 },

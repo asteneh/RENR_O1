@@ -1,10 +1,11 @@
 import React, { useRef, useState } from 'react';
 import {
   View, Text, Image, TouchableOpacity, StyleSheet,
-  Dimensions, StatusBar, Animated as RNAnimated, ScrollView, Share, Alert, Modal, Pressable, Linking
+  Dimensions, StatusBar, Animated as RNAnimated, ScrollView, Share, Alert, Modal, Pressable, Linking, ActivityIndicator
 
 } from 'react-native';
 import ZoomableImageModal from '../../components/common/ZoomableImageModal';
+import { fetchConversations, startNewConversation } from '../../api/services/messageService';
 
 
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
@@ -23,6 +24,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { useRoleAccess } from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
+import { formatEtb } from '../../utils/currency';
 
 type DetailsRouteProp = RouteProp<RootStackParamList, 'ProductDetails'>;
 
@@ -40,6 +42,74 @@ export default function ProductDetailsScreen() {
 
   const [showPhone, setShowPhone] = useState(false);
   const [activeTab, setActiveTab] = useState<'Description' | 'Reviews'>('Description');
+
+  // Chat State
+  const [firstMsgModalVisible, setFirstMsgModalVisible] = useState(false);
+  const [firstMessageText, setFirstMessageText] = useState("Hi, is this machinery still available?");
+  const [isSendingFirstMsg, setIsSendingFirstMsg] = useState(false);
+
+  const handleChatPress = async () => {
+    if (!user) {
+      navigation.navigate('Login');
+      return;
+    }
+
+    const buyerId = user.id || user._id;
+    const sellerId = displayProduct.consignee?._id;
+
+    if (buyerId === sellerId) {
+      showNotification("You cannot chat with yourself.", "error");
+      return;
+    }
+
+    try {
+      const conversationsList = await fetchConversations(buyerId);
+      const existing = conversationsList?.find((c: any) => 
+        (c.product?._id === displayProduct._id || c.product === displayProduct._id) &&
+        (c.productOwner?._id === sellerId || c.productOwner === sellerId || c.interestedParty?._id === sellerId || c.interestedParty === sellerId)
+      );
+
+      if (existing) {
+        navigation.navigate('Chat', { conversation: existing });
+      } else {
+        setFirstMsgModalVisible(true);
+      }
+    } catch (error) {
+      showNotification("Error starting chat", "error");
+    }
+  };
+
+  const sendFirstMessage = async () => {
+    if (!firstMessageText.trim()) return;
+    setIsSendingFirstMsg(true);
+    try {
+      const buyerId = user?.id || user?._id;
+      const sellerId = displayProduct.consignee?._id;
+      await startNewConversation({
+        product: displayProduct._id,
+        owner: sellerId,
+        buyer: buyerId,
+        firstMessage: firstMessageText,
+      });
+
+      // Query conversations list again to find the newly created conversation
+      const newList = await fetchConversations(buyerId);
+      const newConvo = newList?.find((c: any) => 
+        (c.product?._id === displayProduct._id || c.product === displayProduct._id)
+      );
+
+      setFirstMsgModalVisible(false);
+      if (newConvo) {
+        navigation.navigate('Chat', { conversation: newConvo });
+      } else {
+        navigation.navigate('Messages');
+      }
+    } catch (e) {
+      showNotification("Failed to send message", "error");
+    } finally {
+      setIsSendingFirstMsg(false);
+    }
+  };
 
   // Role-based access check for viewing seller contact info
   const sellerInfoAccess = useRoleAccess(FeatureActions.VIEW_SELLER_INFO);
@@ -198,7 +268,7 @@ export default function ProductDetailsScreen() {
 
             <View style={styles.priceRow}>
               <Text style={styles.price}>
-                {displayProduct.currency?.sign} {displayProduct.currentPrice.toLocaleString()}
+                {formatEtb(displayProduct.currentPrice)}
               </Text>
               <View style={styles.fixedBadge}>
                 <Text style={styles.fixedText}>{displayProduct.isFixed ? 'Fixed' : 'Negotiable'}</Text>
@@ -383,14 +453,7 @@ export default function ProductDetailsScreen() {
 
               <TouchableOpacity 
                 style={styles.contactActionBtn}
-                onPress={() => {
-                  const phone = displayProduct.consignee?.phoneNumber || (displayProduct.consignee as any)?.phone;
-                  if (phone) {
-                    Linking.openURL(`sms:${phone}`);
-                  } else {
-                    Alert.alert('Phone number not available');
-                  }
-                }}
+                onPress={handleChatPress}
               >
                 <Ionicons name="chatbubbles-outline" size={20} color={THEME_COLOR} />
                 <Text style={styles.contactActionText}>Chat</Text>
@@ -451,7 +514,7 @@ export default function ProductDetailsScreen() {
             <TouchableOpacity style={styles.actionIconButton} onPress={() => {
               showAlert(
                 "Offer Price",
-                `Enter your offer price (Current: ${displayProduct.currency?.sign} ${displayProduct.currentPrice.toLocaleString()})`,
+                `Enter your offer price (Current: ${formatEtb(displayProduct.currentPrice)})`,
                 [
                   { text: "Cancel", style: "cancel" },
                   { text: "Send", onPress: (price?: string) => showNotification(`Your offer of ${price} has been sent.`, "success"), style: "default" }
@@ -474,6 +537,49 @@ export default function ProductDetailsScreen() {
         imageUri={zoomImage}
         onClose={() => setIsZoomModalVisible(false)}
       />
+
+      {/* First Message Modal */}
+      <Modal
+        visible={firstMsgModalVisible}
+        animationType="fade"
+        transparent={true}
+        statusBarTranslucent
+        onRequestClose={() => setFirstMsgModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Send a Message to Seller</Text>
+            <RNTextInput
+              style={styles.modalInput}
+              multiline
+              numberOfLines={4}
+              placeholder="Type your first message..."
+              placeholderTextColor="#888"
+              value={firstMessageText}
+              onChangeText={setFirstMessageText}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setFirstMsgModalVisible(false)}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSendBtn, !firstMessageText.trim() && { opacity: 0.5 }]}
+                disabled={!firstMessageText.trim() || isSendingFirstMsg}
+                onPress={sendFirstMessage}
+              >
+                {isSendingFirstMsg ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalSendText}>Send</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
 
   );
@@ -669,5 +775,66 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 14,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 10,
+    height: 100,
+    textAlignVertical: 'top',
+    fontSize: 15,
+    color: '#333',
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 15,
+  },
+  modalCancelBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+  },
+  modalCancelText: {
+    color: '#666',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalSendBtn: {
+    backgroundColor: THEME_COLOR,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalSendText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
 });
-

@@ -1,8 +1,10 @@
 import React from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFavorites } from '../../api/services/favoritesService';
 import { CONFIG } from '../../config';
 import { Ionicons } from '@expo/vector-icons';
+import { formatEtb } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -23,7 +25,7 @@ export default function FavoritesScreen({ navigation }: any) {
             />
             <View style={styles.details}>
                 <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-                <Text style={styles.price}>ETB {item.currentPrice?.toLocaleString()}</Text>
+                <Text style={styles.price}>{formatEtb(item.currentPrice)}</Text>
                 <View style={styles.locationRow}>
                     <Ionicons name="location-outline" size={12} color="#666" />
                     <Text style={styles.location}>{item.location?.descripton || 'No Location'}</Text>
@@ -36,8 +38,14 @@ export default function FavoritesScreen({ navigation }: any) {
     );
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.header}>My Favorites</Text>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Ionicons name="chevron-back" size={28} color="#333" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>My Favorites</Text>
+                <View style={{ width: 28 }} />
+            </View>
             <FlatList
                 data={favorites}
                 keyExtractor={(item) => item._id}
@@ -45,15 +53,25 @@ export default function FavoritesScreen({ navigation }: any) {
                 contentContainerStyle={styles.list}
                 ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20 }}>No favorites yet.</Text>}
             />
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f9f9f9', padding: 15 },
+    container: { flex: 1, backgroundColor: '#F8F9FA' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { fontSize: 22, fontWeight: 'bold', marginBottom: 15 },
-    list: { paddingBottom: 20 },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0'
+    },
+    headerTitle: { fontSize: 18, fontWeight: 'bold' },
+    list: { padding: 15, paddingBottom: 30 },
     card: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 12, marginBottom: 15, padding: 10, elevation: 2 },
     image: { width: 80, height: 80, borderRadius: 8, marginRight: 15 },
     details: { flex: 1, justifyContent: 'center' },

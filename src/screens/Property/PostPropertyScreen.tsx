@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Image, Platform, KeyboardAvoidingView
+  ScrollView, ActivityIndicator, Image, Platform, KeyboardAvoidingView, BackHandler
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -22,6 +23,7 @@ import { cleanErrorMessage } from '../../utils/errorUtils';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
 import { checkPackageBeforePosting } from '../../api/services/packageService';
+import { formatEtb, formatNumberWithCommas, getEtbCurrency, unformatNumber } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
 const STEPS = ['Type', 'Category', 'Details', 'Location', 'Media', 'Options'];
@@ -55,6 +57,7 @@ export default function PostPropertyScreen({ navigation }: any) {
   const [selectedPostType, setSelectedPostType] = useState<any>(null);
   const [postThroughGadal, setPostThroughGadal] = useState(false);
   const [checkingPackage, setCheckingPackage] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, boolean>>({});
 
   const user = useAuthStore(state => state.user);
 
@@ -68,6 +71,7 @@ export default function PostPropertyScreen({ navigation }: any) {
   const currenciesQuery = useCurrencies();
   const postTypesQuery = usePostTypesQuery();
   const createProductMutation = useCreateProductMutation();
+  const etbCurrency = getEtbCurrency(currenciesQuery.data || []);
 
   // --- Handlers ---
 
@@ -92,6 +96,7 @@ export default function PostPropertyScreen({ navigation }: any) {
         setLegalDocs([...legalDocs, result.assets[0]]);
       } else {
         setImages([...images, result.assets[0]]);
+        setValidationErrors(prev => ({ ...prev, images: false }));
       }
     }
   };
@@ -123,19 +128,69 @@ export default function PostPropertyScreen({ navigation }: any) {
     }
   };
 
+  const validateCurrentStep = () => {
+    const nextErrors: Record<string, boolean> = {};
+
+    if (currentStep === 1) {
+      nextErrors.category = !selectedCategory;
+    }
+
+    if (currentStep === 2) {
+      nextErrors.title = !title.trim();
+      nextErrors.description = !description.trim();
+      nextErrors.price = !price.trim();
+    }
+
+    if (currentStep === 3) {
+      nextErrors.location = !selectedLocation;
+      nextErrors.subCity = !selectedSubCity;
+      nextErrors.wereda = !selectedWereda;
+    }
+
+    if (currentStep === 4) {
+      nextErrors.images = images.length === 0;
+    }
+
+    if (currentStep === 5) {
+      nextErrors.postType = !selectedPostType && !postThroughGadal;
+    }
+
+    const visibleErrors = Object.fromEntries(Object.entries(nextErrors).filter(([, hasError]) => hasError));
+    setValidationErrors(visibleErrors);
+    return Object.keys(visibleErrors).length === 0;
+  };
+
   const handleNext = async () => {
     if (currentStep === 0 && !selectedService) return showNotification("Select a service type", "error");
-    if (currentStep === 1 && !selectedCategory) return showNotification("Select a category", "error");
+    if (!validateCurrentStep()) {
+      return showNotification("Please complete the highlighted required fields", "error");
+    }
 
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      if (!selectedPostType && !postThroughGadal) return showNotification("Please select a posting package", "error");
       const canPost = await validatePackageBeforePosting();
       if (!canPost) return;
       submitPost();
     }
   };
+
+  const handleBack = useCallback(() => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+      return true;
+    }
+
+    navigation.goBack();
+    return true;
+  }, [currentStep, navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', handleBack);
+      return () => subscription.remove();
+    }, [handleBack])
+  );
 
   const submitPost = async () => {
     try {
@@ -144,8 +199,9 @@ export default function PostPropertyScreen({ navigation }: any) {
       // Basic Info
       formData.append('title', title);
       formData.append('description', description);
-      formData.append('currentPrice', price);
-      formData.append('previousPrice', price);
+      const numericPrice = unformatNumber(price);
+      formData.append('currentPrice', numericPrice);
+      formData.append('previousPrice', numericPrice);
       formData.append('isFixed', `${isFixed}`);
       formData.append('transactionType', `${transactionType}`);
       formData.append('productType', `${selectedService}`);
@@ -157,7 +213,7 @@ export default function PostPropertyScreen({ navigation }: any) {
       }
       formData.append('youtubeLink', videoLink);
       formData.append('postThroughGadal', `${postThroughGadal}`);
-      formData.append('currency', selectedCurrency?._id || currenciesQuery.data?.[0]?._id);
+      formData.append('currency', etbCurrency?._id || selectedCurrency?._id || currenciesQuery.data?.[0]?._id);
 
       if (selectedBrand) {
         formData.append('brand', selectedBrand._id);
@@ -263,6 +319,7 @@ export default function PostPropertyScreen({ navigation }: any) {
                     onPress={() => {
                       setSelectedService(value);
                       setSelectedCategory(null);
+                      setValidationErrors({});
                     }}
                   >
                     <Ionicons name={getServiceIcon(key)} size={32} color={selectedService === value ? THEME_COLOR : '#666'} />
@@ -296,8 +353,11 @@ export default function PostPropertyScreen({ navigation }: any) {
                 {categoriesQuery.data?.map((cat) => (
                   <TouchableOpacity
                     key={cat._id}
-                    style={[styles.listItem, selectedCategory?._id === cat._id && styles.activeListItem]}
-                    onPress={() => setSelectedCategory(cat)}
+                    style={[styles.listItem, validationErrors.category && styles.validationBorder, selectedCategory?._id === cat._id && styles.activeListItem]}
+                    onPress={() => {
+                      setSelectedCategory(cat);
+                      setValidationErrors(prev => ({ ...prev, category: false }));
+                    }}
                   >
                     <Image source={{ uri: cat.icon }} style={{ width: 24, height: 24, marginRight: 10 }} />
                     <Text style={[styles.listText, selectedCategory?._id === cat._id && styles.activeText]}>{cat.name}</Text>
@@ -312,23 +372,45 @@ export default function PostPropertyScreen({ navigation }: any) {
         {currentStep === 2 && (
           <View>
             <Text style={styles.label}>Title</Text>
-            <TextInput style={styles.input} placeholder="Item Title" placeholderTextColor="#888" value={title} onChangeText={setTitle} />
+            <TextInput
+              style={[styles.input, validationErrors.title && styles.inputError]}
+              placeholder="Example: Komatsu 350, 2015"
+              placeholderTextColor="#888"
+              value={title}
+              onChangeText={(value) => {
+                setTitle(value);
+                setValidationErrors(prev => ({ ...prev, title: false }));
+              }}
+            />
 
             <Text style={styles.label}>Description</Text>
-            <TextInput style={[styles.input, { height: 80 }]} placeholder="Describe your item..." placeholderTextColor="#888" multiline value={description} onChangeText={setDescription} />
+            <TextInput
+              style={[styles.input, { height: 80 }, validationErrors.description && styles.inputError]}
+              placeholder="Describe your item..."
+              placeholderTextColor="#888"
+              multiline
+              value={description}
+              onChangeText={(value) => {
+                setDescription(value);
+                setValidationErrors(prev => ({ ...prev, description: false }));
+              }}
+            />
 
             <Text style={styles.label}>Price</Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Amount"
+                style={[styles.input, { flex: 1 }, validationErrors.price && styles.inputError]}
+                placeholder="Amount in ETB"
                 placeholderTextColor="#888"
                 keyboardType="numeric"
                 value={price}
-                onChangeText={setPrice}
+                onChangeText={(value) => {
+                  setPrice(formatNumberWithCommas(value));
+                  setValidationErrors(prev => ({ ...prev, price: false }));
+                }}
               />
               <TouchableOpacity style={styles.pickerBoxCompact}>
-                <Text>{selectedCurrency?.description || currenciesQuery.data?.[0]?.description || 'ETB'}</Text>
+                <Text>ETB</Text>
               </TouchableOpacity>
             </View>
 
@@ -405,11 +487,12 @@ export default function PostPropertyScreen({ navigation }: any) {
               {locationsQuery.data?.map(loc => (
                 <TouchableOpacity
                   key={loc._id}
-                  style={[styles.chip, selectedLocation?._id === loc._id && styles.activeChip]}
+                  style={[styles.chip, validationErrors.location && styles.validationBorder, selectedLocation?._id === loc._id && styles.activeChip]}
                   onPress={() => {
                     setSelectedLocation(loc);
                     setSelectedSubCity(null);
                     setSelectedWereda(null);
+                    setValidationErrors(prev => ({ ...prev, location: false }));
                   }}
                 >
                   <Text style={selectedLocation?._id === loc._id ? styles.activeChipText : styles.chipText}>{loc.descripton}</Text>
@@ -424,10 +507,11 @@ export default function PostPropertyScreen({ navigation }: any) {
                   {subCitiesQuery.data?.map(sub => (
                     <TouchableOpacity
                       key={sub._id}
-                      style={[styles.chip, selectedSubCity?._id === sub._id && styles.activeChip]}
+                      style={[styles.chip, validationErrors.subCity && styles.validationBorder, selectedSubCity?._id === sub._id && styles.activeChip]}
                       onPress={() => {
                         setSelectedSubCity(sub);
                         setSelectedWereda(null);
+                        setValidationErrors(prev => ({ ...prev, subCity: false }));
                       }}
                     >
                       <Text style={selectedSubCity?._id === sub._id ? styles.activeChipText : styles.chipText}>{sub.descripton}</Text>
@@ -444,8 +528,11 @@ export default function PostPropertyScreen({ navigation }: any) {
                   {weredasQuery.data?.map(wer => (
                     <TouchableOpacity
                       key={wer._id}
-                      style={[styles.chip, selectedWereda?._id === wer._id && styles.activeChip]}
-                      onPress={() => setSelectedWereda(wer)}
+                      style={[styles.chip, validationErrors.wereda && styles.validationBorder, selectedWereda?._id === wer._id && styles.activeChip]}
+                      onPress={() => {
+                        setSelectedWereda(wer);
+                        setValidationErrors(prev => ({ ...prev, wereda: false }));
+                      }}
                     >
                       <Text style={selectedWereda?._id === wer._id ? styles.activeChipText : styles.chipText}>{wer.descripton}</Text>
                     </TouchableOpacity>
@@ -459,9 +546,12 @@ export default function PostPropertyScreen({ navigation }: any) {
         {currentStep === 4 && (
           <View>
             <Text style={styles.label}>Product Photos</Text>
-            <TouchableOpacity style={styles.uploadBox} onPress={() => pickImage(false)}>
-              <Ionicons name="camera" size={40} color={THEME_COLOR} />
-              <Text style={{ color: '#666', marginTop: 10 }}>Tap to upload images</Text>
+            <TouchableOpacity style={[styles.uploadBox, validationErrors.images && styles.inputError]} onPress={() => pickImage(false)}>
+              <View style={styles.cropUploadButton}>
+                <Ionicons name="crop-outline" size={24} color="#fff" />
+                <Text style={styles.cropUploadButtonText}>Crop & Upload Photo</Text>
+              </View>
+              <Text style={styles.uploadHint}>Select a photo, then adjust the crop before saving.</Text>
             </TouchableOpacity>
             <View style={styles.imageGrid}>
               {images.map((img, idx) => (
@@ -510,12 +600,15 @@ export default function PostPropertyScreen({ navigation }: any) {
               postTypesQuery.data?.map((option) => (
                 <TouchableOpacity
                   key={option._id}
-                  style={[styles.packageCard, selectedPostType?._id === option._id && styles.activePackageCard]}
-                  onPress={() => setSelectedPostType(option)}
+                  style={[styles.packageCard, validationErrors.postType && styles.validationBorder, selectedPostType?._id === option._id && styles.activePackageCard]}
+                  onPress={() => {
+                    setSelectedPostType(option);
+                    setValidationErrors(prev => ({ ...prev, postType: false }));
+                  }}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={styles.packageName}>{option.name}</Text>
-                    <Text style={styles.packagePrice}>ETB {option.price}</Text>
+                    <Text style={styles.packagePrice}>{formatEtb(option.price)}</Text>
                   </View>
                   {selectedPostType?._id === option._id && <Ionicons name="checkmark-circle" size={24} color={THEME_COLOR} />}
                 </TouchableOpacity>
@@ -530,6 +623,7 @@ export default function PostPropertyScreen({ navigation }: any) {
                   setPostThroughGadal(newVal);
                   // Clear any selected package so postType is never sent in Gadal mode
                   if (newVal) setSelectedPostType(null);
+                  setValidationErrors(prev => ({ ...prev, postType: false }));
                 }}
               >
                 <Ionicons 
@@ -552,7 +646,7 @@ export default function PostPropertyScreen({ navigation }: any) {
         {currentStep > 0 && (
           <TouchableOpacity
             style={styles.backBtn}
-            onPress={() => setCurrentStep(currentStep - 1)}
+            onPress={handleBack}
             disabled={createProductMutation.isPending}
           >
             <Text style={styles.backBtnText}>Back</Text>
@@ -614,6 +708,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9', borderWidth: 1, borderColor: '#ddd',
     borderRadius: 8, padding: 12, fontSize: 16
   },
+  inputError: { borderColor: '#E53935', backgroundColor: '#FFF7F7' },
+  validationBorder: { borderWidth: 1, borderColor: '#E53935' },
   pickerBoxCompact: { padding: 12, borderWidth: 1, borderColor: '#ddd', borderRadius: 8, justifyContent: 'center' },
   sectionHeader: { fontSize: 16, fontWeight: 'bold', marginVertical: 10 },
 
@@ -630,6 +726,32 @@ const styles = StyleSheet.create({
   uploadBox: {
     height: 150, borderWidth: 2, borderColor: '#ddd', borderStyle: 'dashed',
     borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fafafa'
+  },
+  cropUploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME_COLOR,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cropUploadButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  uploadHint: {
+    color: '#666',
+    fontSize: 12,
+    marginTop: 10,
+    textAlign: 'center',
+    paddingHorizontal: 15,
   },
   imageGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 20 },
   imageWrapper: { width: 100, height: 100, marginRight: 10, marginBottom: 10 },

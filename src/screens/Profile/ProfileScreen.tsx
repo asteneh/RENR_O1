@@ -254,7 +254,7 @@ export default function ProfileScreen() {
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
                   icon="list-outline"
-                  label="My Listings"
+                  label="My Posts"
                   onPress={() => navigation.navigate('MyListings')}
                 />
               </>
@@ -281,7 +281,7 @@ export default function ProfileScreen() {
               label="My Packages"
               onPress={() => navigation.navigate('MyPackages')}
             />
-            {canPostJob && (
+            {(canPostJob || isOperator) && (
               <>
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
@@ -304,27 +304,6 @@ export default function ProfileScreen() {
             <MenuOption icon="information-circle-outline" label="About" onPress={() => setIsAboutVisible(true)} />
           </View>
         </View>
-
-        {/* Membership CTA (if free user) */}
-        {!hasActivePlan && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.upgradeBanner}
-              onPress={() => navigation.navigate('MyPackages')}
-            >
-              <View style={styles.upgradeBannerLeft}>
-                <Ionicons name="diamond-outline" size={28} color="#FFD700" />
-                <View style={{ marginLeft: 12 }}>
-                  <Text style={styles.upgradeTitle}>Upgrade Your Account</Text>
-                  <Text style={styles.upgradeSubtitle}>
-                    Unlock posting, contacts & more features
-                  </Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#FFD700" />
-            </TouchableOpacity>
-          </View>
-        )}
 
         {/* Bottom Actions */}
         <View style={styles.actionSection}>
