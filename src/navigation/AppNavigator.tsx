@@ -40,6 +40,7 @@ import TermsAndPrivacyScreen from '../screens/Auth/TermsAndPrivacyScreen';
 import PostJobScreen from '../screens/Profile/PostJobScreen';
 import OtpVerifyRegistrationScreen from '../screens/Auth/OtpVerifyRegistrationScreen';
 import AppSettingsScreen from '../screens/Profile/AppSettingsScreen';
+import FeedbackScreen from '../screens/Profile/FeedbackScreen';
 
 import { RootStackParamList } from './types';
 
@@ -161,6 +162,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="AppSettings"
           component={AppSettingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Feedback"
+          component={FeedbackScreen}
           options={{ headerShown: false }}
         />
       </Stack.Navigator>

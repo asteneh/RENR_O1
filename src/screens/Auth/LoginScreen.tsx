@@ -27,6 +27,25 @@ export default function LoginScreen() {
   const navigation = useNavigation<any>();
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
+  React.useEffect(() => {
+    const loadSavedCredentials = async () => {
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage');
+        const savedPhone = await AsyncStorage.getItem('saved_phone');
+        const savedPassword = await AsyncStorage.getItem('saved_password');
+        if (savedPhone) {
+          setEmailOrPhone(savedPhone);
+        }
+        if (savedPassword) {
+          setPassword(savedPassword);
+        }
+      } catch (e) {
+        console.log('Error loading saved credentials:', e);
+      }
+    };
+    loadSavedCredentials();
+  }, []);
+
   const loginMutation = useLogin();
   const getOtpMutation = useGetOtp();
 

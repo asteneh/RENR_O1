@@ -27,6 +27,7 @@ interface AuthState {
   addRole: (role: UserRole) => void;
   removeRole: (role: UserRole) => void;
   setViewMode: (mode: ViewMode) => void;
+  updateUser: (user: any) => void;
 
   // Multi-role helpers
   getUserRoles: () => UserRole[];
@@ -101,6 +102,14 @@ export const useAuthStore = create<AuthState>()(
 
       setViewMode: (mode) => set({ viewMode: mode }),
 
+      updateUser: (user) => {
+        const backendRoles = extractBackendRoles(user);
+        set({
+          user: { ...get().user, ...user },
+          currentRoles: backendRoles.length > 0 ? backendRoles : [UserRoles.USER as UserRole],
+        });
+      },
+
       // ─── Multi-Role Helpers ────────────────────────────
       getUserRoles: () => {
         const state = get();
@@ -155,7 +164,7 @@ export const useAuthStore = create<AuthState>()(
 // ─── Backend Role Extraction ──────────────────────────────────────
 // Handles single string, comma-separated, or array from backend
 
-function extractBackendRoles(user: any): UserRole[] {
+export function extractBackendRoles(user: any): UserRole[] {
   if (!user) return [];
 
   const roles: UserRole[] = [];

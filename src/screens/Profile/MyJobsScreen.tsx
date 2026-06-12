@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useJobsQuery } from '../../api/services/jobService';
 import { useUserProfile } from '../../api/services/userService';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -12,6 +12,7 @@ const THEME_COLOR = '#FF8C00';
 
 export default function MyJobsScreen() {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
     const { data: profile } = useUserProfile();
     const { getUserRoles } = useAuthStore();
     const isOperator =
@@ -19,13 +20,23 @@ export default function MyJobsScreen() {
         profile?.userType === 'Operator' ||
         profile?.userType === 'employee (Operator)';
 
-    // If operator, fetch applied jobs. If other, fetch posted jobs.
+    const mode = route.params?.mode || (isOperator ? 'applied' : 'posted');
+    const showApplied = mode === 'applied';
+
+    // If operator/applied mode, fetch applied jobs. If other/posted mode, fetch posted jobs.
     const { data: response, isLoading } = useJobsQuery(
-        isOperator ? { userId: profile?._id } : { postedBy: profile?._id }
+        showApplied ? { userId: profile?._id } : { postedBy: profile?._id }
     );
 
     const renderItem = ({ item }: { item: any }) => (
-        <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+        <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Jobs', {
+                screen: 'JobDetails',
+                params: { jobId: item._id }
+            })}
+        >
             <View style={styles.cardHeader}>
                 <Text style={styles.title} numberOfLines={1}>{item.jobTitle}</Text>
                 <View style={[styles.statusBadge, { backgroundColor: item.jobStatus === 'Open' ? '#E6F4EA' : '#FEEFC3' }]}>
@@ -60,9 +71,9 @@ export default function MyJobsScreen() {
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>
-                    {isOperator ? 'Applied Jobs' : 'My Posted Jobs'}
+                    {showApplied ? 'Applied Jobs' : 'My Posted Jobs'}
                 </Text>
-                {!isOperator ? (
+                {!showApplied ? (
                     <TouchableOpacity onPress={() => navigation.navigate('PostJob')} style={styles.addBtn}>
                         <Ionicons name="add-circle" size={28} color={THEME_COLOR} />
                     </TouchableOpacity>
@@ -85,7 +96,7 @@ export default function MyJobsScreen() {
                         <View style={styles.emptyContainer}>
                             <Ionicons name="briefcase-outline" size={64} color="#DDD" />
                             <Text style={styles.emptyText}>
-                                {isOperator ? "You haven't applied to any jobs yet." : "You haven't posted any jobs yet."}
+                                {showApplied ? "You haven't applied to any jobs yet." : "You haven't posted any jobs yet."}
                             </Text>
                         </View>
                     }

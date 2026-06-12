@@ -49,6 +49,7 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [savePassword, setSavePassword] = useState(false);
 
   const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[0]);
   const [countryModalVisible, setCountryModalVisible] = useState(false);
@@ -331,6 +332,13 @@ export default function SignUpScreen() {
         try {
           const AsyncStorage = require('@react-native-async-storage/async-storage').default || require('@react-native-async-storage/async-storage');
           await AsyncStorage.setItem('pending_roles', JSON.stringify(selectedRoles));
+          if (savePassword) {
+            await AsyncStorage.setItem('saved_phone', formattedPhone);
+            await AsyncStorage.setItem('saved_password', password);
+          } else {
+            await AsyncStorage.removeItem('saved_phone');
+            await AsyncStorage.removeItem('saved_password');
+          }
         } catch (e) {
           console.log('AsyncStorage error:', e);
         }
@@ -424,7 +432,6 @@ export default function SignUpScreen() {
               <Ionicons name="arrow-back" size={24} color="#333" />
             </TouchableOpacity>
           </View>
-
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             {step === 1 ? (
               <>
@@ -665,6 +672,19 @@ export default function SignUpScreen() {
                     <Text style={styles.termsLink} onPress={() => navigation.navigate('TermsAndPrivacy')}>
                       Privacy Policy
                     </Text>
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.checkboxContainer, { marginTop: 5, marginBottom: 20 }]}
+                  onPress={() => setSavePassword(!savePassword)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, savePassword && styles.checkboxChecked]}>
+                    {savePassword && <Ionicons name="checkmark" size={16} color="#fff" />}
+                  </View>
+                  <Text style={styles.termsText}>
+                    Save password for future logins
                   </Text>
                 </TouchableOpacity>
 

@@ -27,7 +27,10 @@ export default function JobDetailsScreen() {
     const { data: job, isLoading } = useJobDetailQuery(jobId);
     const applyMutation = useApplyToJobMutation();
 
-    const isApplied = job?.appliedUsers.some((u: any) => u.userId === (user?.id || user?._id));
+    const isApplied = job?.appliedUsers.some((u: any) => {
+        const uId = u.userId && typeof u.userId === 'object' ? (u.userId._id || u.userId.id) : u.userId;
+        return uId === (user?.id || user?._id);
+    });
 
     const handleApply = async () => {
         if (isApplied) return showAlert("Already Applied", "You have already applied for this position.");

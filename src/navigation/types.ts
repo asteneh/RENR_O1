@@ -38,11 +38,12 @@ export type RootStackParamList = {
   MyListings: undefined;
   Followings: undefined;
   MyRequests: undefined;
-  MyJobs: undefined;
+  MyJobs: { mode?: 'applied' | 'posted' } | undefined;
   MyPackages: { selectedPlan?: any; txRef?: string; serviceType?: string } | undefined;
   OperatorRegistration: undefined;
   EditListing: { productId: string };
   TermsAndPrivacy: undefined;
   PostJob: undefined;
   AppSettings: undefined;
+  Feedback: undefined;
 };

@@ -80,7 +80,7 @@ export default function ProfileScreen() {
       <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 20, backgroundColor: THEME_COLOR, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8, width: 200, alignItems: 'center' }}>
         <Text style={{ color: '#fff', fontWeight: 'bold' }}>Retry</Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity onPress={handleLogout} style={{ marginTop: 15, padding: 10 }}>
         <Text style={{ color: '#FF6B6B', fontWeight: '600' }}>Logout from account</Text>
       </TouchableOpacity>
@@ -104,8 +104,8 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={[styles.header, isDark && styles.headerDark]}>
           <View style={styles.profileTop}>
-            <TouchableOpacity 
-              activeOpacity={0.9} 
+            <TouchableOpacity
+              activeOpacity={0.9}
               style={styles.avatarContainer}
               onPress={() => {
                 if (profile?.proflePic) {
@@ -126,7 +126,7 @@ export default function ProfileScreen() {
               <Text style={styles.userRoleText}>
                 {currentRoles.map(role => RoleLabels[role]).join(' · ')}
               </Text>
-              <View style={styles.roleBadgeRow}>
+              {/* <View style={styles.roleBadgeRow}>
                 {hasActivePlan ? (
                   <View style={[styles.membershipBadge, styles.membershipActive]}>
                     <Ionicons name="diamond" size={10} color="#FFD700" />
@@ -137,7 +137,7 @@ export default function ProfileScreen() {
                     <Text style={styles.membershipFreeText}>Free</Text>
                   </View>
                 )}
-              </View>
+              </View> */}
               <Text style={[styles.userEmail, isDark && styles.userEmailDark]}>{profile?.phoneNumber}</Text>
 
               <View style={styles.statsRow}>
@@ -215,7 +215,7 @@ export default function ProfileScreen() {
                 <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>Post Job</Text>
               </TouchableOpacity>
             )}
-            
+
           </View>
         </View>
 
@@ -281,13 +281,23 @@ export default function ProfileScreen() {
               label="My Packages"
               onPress={() => navigation.navigate('MyPackages')}
             />
-            {(canPostJob || isOperator) && (
+            {isOperator && (
               <>
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
                   icon="briefcase-outline"
-                  label={isOperator ? "Applied Jobs" : "Posted Jobs"}
-                  onPress={() => navigation.navigate('MyJobs')}
+                  label="Applied Jobs"
+                  onPress={() => navigation.navigate('MyJobs', { mode: 'applied' })}
+                />
+              </>
+            )}
+            {canPostJob && (
+              <>
+                <View style={[styles.divider, isDark && styles.dividerDark]} />
+                <MenuOption
+                  icon="briefcase-outline"
+                  label="Posted Jobs"
+                  onPress={() => navigation.navigate('MyJobs', { mode: 'posted' })}
                 />
               </>
             )}
@@ -299,9 +309,12 @@ export default function ProfileScreen() {
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Support</Text>
           <View style={[styles.card, isDark && styles.cardDark]}>
             <MenuOption icon="settings-outline" label="App Settings" onPress={() => navigation.navigate('AppSettings')} />
-          
+
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption icon="information-circle-outline" label="About" onPress={() => setIsAboutVisible(true)} />
+
+            <View style={[styles.divider, isDark && styles.dividerDark]} />
+            <MenuOption icon="chatbubble-outline" label="Feedback" onPress={() => navigation.navigate('Feedback')} />
           </View>
         </View>
 
