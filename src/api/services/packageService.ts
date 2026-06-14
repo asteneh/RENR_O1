@@ -7,7 +7,6 @@ export interface PackageDefinition {
     numberOfGoldPosts: number;
     numberOfBasicPosts: number;
     numberOfPremiumPosts: number;
-    numberOfFreeEstimations: number;
     offPercent: number;
 }
 
@@ -40,10 +39,10 @@ export interface PackagePurchasePayload {
     description?: string;
     startDate?: string;
     endDate?: string;
+    packageType?: string;
     remainingGoldPosts?: number;
     remainingPremiumPosts?: number;
     remainingBasicPosts?: number;
-    remainingFreeEstimationPosts?: number;
 }
 
 export interface PackagePurchaseResponse {

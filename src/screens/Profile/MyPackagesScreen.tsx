@@ -1,9 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Linking, AppState } from 'react-native';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ActivityIndicator,
+    TouchableOpacity,
+    ScrollView,
+    Linking,
+    AppState,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { format } from 'date-fns';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     PackageDefinition,
@@ -19,25 +27,66 @@ import { cleanErrorMessage } from '../../utils/errorUtils';
 import { CONFIG } from '../../config';
 import { formatEtb } from '../../utils/currency';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
 const THEME_COLOR = '#FF8C00';
 const TEST_PACKAGE_PRICE = 1;
-const PACKAGE_DURATION_DAYS = 30;
 const PENDING_PACKAGE_TX_REF_KEY = 'pending_package_tx_ref';
-
-const addDays = (date: Date, days: number) => {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-};
-
 const MOBILE_PAYMENT_RETURN_URL = `${CONFIG.BASE_URL}mobile-payment-return/{txRef}?serviceType=package`;
 
+// ─── Package type classification ──────────────────────────────────────────────
+type PackageType = 'basic' | 'golden' | 'premium';
+
+interface PackageTier {
+    type: PackageType;
+    label: string;
+    icon: keyof typeof Ionicons.glyphMap;
+    color: string;
+    bg: string;
+    /** Which field on PackageDefinition holds the post count for this tier */
+    countField: keyof PackageDefinition;
+    postLabel: string;
+    description: string;
+}
+
+const TIERS: PackageTier[] = [
+    {
+        type: 'basic',
+        label: 'Basic',
+        icon: 'layers-outline',
+        color: '#4A90E2',
+        bg: '#EBF4FF',
+        countField: 'numberOfBasicPosts',
+        postLabel: 'Posts',
+        description: 'Standard basic listing posts on Gadal Market.',
+    },
+    {
+        type: 'golden',
+        label: 'Golden',
+        icon: 'star-outline',
+        color: '#F5A623',
+        bg: '#FFF8E6',
+        countField: 'numberOfGoldPosts',
+        postLabel: 'Golden Posts',
+        description: 'Featured category posts with high visibility.',
+    },
+    {
+        type: 'premium',
+        label: 'Premium',
+        icon: 'diamond-outline',
+        color: '#9B59B6',
+        bg: '#F5EEF8',
+        countField: 'numberOfPremiumPosts',
+        postLabel: 'Premium Posts',
+        description: 'Top-tier home-page posts with maximum reach.',
+    },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const getTxRefFromUrl = (url: string) => {
     try {
         const parsedUrl = new URL(url);
         const txRef = parsedUrl.searchParams.get('txRef');
         if (txRef) return txRef;
-
         const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
         return pathParts[pathParts.length - 1] || null;
     } catch {
@@ -46,56 +95,87 @@ const getTxRefFromUrl = (url: string) => {
     }
 };
 
+/**
+ * Given a list of package definitions from the API, find the one that best
+ * represents the requested tier. We match by inspecting which post-count field
+ * is non-zero and the others are zero (i.e. only the relevant tier is filled).
+ */
+function findDefinitionForTier(
+    defs: PackageDefinition[],
+    tier: PackageTier,
+): PackageDefinition | undefined {
+    if (!defs.length) return undefined;
+
+    // Prefer the definition where only the tier's own count is > 0
+    const exactMatch = defs.find((d) => {
+        const tierCount = (d as any)[tier.countField] as number;
+        const otherCounts = TIERS.filter((t) => t.type !== tier.type).map(
+            (t) => (d as any)[t.countField] as number,
+        );
+        return tierCount > 0 && otherCounts.every((c) => !c);
+    });
+    if (exactMatch) return exactMatch;
+
+    // Fallback: definition that has the tier's count > 0 at all
+    return defs.find((d) => ((d as any)[tier.countField] as number) > 0);
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function MyPackagesScreen({ route }: any) {
     const navigation = useNavigation<any>();
-    const user = useAuthStore(state => state.user);
+    const user = useAuthStore((state) => state.user);
     const { showNotification, showAlert } = useNotificationStore();
+
     const { data: packages = [], isLoading: packagesLoading, refetch } = useUserPackages();
-    const { data: packageDefinitions = [], isLoading: packageDefinitionsLoading } = usePackageDefinitions();
+    const { data: packageDefinitions = [], isLoading: packageDefinitionsLoading } =
+        usePackageDefinitions();
+
     const purchaseMutation = useCreatePackagePurchaseMutation();
     const verifyMutation = useVerifyPackagePaymentMutation();
+
     const [pendingTxRef, setPendingTxRef] = useState<string | null>(null);
-    const [purchasingPackageId, setPurchasingPackageId] = useState<string | null>(null);
-    const [isDropdownExpanded, setIsDropdownExpanded] = useState(false);
+    const [purchasingType, setPurchasingType] = useState<PackageType | null>(null);
+    const [selectedTierType, setSelectedTierType] = useState<PackageType>('basic');
+    const [detailsExpanded, setDetailsExpanded] = useState(false);
     const handledTxRefs = useRef<Set<string>>(new Set());
 
-    const formatDate = (date?: string) => {
-        if (!date) return 'N/A';
-        return format(new Date(date), 'MMM dd, yyyy');
-    };
+    // ── Payment verification ────────────────────────────────────────────────
+    const handleVerifyPayment = useCallback(
+        (txRef?: string | null) => {
+            const reference = txRef || pendingTxRef;
+            if (!reference) {
+                showNotification('No pending package payment to verify.', 'info');
+                return;
+            }
 
-    const handleVerifyPayment = useCallback((txRef?: string | null) => {
-        const reference = txRef || pendingTxRef;
-        if (!reference) {
-            showNotification('No pending package payment to verify.', 'info');
-            return;
-        }
-
-        verifyMutation.mutate(reference, {
-            onSuccess: () => {
-                setPendingTxRef(null);
-                AsyncStorage.removeItem(PENDING_PACKAGE_TX_REF_KEY).catch(() => undefined);
-                showNotification('Package activated successfully.', 'success');
-                refetch();
-            },
-            onError: (error: any) => {
-                showNotification(cleanErrorMessage(error), 'error');
-            },
-        });
-    }, [pendingTxRef, refetch, showNotification, verifyMutation]);
+            verifyMutation.mutate(reference, {
+                onSuccess: () => {
+                    setPendingTxRef(null);
+                    AsyncStorage.removeItem(PENDING_PACKAGE_TX_REF_KEY).catch(() => undefined);
+                    showNotification('Package activated successfully.', 'success');
+                    refetch();
+                },
+                onError: (error: any) => {
+                    showNotification(cleanErrorMessage(error), 'error');
+                },
+            });
+        },
+        [pendingTxRef, refetch, showNotification, verifyMutation],
+    );
 
     const restorePendingPayment = useCallback(async () => {
         const storedTxRef = await AsyncStorage.getItem(PENDING_PACKAGE_TX_REF_KEY);
-        if (storedTxRef) {
-            setPendingTxRef(storedTxRef);
-        }
+        if (storedTxRef) setPendingTxRef(storedTxRef);
     }, []);
 
-    const verifyPaymentOnce = useCallback((txRef?: string | null) => {
-        if (!txRef || handledTxRefs.current.has(txRef)) return;
-        handledTxRefs.current.add(txRef);
-        handleVerifyPayment(txRef);
-    }, [handleVerifyPayment]);
+    const verifyPaymentOnce = useCallback(
+        (txRef?: string | null) => {
+            if (!txRef || handledTxRefs.current.has(txRef)) return;
+            handledTxRefs.current.add(txRef);
+            handleVerifyPayment(txRef);
+        },
+        [handleVerifyPayment],
+    );
 
     useEffect(() => {
         verifyPaymentOnce(route?.params?.txRef);
@@ -106,35 +186,28 @@ export default function MyPackagesScreen({ route }: any) {
             if (!url) return;
             verifyPaymentOnce(getTxRefFromUrl(url));
         };
-
         Linking.getInitialURL().then(handleUrl).catch(() => undefined);
-        const subscription = Linking.addEventListener('url', ({ url }) => handleUrl(url));
-
-        return () => {
-            subscription.remove();
-        };
+        const sub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+        return () => sub.remove();
     }, [verifyPaymentOnce]);
 
     useEffect(() => {
         restorePendingPayment().catch(() => undefined);
-
-        const subscription = AppState.addEventListener('change', (nextState) => {
+        const sub = AppState.addEventListener('change', (nextState) => {
             if (nextState === 'active') {
                 restorePendingPayment()
                     .then(async () => {
-                        const storedTxRef = await AsyncStorage.getItem(PENDING_PACKAGE_TX_REF_KEY);
-                        if (storedTxRef && !verifyMutation.isPending) {
-                            handleVerifyPayment(storedTxRef);
-                        }
+                        const stored = await AsyncStorage.getItem(PENDING_PACKAGE_TX_REF_KEY);
+                        if (stored && !verifyMutation.isPending) handleVerifyPayment(stored);
                     })
                     .catch(() => undefined);
             }
         });
-
-        return () => subscription.remove();
+        return () => sub.remove();
     }, [handleVerifyPayment, restorePendingPayment, verifyMutation.isPending]);
 
-    const handleBuyPackage = (packageDefinition: PackageDefinition) => {
+    // ── Purchase handler ────────────────────────────────────────────────────
+    const handleBuyPackage = (definition: PackageDefinition, tierType: PackageType) => {
         const userId = user?._id || user?.id;
         if (!userId) {
             showAlert('Login Required', 'Please login before buying a package.', [
@@ -144,23 +217,20 @@ export default function MyPackagesScreen({ route }: any) {
             return;
         }
 
-        setPurchasingPackageId(packageDefinition._id);
-        const startDate = new Date();
-        const endDate = addDays(startDate, PACKAGE_DURATION_DAYS);
+        setPurchasingType(tierType);
 
         purchaseMutation.mutate(
             {
-                packageDefinition: packageDefinition._id,
+                packageDefinition: definition._id,
                 user: userId,
                 amount: TEST_PACKAGE_PRICE,
                 returnUrl: MOBILE_PAYMENT_RETURN_URL,
-                description: packageDefinition.name,
-                startDate: startDate.toISOString(),
-                endDate: endDate.toISOString(),
-                remainingGoldPosts: packageDefinition.numberOfGoldPosts,
-                remainingPremiumPosts: packageDefinition.numberOfPremiumPosts,
-                remainingBasicPosts: packageDefinition.numberOfBasicPosts,
-                remainingFreeEstimationPosts: packageDefinition.numberOfFreeEstimations,
+                description: definition.name,
+                startDate: new Date().toISOString(),
+                packageType: tierType,
+                remainingBasicPosts:   tierType === 'basic'   ? definition.numberOfBasicPosts   : 0,
+                remainingGoldPosts:    tierType === 'golden'  ? definition.numberOfGoldPosts    : 0,
+                remainingPremiumPosts: tierType === 'premium' ? definition.numberOfPremiumPosts : 0,
             },
             {
                 onSuccess: async (data) => {
@@ -180,10 +250,13 @@ export default function MyPackagesScreen({ route }: any) {
                             'After completing Chapa payment, tap Open App on the return page. If it does not reopen automatically, come back here and tap Verify.',
                             [
                                 { text: 'Later', style: 'cancel' },
-                                { text: 'Verify Payment', onPress: () => handleVerifyPayment(data.txRef) },
-                            ]
+                                {
+                                    text: 'Verify Payment',
+                                    onPress: () => handleVerifyPayment(data.txRef),
+                                },
+                            ],
                         );
-                    } catch (error) {
+                    } catch {
                         showNotification('Could not open Chapa checkout.', 'error');
                     }
                 },
@@ -191,42 +264,82 @@ export default function MyPackagesScreen({ route }: any) {
                     showNotification(cleanErrorMessage(error), 'error');
                 },
                 onSettled: () => {
-                    setPurchasingPackageId(null);
+                    setPurchasingType(null);
                 },
-            }
+            },
         );
     };
 
-    const renderCurrentPackage = (item: UserPackage) => (
-        <View key={item._id} style={styles.card}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.packageName}>Package</Text>
-                <View style={[styles.statusBadge, { backgroundColor: item.isValid ? '#E6F4EA' : '#FEEBEB' }]}>
-                    <Text style={[styles.statusText, { color: item.isValid ? '#1E8E3E' : '#D93025' }]}>
-                        {item.isValid ? 'Active' : 'Expired'}
-                    </Text>
+    // ── Derived state ───────────────────────────────────────────────────────
+    const loading = packagesLoading || packageDefinitionsLoading;
+    const hasActivePackage = (packages as UserPackage[]).some((p) => p.isValid);
+    const selectedTier = TIERS.find((t) => t.type === selectedTierType)!;
+    const selectedDefinition = findDefinitionForTier(packageDefinitions, selectedTier);
+    const selectedPostCount = selectedDefinition
+        ? ((selectedDefinition as any)[selectedTier.countField] as number)
+        : 0;
+
+    // ── Active package display ──────────────────────────────────────────────
+    const renderCurrentPackage = (item: UserPackage) => {
+        // Find what tier this package primarily belongs to
+        const primaryTier =
+            TIERS.find((t) => {
+                const val = (item as any)[`remaining${t.label}Posts`] as number;
+                return val > 0;
+            }) ?? TIERS[0];
+
+        return (
+            <View key={item._id} style={styles.activeCard}>
+                <View style={styles.activeCardHeader}>
+                    <View style={[styles.tierBadge, { backgroundColor: primaryTier.bg }]}>
+                        <Ionicons
+                            name={primaryTier.icon as any}
+                            size={16}
+                            color={primaryTier.color}
+                        />
+                        <Text style={[styles.tierBadgeText, { color: primaryTier.color }]}>
+                            {item.description || 'Package'}
+                        </Text>
+                    </View>
+                    <View style={[styles.statusPill, item.isValid ? styles.activePill : styles.inactivePill]}>
+                        <View style={[styles.statusDot, { backgroundColor: item.isValid ? '#1E8E3E' : '#D93025' }]} />
+                        <Text style={[styles.statusPillText, { color: item.isValid ? '#1E8E3E' : '#D93025' }]}>
+                            {item.isValid ? 'Active' : 'Used Up'}
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Remaining posts */}
+                <View style={styles.postsRow}>
+                    {[
+                        { label: 'Basic', remaining: item.remainingBasicPosts, color: '#4A90E2' },
+                        { label: 'Golden', remaining: item.remainingGoldPosts, color: '#F5A623' },
+                        { label: 'Premium', remaining: item.remainingPremiumPosts, color: '#9B59B6' },
+                    ]
+                        .filter((r) => r.remaining > 0)
+                        .map((r) => (
+                            <View key={r.label} style={styles.postCountBox}>
+                                <Text style={[styles.postCountNum, { color: r.color }]}>
+                                    {r.remaining}
+                                </Text>
+                                <Text style={styles.postCountLabel}>{r.label} Posts</Text>
+                                <Text style={styles.postCountSub}>remaining</Text>
+                            </View>
+                        ))}
+                </View>
+
+                <View style={styles.lifetimeRow}>
+                    <Ionicons name="infinite-outline" size={14} color="#888" />
+                    <Text style={styles.lifetimeText}>Lifetime Validity · Never Expires</Text>
                 </View>
             </View>
+        );
+    };
 
-            <View style={styles.statsGrid}>
-                <StatItem label="Basic Posts" value={item.remainingBasicPosts} />
-                <StatItem label="Gold Posts" value={item.remainingGoldPosts} />
-                <StatItem label="Premium Posts" value={item.remainingPremiumPosts} />
-            </View>
-
-            <View style={styles.cardFooter}>
-                <Ionicons name="time-outline" size={14} color="#888" />
-                <Text style={styles.expiryText}>Lifetime Validity (Never Expires)</Text>
-            </View>
-        </View>
-    );
-
-    const loading = packagesLoading || packageDefinitionsLoading;
-    const hasActivePackage = packages.some((p: any) => p.isValid);
-    const firstPackage = packageDefinitions[0];
-
+    // ── Render ──────────────────────────────────────────────────────────────
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
@@ -241,14 +354,20 @@ export default function MyPackagesScreen({ route }: any) {
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={styles.content}>
+                    {/* Pending payment banner */}
                     {pendingTxRef && (
                         <View style={styles.pendingBanner}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.pendingTitle}>Payment pending</Text>
-                                <Text style={styles.pendingText}>Tap verify after finishing Chapa checkout.</Text>
+                                <Text style={styles.pendingText}>
+                                    Tap verify after finishing Chapa checkout.
+                                </Text>
                             </View>
                             <TouchableOpacity
-                                style={[styles.verifyBtn, verifyMutation.isPending && styles.disabledBtn]}
+                                style={[
+                                    styles.verifyBtn,
+                                    verifyMutation.isPending && styles.disabledBtn,
+                                ]}
                                 onPress={() => handleVerifyPayment()}
                                 disabled={verifyMutation.isPending}
                             >
@@ -257,90 +376,183 @@ export default function MyPackagesScreen({ route }: any) {
                         </View>
                     )}
 
-                    <Text style={styles.sectionTitle}>Current Packages</Text>
-                    {packages.length > 0 ? (
-                        packages.map(renderCurrentPackage)
+                    {/* ── Current Package Section ── */}
+                    <Text style={styles.sectionTitle}>Current Package</Text>
+                    {(packages as UserPackage[]).filter((p) => p.isValid).length > 0 ? (
+                        (packages as UserPackage[])
+                            .filter((p) => p.isValid)
+                            .map(renderCurrentPackage)
                     ) : (
                         <View style={styles.emptyContainer}>
-                            <Ionicons name="gift-outline" size={52} color="#DDD" />
+                            <Ionicons name="gift-outline" size={48} color="#DDD" />
                             <Text style={styles.emptyText}>You do not have an active package yet.</Text>
                         </View>
                     )}
 
-                    <Text style={styles.sectionTitle}>Buy Package</Text>
-                    {firstPackage ? (
-                        <View style={styles.planCard}>
+                    {/* ── Buy Package Section ── */}
+                    <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Package</Text>
+
+                    {/* Tier switcher */}
+                    <View style={styles.switcher}>
+                        {TIERS.map((tier) => {
+                            const isActive = tier.type === selectedTierType;
+                            return (
+                                <TouchableOpacity
+                                    key={tier.type}
+                                    style={[
+                                        styles.switcherTab,
+                                        isActive && { backgroundColor: tier.color },
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedTierType(tier.type);
+                                        setDetailsExpanded(false);
+                                    }}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons
+                                        name={tier.icon as any}
+                                        size={15}
+                                        color={isActive ? '#fff' : '#888'}
+                                    />
+                                    <Text
+                                        style={[
+                                            styles.switcherTabText,
+                                            isActive
+                                                ? styles.switcherTabTextActive
+                                                : styles.switcherTabTextInactive,
+                                        ]}
+                                    >
+                                        {tier.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    {/* Package card for selected tier */}
+                    {selectedDefinition ? (
+                        <View style={[styles.planCard, { borderColor: selectedTier.color + '40' }]}>
+                            {/* Card header */}
                             <View style={styles.planHeader}>
-                                <View>
-                                    <Text style={styles.planName}>Package</Text>
-                                    <Text style={styles.planPrice}>{formatEtb(TEST_PACKAGE_PRICE)}</Text>
+                                <View style={[styles.planIconWrap, { backgroundColor: selectedTier.bg }]}>
+                                    <Ionicons
+                                        name={selectedTier.icon as any}
+                                        size={24}
+                                        color={selectedTier.color}
+                                    />
                                 </View>
-                                <Ionicons name="diamond-outline" size={26} color={THEME_COLOR} />
+                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                    <Text style={styles.planName}>{selectedTier.label} Package</Text>
+                                    <Text style={[styles.planPostCount, { color: selectedTier.color }]}>
+                                        {selectedPostCount} {selectedTier.postLabel}
+                                    </Text>
+                                </View>
+                                <Text style={styles.planPrice}>
+                                    {formatEtb(TEST_PACKAGE_PRICE)}
+                                </Text>
                             </View>
 
+                            {/* Details accordion */}
                             <TouchableOpacity
-                                style={styles.dropdownHeader}
-                                onPress={() => setIsDropdownExpanded(!isDropdownExpanded)}
+                                style={styles.accordionHeader}
+                                onPress={() => setDetailsExpanded((v) => !v)}
+                                activeOpacity={0.7}
                             >
-                                <Text style={styles.dropdownHeaderText}>View Details & Bonuses</Text>
+                                <Text style={styles.accordionHeaderText}>View Details & Bonuses</Text>
                                 <Ionicons
-                                    name={isDropdownExpanded ? "chevron-up" : "chevron-down"}
-                                    size={20}
-                                    color={THEME_COLOR}
+                                    name={detailsExpanded ? 'chevron-up' : 'chevron-down'}
+                                    size={18}
+                                    color={selectedTier.color}
                                 />
                             </TouchableOpacity>
 
-                            {isDropdownExpanded && (
-                                <View style={styles.dropdownContent}>
-                                    <View style={styles.dropdownItem}>
-                                        <Ionicons name="checkmark-circle-outline" size={18} color="#4CAF50" />
-                                        <View style={styles.dropdownTextWrap}>
-                                            <Text style={styles.dropdownFeatureValue}>10 Posts</Text>
-                                            <Text style={styles.dropdownFeatureDesc}>Standard basic listing posts on Gadal Market.</Text>
+                            {detailsExpanded && (
+                                <View style={styles.accordionBody}>
+                                    <View style={styles.featureRow}>
+                                        <View
+                                            style={[
+                                                styles.featureDot,
+                                                { backgroundColor: selectedTier.color },
+                                            ]}
+                                        />
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.featureValue}>
+                                                {selectedPostCount} {selectedTier.postLabel}
+                                            </Text>
+                                            <Text style={styles.featureDesc}>
+                                                {selectedTier.description}
+                                            </Text>
                                         </View>
                                     </View>
-
-                                    <View style={styles.dropdownItem}>
-                                        <Ionicons name="checkmark-circle-outline" size={18} color="#4CAF50" />
-                                        <View style={styles.dropdownTextWrap}>
-                                            <Text style={styles.dropdownFeatureValue}>20 Golden Posts</Text>
-                                            <Text style={styles.dropdownFeatureDesc}>Featured category list posts with high visibility.</Text>
+                                    <View style={styles.featureRow}>
+                                        <View
+                                            style={[
+                                                styles.featureDot,
+                                                { backgroundColor: selectedTier.color },
+                                            ]}
+                                        />
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.featureValue}>Lifetime Validity</Text>
+                                            <Text style={styles.featureDesc}>
+                                                This package never expires — use it at your own pace.
+                                            </Text>
                                         </View>
                                     </View>
-
-                                    <View style={styles.dropdownItem}>
-                                        <Ionicons name="checkmark-circle-outline" size={18} color="#4CAF50" />
-                                        <View style={styles.dropdownTextWrap}>
-                                            <Text style={styles.dropdownFeatureValue}>30 Premium Posts</Text>
-                                            <Text style={styles.dropdownFeatureDesc}>Top-tier home page posts with maximum reach.</Text>
+                                    <View style={styles.featureRow}>
+                                        <View
+                                            style={[
+                                                styles.featureDot,
+                                                { backgroundColor: selectedTier.color },
+                                            ]}
+                                        />
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.featureValue}>Auto-removed when done</Text>
+                                            <Text style={styles.featureDesc}>
+                                                Package is automatically removed once all posts are used.
+                                            </Text>
                                         </View>
                                     </View>
                                 </View>
                             )}
 
+                            {/* Buy / already-have block */}
                             {hasActivePackage ? (
                                 <View style={styles.alreadyHaveContainer}>
-                                    <Ionicons name="warning-outline" size={20} color="#FFA500" />
-                                    <Text style={styles.alreadyHaveText}>You already have a package.</Text>
+                                    <Ionicons name="warning-outline" size={18} color="#D48800" />
+                                    <Text style={styles.alreadyHaveText}>
+                                        You already have an active package.
+                                    </Text>
                                 </View>
                             ) : (
                                 <TouchableOpacity
-                                    style={[styles.buyBtn, purchaseMutation.isPending && styles.disabledBtn]}
-                                    onPress={() => handleBuyPackage(firstPackage)}
+                                    style={[
+                                        styles.buyBtn,
+                                        { backgroundColor: selectedTier.color },
+                                        purchaseMutation.isPending && styles.disabledBtn,
+                                    ]}
+                                    onPress={() =>
+                                        handleBuyPackage(selectedDefinition, selectedTierType)
+                                    }
                                     disabled={purchaseMutation.isPending}
+                                    activeOpacity={0.85}
                                 >
-                                    {purchaseMutation.isPending ? (
+                                    {purchaseMutation.isPending &&
+                                    purchasingType === selectedTierType ? (
                                         <ActivityIndicator color="#fff" />
                                     ) : (
-                                        <Text style={styles.buyBtnText}>Buy Package</Text>
+                                        <Text style={styles.buyBtnText}>
+                                            Buy {selectedTier.label} Package
+                                        </Text>
                                     )}
                                 </TouchableOpacity>
                             )}
                         </View>
                     ) : (
                         <View style={styles.emptyContainer}>
-                            <Ionicons name="alert-circle-outline" size={52} color="#DDD" />
-                            <Text style={styles.emptyText}>No packages available to buy.</Text>
+                            <Ionicons name="alert-circle-outline" size={48} color="#DDD" />
+                            <Text style={styles.emptyText}>
+                                No {selectedTier.label} package available.
+                            </Text>
                         </View>
                     )}
                 </ScrollView>
@@ -349,59 +561,33 @@ export default function MyPackagesScreen({ route }: any) {
     );
 }
 
-const StatItem = ({ label, value }: { label: string, value: number }) => (
-    <View style={styles.statBox}>
-        <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-        <Text style={styles.statValue}>{value ?? 0}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-    </View>
-);
-
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F5F7FA' },
+
+    // Header
     header: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: 15, paddingVertical: 12, backgroundColor: '#fff',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        backgroundColor: '#fff',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.06,
+        shadowRadius: 3,
     },
     backBtn: { padding: 8 },
     headerTitle: { fontSize: 18, fontWeight: 'bold', color: '#111' },
-    content: { padding: 15, paddingBottom: 30 },
-    sectionTitle: { fontSize: 16, fontWeight: '800', color: '#222', marginBottom: 12 },
-    card: {
-        backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 15,
-        elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1, shadowRadius: 4,
-    },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-    packageName: { fontSize: 18, fontWeight: 'bold', color: THEME_COLOR, flex: 1, marginRight: 10 },
-    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-    statusText: { fontSize: 11, fontWeight: 'bold' },
-    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 15 },
-    statBox: {
-        width: '48%', backgroundColor: '#F8F9FA', padding: 12, borderRadius: 10,
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-    },
-    statValue: { fontSize: 14, fontWeight: 'bold', color: '#333' },
-    statLabel: { fontSize: 12, color: '#666', flex: 1 },
-    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
-    expiryText: { fontSize: 12, color: '#888' },
+
+    // Layout
+    content: { padding: 16, paddingBottom: 40 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    emptyContainer: { justifyContent: 'center', alignItems: 'center', paddingVertical: 35 },
-    emptyText: { marginTop: 12, color: '#888', textAlign: 'center' },
-    planCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 14,
-        borderWidth: 1,
-        borderColor: '#EEE',
-    },
-    planHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-    planName: { fontSize: 18, fontWeight: '800', color: '#222' },
-    planPrice: { fontSize: 14, color: THEME_COLOR, fontWeight: '700', marginTop: 3 },
-    buyBtn: { backgroundColor: THEME_COLOR, paddingVertical: 13, borderRadius: 12, alignItems: 'center' },
-    buyBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
-    disabledBtn: { opacity: 0.6 },
+    sectionTitle: { fontSize: 15, fontWeight: '800', color: '#222', marginBottom: 12 },
+
+    // Pending banner
     pendingBanner: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -414,47 +600,178 @@ const styles = StyleSheet.create({
     },
     pendingTitle: { fontSize: 15, fontWeight: '800', color: '#9A5A00' },
     pendingText: { fontSize: 12, color: '#8A6A3A', marginTop: 2 },
-    verifyBtn: { backgroundColor: '#222', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
+    verifyBtn: {
+        backgroundColor: '#222',
+        borderRadius: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+    },
     verifyBtnText: { color: '#fff', fontWeight: '700' },
-    dropdownHeader: {
+
+    // Active package card
+    activeCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 5,
+    },
+    activeCardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 12,
+        marginBottom: 14,
+    },
+    tierBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 20,
+        gap: 5,
+    },
+    tierBadgeText: { fontSize: 13, fontWeight: '700' },
+    statusPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 20,
+        gap: 5,
+    },
+    activePill: { backgroundColor: '#E6F4EA' },
+    inactivePill: { backgroundColor: '#FEEBEB' },
+    statusDot: { width: 6, height: 6, borderRadius: 3 },
+    statusPillText: { fontSize: 11, fontWeight: 'bold' },
+    postsRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 14,
+        flexWrap: 'wrap',
+    },
+    postCountBox: {
+        flex: 1,
+        minWidth: 90,
+        backgroundColor: '#F8F9FA',
+        borderRadius: 12,
+        padding: 12,
+        alignItems: 'center',
+    },
+    postCountNum: { fontSize: 22, fontWeight: '800' },
+    postCountLabel: { fontSize: 12, fontWeight: '600', color: '#333', marginTop: 2 },
+    postCountSub: { fontSize: 10, color: '#888', marginTop: 1 },
+    lifetimeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+    },
+    lifetimeText: { fontSize: 12, color: '#888' },
+
+    // Empty state
+    emptyContainer: { justifyContent: 'center', alignItems: 'center', paddingVertical: 30 },
+    emptyText: { marginTop: 10, color: '#AAA', textAlign: 'center', fontSize: 13 },
+
+    // Tier switcher
+    switcher: {
+        flexDirection: 'row',
+        backgroundColor: '#EFEFEF',
+        borderRadius: 14,
+        padding: 4,
+        marginBottom: 16,
+        gap: 4,
+    },
+    switcherTab: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 9,
+        borderRadius: 11,
+        gap: 5,
+    },
+    switcherTabText: { fontSize: 13, fontWeight: '700' },
+    switcherTabTextActive: { color: '#fff' },
+    switcherTabTextInactive: { color: '#888' },
+
+    // Plan card
+    planCard: {
+        backgroundColor: '#fff',
+        borderRadius: 18,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1.5,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.07,
+        shadowRadius: 5,
+    },
+    planHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 14,
+    },
+    planIconWrap: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    planName: { fontSize: 17, fontWeight: '800', color: '#222' },
+    planPostCount: { fontSize: 13, fontWeight: '700', marginTop: 2 },
+    planPrice: { fontSize: 16, fontWeight: '800', color: THEME_COLOR },
+
+    // Accordion
+    accordionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 11,
         borderTopWidth: 1,
         borderBottomWidth: 1,
         borderColor: '#F0F0F0',
+        marginBottom: 0,
+    },
+    accordionHeaderText: { fontSize: 13, fontWeight: '700', color: '#555' },
+    accordionBody: {
+        paddingTop: 14,
+        paddingBottom: 4,
+        gap: 12,
         marginBottom: 14,
-        marginTop: 4,
     },
-    dropdownHeaderText: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#666',
-    },
-    dropdownContent: {
-        marginBottom: 16,
-        paddingHorizontal: 4,
-    },
-    dropdownItem: {
+    featureRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
         gap: 10,
-        marginBottom: 12,
     },
-    dropdownTextWrap: {
-        flex: 1,
+    featureDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginTop: 5,
     },
-    dropdownFeatureValue: {
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: '#222',
+    featureValue: { fontSize: 14, fontWeight: '700', color: '#222' },
+    featureDesc: { fontSize: 12, color: '#666', marginTop: 2 },
+
+    // Buy button
+    buyBtn: {
+        marginTop: 14,
+        paddingVertical: 14,
+        borderRadius: 14,
+        alignItems: 'center',
     },
-    dropdownFeatureDesc: {
-        fontSize: 12,
-        color: '#666',
-        marginTop: 2,
-    },
+    buyBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+    disabledBtn: { opacity: 0.55 },
+
+    // Already-have warning
     alreadyHaveContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -463,12 +780,9 @@ const styles = StyleSheet.create({
         borderColor: '#FFE0B2',
         borderWidth: 1,
         borderRadius: 12,
-        paddingVertical: 12,
+        paddingVertical: 13,
+        marginTop: 14,
         gap: 8,
     },
-    alreadyHaveText: {
-        color: '#D48800',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
+    alreadyHaveText: { color: '#D48800', fontWeight: '700', fontSize: 13 },
 });

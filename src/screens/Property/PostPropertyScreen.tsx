@@ -22,7 +22,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
-import { checkPackageBeforePosting } from '../../api/services/packageService';
+import { checkPackageBeforePosting, useUserPackages } from '../../api/services/packageService';
 import { formatEtb, formatNumberWithCommas, getEtbCurrency, unformatNumber } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
@@ -72,6 +72,25 @@ export default function PostPropertyScreen({ navigation }: any) {
   const postTypesQuery = usePostTypesQuery();
   const createProductMutation = useCreateProductMutation();
   const etbCurrency = getEtbCurrency(currenciesQuery.data || []);
+  const { data: packages = [] } = useUserPackages();
+  const activePackage = packages.find((p: any) => p.isValid);
+
+  // Auto-select postType based on active package
+  useEffect(() => {
+    if (!activePackage || !postTypesQuery.data) return;
+    // Determine which tier the active package belongs to
+    let tierName = '';
+    if (activePackage.remainingPremiumPosts > 0) tierName = 'premium';
+    else if (activePackage.remainingGoldPosts > 0) tierName = 'gold';
+    else if (activePackage.remainingBasicPosts > 0) tierName = 'basic';
+
+    if (tierName) {
+      const matchedPostType = postTypesQuery.data.find(
+        (pt: any) => pt.name.toLowerCase().includes(tierName)
+      );
+      if (matchedPostType) setSelectedPostType(matchedPostType);
+    }
+  }, [activePackage, postTypesQuery.data]);
 
   // --- Handlers ---
 
@@ -103,7 +122,27 @@ export default function PostPropertyScreen({ navigation }: any) {
 
 
   const validatePackageBeforePosting = async () => {
-    if (!selectedPostType?._id || postThroughGadal) return true;
+    // If posting through Gadal, no package needed
+    if (postThroughGadal) return true;
+
+    // If no active package, block posting
+    if (!activePackage) {
+      showAlert(
+        'Package Required',
+        'You need an active package to post. Please buy a package first.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Buy Package', onPress: () => navigation.navigate('MyPackages') },
+        ]
+      );
+      return false;
+    }
+
+    // If we have an active package but no matching postType was found, check via API
+    if (!selectedPostType?._id) {
+      showNotification('Could not determine your post type from your active package.', 'error');
+      return false;
+    }
 
     setCheckingPackage(true);
     try {
@@ -111,7 +150,7 @@ export default function PostPropertyScreen({ navigation }: any) {
       if (!eligibility.canPost) {
         showAlert(
           'Package Required',
-          eligibility.message || 'You need an active package with remaining posts before posting.',
+          eligibility.message || 'Your package has no remaining posts. Please buy a new package.',
           [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Buy Package', onPress: () => navigation.navigate('MyPackages') },
@@ -152,7 +191,8 @@ export default function PostPropertyScreen({ navigation }: any) {
     }
 
     if (currentStep === 5) {
-      nextErrors.postType = !selectedPostType && !postThroughGadal;
+      // Must have an active package or post through Gadal
+      nextErrors.postType = !activePackage && !postThroughGadal;
     }
 
     const visibleErrors = Object.fromEntries(Object.entries(nextErrors).filter(([, hasError]) => hasError));
@@ -595,24 +635,68 @@ export default function PostPropertyScreen({ navigation }: any) {
 
         {currentStep === 5 && (
           <View>
-            <Text style={styles.sectionHeader}>Choose Posting Package</Text>
-            {postTypesQuery.isLoading ? <ActivityIndicator size="large" color={THEME_COLOR} /> : (
-              postTypesQuery.data?.map((option) => (
-                <TouchableOpacity
-                  key={option._id}
-                  style={[styles.packageCard, validationErrors.postType && styles.validationBorder, selectedPostType?._id === option._id && styles.activePackageCard]}
-                  onPress={() => {
-                    setSelectedPostType(option);
-                    setValidationErrors(prev => ({ ...prev, postType: false }));
-                  }}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.packageName}>{option.name}</Text>
-                    <Text style={styles.packagePrice}>{formatEtb(option.price)}</Text>
+            <Text style={styles.sectionHeader}>Posting Options</Text>
+
+            {/* Active package info or buy prompt */}
+            {activePackage ? (
+              <View style={[styles.packageCard, styles.activePackageCard]}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <Ionicons name="checkmark-circle" size={20} color="#1E8E3E" />
+                    <Text style={[styles.packageName, { color: '#1E8E3E' }]}>Active Package</Text>
                   </View>
-                  {selectedPostType?._id === option._id && <Ionicons name="checkmark-circle" size={24} color={THEME_COLOR} />}
-                </TouchableOpacity>
-              ))
+                  <Text style={{ fontSize: 13, color: '#555', marginBottom: 8 }}>
+                    {activePackage.description || 'Package'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 12, flexWrap: 'wrap' }}>
+                    {activePackage.remainingBasicPosts > 0 && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#4A90E2' }} />
+                        <Text style={{ fontSize: 13, color: '#333', fontWeight: '600' }}>
+                          {activePackage.remainingBasicPosts} Basic Posts
+                        </Text>
+                      </View>
+                    )}
+                    {activePackage.remainingGoldPosts > 0 && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F5A623' }} />
+                        <Text style={{ fontSize: 13, color: '#333', fontWeight: '600' }}>
+                          {activePackage.remainingGoldPosts} Golden Posts
+                        </Text>
+                      </View>
+                    )}
+                    {activePackage.remainingPremiumPosts > 0 && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#9B59B6' }} />
+                        <Text style={{ fontSize: 13, color: '#333', fontWeight: '600' }}>
+                          {activePackage.remainingPremiumPosts} Premium Posts
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={{ fontSize: 11, color: '#999', marginTop: 8 }}>
+                    Your post will use 1 post from this package.
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={[styles.packageCard, validationErrors.postType && styles.validationBorder, { borderColor: '#FFE0B2', backgroundColor: '#FFF9E6' }]}>
+                <View style={{ flex: 1, alignItems: 'center', paddingVertical: 10 }}>
+                  <Ionicons name="alert-circle-outline" size={36} color="#D48800" />
+                  <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#D48800', marginTop: 8 }}>
+                    No Active Package
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#999', marginTop: 4, textAlign: 'center' }}>
+                    You need a package to post. Buy one to get started.
+                  </Text>
+                  <TouchableOpacity
+                    style={{ backgroundColor: THEME_COLOR, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10, marginTop: 14 }}
+                    onPress={() => navigation.navigate('MyPackages')}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>Buy Package</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
 
             <View style={{ marginTop: 25, borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 20 }}>
@@ -621,7 +705,6 @@ export default function PostPropertyScreen({ navigation }: any) {
                 onPress={() => {
                   const newVal = !postThroughGadal;
                   setPostThroughGadal(newVal);
-                  // Clear any selected package so postType is never sent in Gadal mode
                   if (newVal) setSelectedPostType(null);
                   setValidationErrors(prev => ({ ...prev, postType: false }));
                 }}
