@@ -56,7 +56,7 @@ export default function MyPackagesScreen({ route }: any) {
     const verifyMutation = useVerifyPackagePaymentMutation();
     const [pendingTxRef, setPendingTxRef] = useState<string | null>(null);
     const [purchasingPackageId, setPurchasingPackageId] = useState<string | null>(null);
-    const [showBuyingOptions, setShowBuyingOptions] = useState(false);
+    const [isDropdownExpanded, setIsDropdownExpanded] = useState(false);
     const handledTxRefs = useRef<Set<string>>(new Set());
 
     const formatDate = (date?: string) => {
@@ -200,7 +200,7 @@ export default function MyPackagesScreen({ route }: any) {
     const renderCurrentPackage = (item: UserPackage) => (
         <View key={item._id} style={styles.card}>
             <View style={styles.cardHeader}>
-                <Text style={styles.packageName}>{item.description || item.packageDefinition?.name || 'Package'}</Text>
+                <Text style={styles.packageName}>Package</Text>
                 <View style={[styles.statusBadge, { backgroundColor: item.isValid ? '#E6F4EA' : '#FEEBEB' }]}>
                     <Text style={[styles.statusText, { color: item.isValid ? '#1E8E3E' : '#D93025' }]}>
                         {item.isValid ? 'Active' : 'Expired'}
@@ -209,55 +209,21 @@ export default function MyPackagesScreen({ route }: any) {
             </View>
 
             <View style={styles.statsGrid}>
+                <StatItem label="Basic Posts" value={item.remainingBasicPosts} />
                 <StatItem label="Gold Posts" value={item.remainingGoldPosts} />
                 <StatItem label="Premium Posts" value={item.remainingPremiumPosts} />
-                <StatItem label="Basic Posts" value={item.remainingBasicPosts} />
-                <StatItem label="Estimations" value={item.remainingFreeEstimationPosts} />
             </View>
 
             <View style={styles.cardFooter}>
                 <Ionicons name="time-outline" size={14} color="#888" />
-                <Text style={styles.expiryText}>Expires on {formatDate(item.endDate)}</Text>
+                <Text style={styles.expiryText}>Lifetime Validity (Never Expires)</Text>
             </View>
         </View>
     );
 
-    const renderPackageDefinition = (item: PackageDefinition) => {
-        const isPurchasing = purchaseMutation.isPending && purchasingPackageId === item._id;
-
-        return (
-            <View key={item._id} style={styles.planCard}>
-                <View style={styles.planHeader}>
-                    <View>
-                        <Text style={styles.planName}>{item.name}</Text>
-                        <Text style={styles.planPrice}>{formatEtb(TEST_PACKAGE_PRICE)}</Text>
-                    </View>
-                    <Ionicons name="diamond-outline" size={26} color={THEME_COLOR} />
-                </View>
-
-                <View style={styles.planFeatureGrid}>
-                    <PlanFeature label="Basic" value={item.numberOfBasicPosts} />
-                    <PlanFeature label="Gold" value={item.numberOfGoldPosts} />
-                    <PlanFeature label="Premium" value={item.numberOfPremiumPosts} />
-                    <PlanFeature label="Estimations" value={item.numberOfFreeEstimations} />
-                </View>
-
-                <TouchableOpacity
-                    style={[styles.buyBtn, isPurchasing && styles.disabledBtn]}
-                    onPress={() => handleBuyPackage(item)}
-                    disabled={isPurchasing}
-                >
-                    {isPurchasing ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={styles.buyBtnText}>Buy with Chapa</Text>
-                    )}
-                </TouchableOpacity>
-            </View>
-        );
-    };
-
     const loading = packagesLoading || packageDefinitionsLoading;
+    const hasActivePackage = packages.some((p: any) => p.isValid);
+    const firstPackage = packageDefinitions[0];
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -301,24 +267,81 @@ export default function MyPackagesScreen({ route }: any) {
                         </View>
                     )}
 
-                    <TouchableOpacity
-                        style={styles.showOptionsBtn}
-                        onPress={() => setShowBuyingOptions(true)}
-                    >
-                        <Ionicons name="add-circle-outline" size={20} color="#fff" />
-                        <Text style={styles.showOptionsBtnText}>Buy Package</Text>
-                    </TouchableOpacity>
-
-                    {showBuyingOptions && (
-                        <>
-                            <View style={styles.optionsHeader}>
-                                <Text style={styles.sectionTitle}>Buying Options</Text>
-                                <TouchableOpacity onPress={() => setShowBuyingOptions(false)}>
-                                    <Ionicons name="close" size={22} color="#666" />
-                                </TouchableOpacity>
+                    <Text style={styles.sectionTitle}>Buy Package</Text>
+                    {firstPackage ? (
+                        <View style={styles.planCard}>
+                            <View style={styles.planHeader}>
+                                <View>
+                                    <Text style={styles.planName}>Package</Text>
+                                    <Text style={styles.planPrice}>{formatEtb(TEST_PACKAGE_PRICE)}</Text>
+                                </View>
+                                <Ionicons name="diamond-outline" size={26} color={THEME_COLOR} />
                             </View>
-                            {packageDefinitions.map(renderPackageDefinition)}
-                        </>
+
+                            <TouchableOpacity
+                                style={styles.dropdownHeader}
+                                onPress={() => setIsDropdownExpanded(!isDropdownExpanded)}
+                            >
+                                <Text style={styles.dropdownHeaderText}>View Details & Bonuses</Text>
+                                <Ionicons
+                                    name={isDropdownExpanded ? "chevron-up" : "chevron-down"}
+                                    size={20}
+                                    color={THEME_COLOR}
+                                />
+                            </TouchableOpacity>
+
+                            {isDropdownExpanded && (
+                                <View style={styles.dropdownContent}>
+                                    <View style={styles.dropdownItem}>
+                                        <Ionicons name="checkmark-circle-outline" size={18} color="#4CAF50" />
+                                        <View style={styles.dropdownTextWrap}>
+                                            <Text style={styles.dropdownFeatureValue}>10 Posts</Text>
+                                            <Text style={styles.dropdownFeatureDesc}>Standard basic listing posts on Gadal Market.</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.dropdownItem}>
+                                        <Ionicons name="checkmark-circle-outline" size={18} color="#4CAF50" />
+                                        <View style={styles.dropdownTextWrap}>
+                                            <Text style={styles.dropdownFeatureValue}>20 Golden Posts</Text>
+                                            <Text style={styles.dropdownFeatureDesc}>Featured category list posts with high visibility.</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.dropdownItem}>
+                                        <Ionicons name="checkmark-circle-outline" size={18} color="#4CAF50" />
+                                        <View style={styles.dropdownTextWrap}>
+                                            <Text style={styles.dropdownFeatureValue}>30 Premium Posts</Text>
+                                            <Text style={styles.dropdownFeatureDesc}>Top-tier home page posts with maximum reach.</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            )}
+
+                            {hasActivePackage ? (
+                                <View style={styles.alreadyHaveContainer}>
+                                    <Ionicons name="warning-outline" size={20} color="#FFA500" />
+                                    <Text style={styles.alreadyHaveText}>You already have a package.</Text>
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    style={[styles.buyBtn, purchaseMutation.isPending && styles.disabledBtn]}
+                                    onPress={() => handleBuyPackage(firstPackage)}
+                                    disabled={purchaseMutation.isPending}
+                                >
+                                    {purchaseMutation.isPending ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.buyBtnText}>Buy Package</Text>
+                                    )}
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="alert-circle-outline" size={52} color="#DDD" />
+                            <Text style={styles.emptyText}>No packages available to buy.</Text>
+                        </View>
                     )}
                 </ScrollView>
             )}
@@ -331,13 +354,6 @@ const StatItem = ({ label, value }: { label: string, value: number }) => (
         <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
         <Text style={styles.statValue}>{value ?? 0}</Text>
         <Text style={styles.statLabel}>{label}</Text>
-    </View>
-);
-
-const PlanFeature = ({ label, value }: { label: string, value: number }) => (
-    <View style={styles.planFeature}>
-        <Text style={styles.planFeatureValue}>{value ?? 0}</Text>
-        <Text style={styles.planFeatureLabel}>{label}</Text>
     </View>
 );
 
@@ -383,33 +399,6 @@ const styles = StyleSheet.create({
     planHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
     planName: { fontSize: 18, fontWeight: '800', color: '#222' },
     planPrice: { fontSize: 14, color: THEME_COLOR, fontWeight: '700', marginTop: 3 },
-    planFeatureGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
-    planFeature: {
-        width: '48%',
-        backgroundColor: '#FFF7ED',
-        borderRadius: 10,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-    },
-    planFeatureValue: { fontSize: 16, fontWeight: '800', color: '#222' },
-    planFeatureLabel: { fontSize: 12, color: '#666', marginTop: 2 },
-    showOptionsBtn: {
-        backgroundColor: THEME_COLOR,
-        paddingVertical: 14,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'row',
-        gap: 8,
-        marginBottom: 18,
-    },
-    showOptionsBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
-    optionsHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginTop: 4,
-    },
     buyBtn: { backgroundColor: THEME_COLOR, paddingVertical: 13, borderRadius: 12, alignItems: 'center' },
     buyBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
     disabledBtn: { opacity: 0.6 },
@@ -427,4 +416,59 @@ const styles = StyleSheet.create({
     pendingText: { fontSize: 12, color: '#8A6A3A', marginTop: 2 },
     verifyBtn: { backgroundColor: '#222', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },
     verifyBtnText: { color: '#fff', fontWeight: '700' },
+    dropdownHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
+        borderColor: '#F0F0F0',
+        marginBottom: 14,
+        marginTop: 4,
+    },
+    dropdownHeaderText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#666',
+    },
+    dropdownContent: {
+        marginBottom: 16,
+        paddingHorizontal: 4,
+    },
+    dropdownItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        marginBottom: 12,
+    },
+    dropdownTextWrap: {
+        flex: 1,
+    },
+    dropdownFeatureValue: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#222',
+    },
+    dropdownFeatureDesc: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 2,
+    },
+    alreadyHaveContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFF9E6',
+        borderColor: '#FFE0B2',
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingVertical: 12,
+        gap: 8,
+    },
+    alreadyHaveText: {
+        color: '#D48800',
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
 });
