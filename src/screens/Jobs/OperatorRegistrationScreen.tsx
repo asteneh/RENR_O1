@@ -152,8 +152,9 @@ export default function OperatorRegistrationScreen() {
 
         try {
             const res = await registerMutation.mutateAsync(formData);
-            if (jobId && res.id) {
-                await applyMutation.mutateAsync({ jobId, userId: res.id });
+            const newUserId = res.userId || res.id;
+            if (jobId && newUserId) {
+                await applyMutation.mutateAsync({ jobId, userId: newUserId });
             }
             setActiveStep(2);
         } catch (error: any) {

@@ -22,6 +22,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
+import { TITLE_PLACEHOLDER } from '../../constants/formPlaceholders';
 import { checkPackageBeforePosting, useUserPackages } from '../../api/services/packageService';
 import { formatEtb, formatNumberWithCommas, getEtbCurrency, unformatNumber } from '../../utils/currency';
 
@@ -132,7 +133,7 @@ export default function PostPropertyScreen({ navigation }: any) {
         'You need an active package to post. Please buy a package first.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Buy Package', onPress: () => navigation.navigate('MyPackages') },
+          { text: 'Buy Package', onPress: () => navigation.navigate('MyPackages', { returnTo: 'PostProperty' }) },
         ]
       );
       return false;
@@ -153,7 +154,7 @@ export default function PostPropertyScreen({ navigation }: any) {
           eligibility.message || 'Your package has no remaining posts. Please buy a new package.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Buy Package', onPress: () => navigation.navigate('MyPackages') },
+            { text: 'Buy Package', onPress: () => navigation.navigate('MyPackages', { returnTo: 'PostProperty' }) },
           ]
         );
         return false;
@@ -414,7 +415,7 @@ export default function PostPropertyScreen({ navigation }: any) {
             <Text style={styles.label}>Title</Text>
             <TextInput
               style={[styles.input, validationErrors.title && styles.inputError]}
-              placeholder="Example: Komatsu 350, 2015"
+              placeholder={TITLE_PLACEHOLDER}
               placeholderTextColor="#888"
               value={title}
               onChangeText={(value) => {
@@ -691,7 +692,7 @@ export default function PostPropertyScreen({ navigation }: any) {
                   </Text>
                   <TouchableOpacity
                     style={{ backgroundColor: THEME_COLOR, borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10, marginTop: 14 }}
-                    onPress={() => navigation.navigate('MyPackages')}
+                    onPress={() => navigation.navigate('MyPackages', { returnTo: 'PostProperty' })}
                   >
                     <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>Buy Package</Text>
                   </TouchableOpacity>

@@ -154,6 +154,10 @@ export default function MyPackagesScreen({ route }: any) {
                     AsyncStorage.removeItem(PENDING_PACKAGE_TX_REF_KEY).catch(() => undefined);
                     showNotification('Package activated successfully.', 'success');
                     refetch();
+                    const returnTo = route?.params?.returnTo;
+                    if (returnTo) {
+                        navigation.goBack();
+                    }
                 },
                 onError: (error: any) => {
                     showNotification(cleanErrorMessage(error), 'error');
@@ -245,16 +249,10 @@ export default function MyPackagesScreen({ route }: any) {
 
                     try {
                         await Linking.openURL(checkoutUrl);
-                        showAlert(
-                            'Payment Started',
-                            'After completing Chapa payment, tap Open App on the return page. If it does not reopen automatically, come back here and tap Verify.',
-                            [
-                                { text: 'Later', style: 'cancel' },
-                                {
-                                    text: 'Verify Payment',
-                                    onPress: () => handleVerifyPayment(data.txRef),
-                                },
-                            ],
+                        showNotification(
+                            'Complete payment in Chapa. Your package will activate automatically when you return.',
+                            'info',
+                            'Payment Started'
                         );
                     } catch {
                         showNotification('Could not open Chapa checkout.', 'error');
@@ -512,6 +510,42 @@ export default function MyPackagesScreen({ route }: any) {
                                             </Text>
                                         </View>
                                     </View>
+                                    {selectedDefinition.numberOfFreeEstimations > 0 && (
+                                        <View style={styles.featureRow}>
+                                            <View
+                                                style={[
+                                                    styles.featureDot,
+                                                    { backgroundColor: selectedTier.color },
+                                                ]}
+                                            />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.featureValue}>
+                                                    {selectedDefinition.numberOfFreeEstimations} Free Estimations
+                                                </Text>
+                                                <Text style={styles.featureDesc}>
+                                                    Complimentary price estimations included with this package.
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    )}
+                                    {selectedDefinition.offPercent > 0 && (
+                                        <View style={styles.featureRow}>
+                                            <View
+                                                style={[
+                                                    styles.featureDot,
+                                                    { backgroundColor: selectedTier.color },
+                                                ]}
+                                            />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.featureValue}>
+                                                    {selectedDefinition.offPercent}% Bonus Discount
+                                                </Text>
+                                                <Text style={styles.featureDesc}>
+                                                    Additional savings on eligible services.
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    )}
                                 </View>
                             )}
 

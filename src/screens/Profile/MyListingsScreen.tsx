@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useUserAds, useUserProfile } from '../../api/services/userService';
 import { useUpdateProductMutation } from '../../api/services/productService';
 import ProductCard from '../../components/ProductCard';
@@ -39,6 +39,16 @@ export default function MyListingsScreen() {
         await refetchAds();
         setRefreshing(false);
     }, [refetchAds]);
+
+    useFocusEffect(
+        useCallback(() => {
+            refetchAds();
+        }, [refetchAds])
+    );
+
+    const handlePreview = (product: any) => {
+        navigation.navigate('ProductDetails', { product });
+    };
 
     const handleEdit = (productId: string) => {
         navigation.navigate('EditListing', { productId });
@@ -134,6 +144,7 @@ export default function MyListingsScreen() {
                             product={item}
                             style={{ marginHorizontal: 20, marginTop: 15 }}
                             isManagementMode={true}
+                            onPreview={handlePreview}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             onToggleAvailability={handleToggleAvailability}

@@ -22,6 +22,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { CONFIG } from '../../config';
 import { formatEtb, formatNumberWithCommas, getEtbCurrency, unformatNumber } from '../../utils/currency';
+import { TITLE_PLACEHOLDER } from '../../constants/formPlaceholders';
 
 const THEME_COLOR = '#FF8C00';
 const STEPS = ['Type', 'Category', 'Details', 'Location', 'Media', 'Options'];
@@ -292,7 +293,7 @@ export default function EditListingScreen({ navigation, route }: any) {
                 {currentStep === 2 && (
                     <View>
                         <Text style={styles.label}>Title</Text>
-                        <TextInput style={styles.input} placeholder="Example: Komatsu 350, 2015" placeholderTextColor="#888" value={title} onChangeText={setTitle} />
+                        <TextInput style={styles.input} placeholder={TITLE_PLACEHOLDER} placeholderTextColor="#888" value={title} onChangeText={setTitle} />
 
                         <Text style={styles.label}>Description</Text>
                         <TextInput style={[styles.input, { height: 80 }]} placeholder="Describe your item..." placeholderTextColor="#888" multiline value={description} onChangeText={setDescription} />

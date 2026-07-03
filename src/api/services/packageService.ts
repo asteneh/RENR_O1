@@ -7,6 +7,7 @@ export interface PackageDefinition {
     numberOfGoldPosts: number;
     numberOfBasicPosts: number;
     numberOfPremiumPosts: number;
+    numberOfFreeEstimations: number;
     offPercent: number;
 }
 

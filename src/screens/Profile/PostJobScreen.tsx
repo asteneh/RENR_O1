@@ -12,6 +12,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
+import { TITLE_PLACEHOLDER } from '../../constants/formPlaceholders';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -149,7 +150,8 @@ export default function PostJobScreen() {
                         <Text style={styles.label}>Job Title *</Text>
                         <TextInput
                             style={styles.input}
-                            placeholder="e.g. Senior Excavator Operator"
+                            placeholder={TITLE_PLACEHOLDER}
+                            placeholderTextColor="#888"
                             value={formData.jobTitle}
                             onChangeText={(text) => setFormData({ ...formData, jobTitle: text })}
                         />
@@ -285,6 +287,18 @@ export default function PostJobScreen() {
                             <Text style={styles.checkboxLabel}>Post through Gadal (Cross-platform listing)</Text>
                         </TouchableOpacity>
                     </View>
+
+                    <TouchableOpacity
+                        style={styles.operatorLink}
+                        onPress={() => navigation.navigate('OperatorRegistration')}
+                    >
+                        <Ionicons name="construct-outline" size={22} color={THEME_COLOR} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.operatorLinkTitle}>Join as Operator</Text>
+                            <Text style={styles.operatorLinkSub}>Register as a machinery operator to apply for jobs</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#999" />
+                    </TouchableOpacity>
 
                     <TouchableOpacity
                         style={[styles.submitBtn, createJobMutation.isPending && styles.disabledBtn]}
@@ -434,5 +448,18 @@ const styles = StyleSheet.create({
     },
     modalDoneBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
     checkboxContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
-    checkboxLabel: { fontSize: 14, color: '#333', fontWeight: '500' }
+    checkboxLabel: { fontSize: 14, color: '#333', fontWeight: '500' },
+    operatorLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: '#FFF8F0',
+        borderWidth: 1,
+        borderColor: '#FFE0B2',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+    },
+    operatorLinkTitle: { fontSize: 15, fontWeight: '700', color: '#333' },
+    operatorLinkSub: { fontSize: 12, color: '#888', marginTop: 2 },
 });

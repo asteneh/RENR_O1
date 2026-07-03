@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
-    TouchableOpacity, ActivityIndicator, Share
+    TouchableOpacity, ActivityIndicator, Share, Linking
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +43,7 @@ export default function JobDetailsScreen() {
             return;
         }
 
-        if (user?.userType !== 'Operator') {
+        if (user?.userType !== 'Operator' && !user?.roles?.includes('Operator')) {
             showAlert("Operator Only", "Only registered operators can apply for jobs. Would you like to register as an operator?", [
                 { text: "No", style: "cancel" },
                 { text: "Register", onPress: () => navigation.navigate('OperatorRegistration', { jobId }), style: "default" }
@@ -67,6 +67,38 @@ export default function JobDetailsScreen() {
         } catch (error: any) {
             showNotification(error.message, "error");
         }
+    };
+
+    const handleContactEmployer = () => {
+        const employer = job?.postedBy;
+        const employerId = employer?._id || employer;
+        const phone = employer?.phoneNumber;
+
+        if (phone) {
+            showAlert(
+                'Contact Employer',
+                `Reach ${job?.companyName || 'the employer'} about this position.`,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Call',
+                        onPress: () => Linking.openURL(`tel:${phone}`),
+                    },
+                    {
+                        text: 'Message',
+                        onPress: () => navigation.navigate('Messages'),
+                    },
+                ]
+            );
+            return;
+        }
+
+        if (employerId) {
+            navigation.navigate('Messages');
+            return;
+        }
+
+        showNotification('Employer contact information is not available.', 'info');
     };
 
     if (isLoading) {
@@ -150,6 +182,12 @@ export default function JobDetailsScreen() {
             </ScrollView>
 
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+                {isApplied && (
+                    <TouchableOpacity style={styles.contactBtn} onPress={handleContactEmployer}>
+                        <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+                        <Text style={styles.contactBtnText}>Contact Employer</Text>
+                    </TouchableOpacity>
+                )}
                 <TouchableOpacity
                     style={[
                         styles.applyBtn,
@@ -233,6 +271,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     applyBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    contactBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: THEME_COLOR,
+        paddingVertical: 14,
+        borderRadius: 12,
+        marginBottom: 10,
+    },
+    contactBtnText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
     appliedBtn: { backgroundColor: '#E8F5E9' },
     appliedBtnText: { color: '#4CAF50' },
     disabledBtn: { opacity: 0.7 },

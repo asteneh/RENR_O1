@@ -38,19 +38,21 @@ export interface JobQueryParams {
 // APIs
 export const fetchJobs = async (params: JobQueryParams = {}): Promise<GetJobsResponse> => {
     const { searchTerm, ...rest } = params;
-    // Note: If the backend supports search via query parm, add it here.
-    // The web project seems to pass searching through different params or filters.
+    const apiParams: Record<string, string> = { recordStatus: '1', ...rest } as any;
+    if (searchTerm?.trim()) {
+        apiParams.jobTitle = searchTerm.trim();
+    }
     const response = await apiClient.get<GetJobsResponse>('jobs', {
-        params: { recordStatus: 1, ...rest }
+        params: apiParams
     });
 
     let jobs = response.data.jobs;
-    if (searchTerm) {
+    if (searchTerm?.trim()) {
         const lowerSearch = searchTerm.toLowerCase();
         jobs = jobs.filter(job =>
             job.jobTitle.toLowerCase().includes(lowerSearch) ||
             job.companyName.toLowerCase().includes(lowerSearch) ||
-            job.jobDescription.toLowerCase().includes(lowerSearch)
+            job.jobDescription?.toLowerCase().includes(lowerSearch)
         );
     }
 

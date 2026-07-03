@@ -6,11 +6,11 @@ export const notificationService = {
         return response.data;
     },
     getUnreadNotificationsCount: async (userId: string) => {
-        const response = await apiClient.get(`notifications/unread/${userId}`);
+        const response = await apiClient.get(`notifications/unreadCount/${userId}`);
         return response.data;
     },
     updateSeen: async (userId: string) => {
-        const response = await apiClient.put(`notifications/seen/${userId}`);
+        const response = await apiClient.put(`notifications/updateSeen/${userId}`);
         return response.data;
     }
 };

@@ -17,6 +17,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
+import { TITLE_PLACEHOLDER } from '../../constants/formPlaceholders';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -184,7 +185,7 @@ export default function PostRequestScreen() {
                 <Text style={styles.label}>Inquiry Title</Text>
                 <TextInput
                     style={styles.input}
-                    placeholder="e.g. Need excavator for site excavation"
+                    placeholder={TITLE_PLACEHOLDER}
                     placeholderTextColor="#888"
                     value={form.title}
                     onChangeText={(val) => setForm({ ...form, title: val })}

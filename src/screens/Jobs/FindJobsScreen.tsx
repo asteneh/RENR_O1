@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TextInput,
     TouchableOpacity, ActivityIndicator,
@@ -24,12 +24,10 @@ export default function FindJobsScreen() {
 
     const [searchTerm, setSearchTerm] = useState('');
 
-    // Filters from navigation state (passed back from JobFiltersScreen)
     const filters = route.params?.filters || {};
     const selectedJobType = filters.jobType;
     const selectedMachineType = filters.machineType;
 
-    // Data Fetching
     const {
         data: jobsData,
         isLoading: jobsLoading,
@@ -45,7 +43,7 @@ export default function FindJobsScreen() {
 
     const filteredJobs = useMemo(() => {
         if (!jobsData?.jobs) return [];
-        if (!searchTerm) return jobsData.jobs;
+        if (!searchTerm.trim()) return jobsData.jobs;
 
         const lowerSearch = searchTerm.toLowerCase();
         return jobsData.jobs.filter(job =>
@@ -68,7 +66,10 @@ export default function FindJobsScreen() {
                         if (!isAuthenticated) {
                             return navigation.navigate('OperatorRegistration', { jobId });
                         }
-                        if (appliedUsers.some(u => u.userId === userId)) {
+                        if (appliedUsers.some(u => {
+                            const uId = u.userId && typeof u.userId === 'object' ? (u.userId._id || u.userId.id) : u.userId;
+                            return uId === userId;
+                        })) {
                             return showAlert("Already Applied", "You have already applied for this position.");
                         }
                         try {
@@ -93,27 +94,49 @@ export default function FindJobsScreen() {
         );
     };
 
-    const renderHeader = () => (
-        <View>
-            {/* Elegant Banner Section */}
-            <View style={styles.banner}>
-                <View style={styles.bannerContent}>
-                    <Text style={styles.bannerTitle}>Find Machinery Operator Jobs</Text>
-                    <Text style={styles.bannerSub}>Connect with top construction companies and start your next project today.</Text>
+    const renderBanner = () => (
+        <View style={styles.banner}>
+            <View style={styles.bannerContent}>
+                <Text style={styles.bannerTitle}>Find Machinery Operator Jobs</Text>
+                <Text style={styles.bannerSub}>Connect with top construction companies and start your next project today.</Text>
 
-                    <TouchableOpacity
-                        style={styles.joinBtn}
-                        onPress={() => navigation.navigate('OperatorRegistration')}
-                    >
-                        <Text style={styles.joinBtnText}>Join as Operator</Text>
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.bannerIconContainer}>
-                    <Ionicons name="construct" size={100} color="rgba(255,255,255,0.15)" />
-                </View>
+                <TouchableOpacity
+                    style={styles.joinBtn}
+                    onPress={() => navigation.navigate('OperatorRegistration')}
+                >
+                    <Text style={styles.joinBtnText}>Join as Operator</Text>
+                </TouchableOpacity>
             </View>
+            <View style={styles.bannerIconContainer}>
+                <Ionicons name="construct" size={100} color="rgba(255,255,255,0.15)" />
+            </View>
+        </View>
+    );
 
-            {/* Advanced Search & Filter */}
+    const renderListHeader = () => (
+        <View style={styles.listHeaderRow}>
+            <Text style={styles.listTitle}>Latest Opportunities</Text>
+            {isFetching && !jobsLoading && <ActivityIndicator size="small" color={THEME_COLOR} />}
+        </View>
+    );
+
+    const renderJobItem = useCallback(({ item }: { item: any }) => (
+        <JobCard
+            job={item}
+            isApplied={item.appliedUsers.some((u: any) => {
+                const uId = u.userId && typeof u.userId === 'object' ? (u.userId._id || u.userId.id) : u.userId;
+                return uId === (user?.id || user?._id);
+            })}
+            isApplying={applyMutation.isPending && applyMutation.variables?.jobId === item._id}
+            onViewDetails={() => navigation.navigate('JobDetails', { jobId: item._id })}
+            onApply={() => handleApply(item._id, item.appliedUsers)}
+        />
+    ), [user, applyMutation.isPending, applyMutation.variables?.jobId]);
+
+    return (
+        <SafeAreaView style={styles.container} edges={['top']}>
+            {renderBanner()}
+
             <View style={styles.searchSection}>
                 <View style={styles.searchContainer}>
                     <View style={styles.searchBar}>
@@ -124,6 +147,9 @@ export default function FindJobsScreen() {
                             placeholderTextColor="#888"
                             value={searchTerm}
                             onChangeText={setSearchTerm}
+                            autoCorrect={false}
+                            autoCapitalize="none"
+                            returnKeyType="search"
                         />
                         {searchTerm !== '' && (
                             <TouchableOpacity onPress={() => setSearchTerm('')}>
@@ -141,15 +167,6 @@ export default function FindJobsScreen() {
                 </View>
             </View>
 
-            <View style={styles.listHeaderRow}>
-                <Text style={styles.listTitle}>Latest Opportunities</Text>
-                {isFetching && !jobsLoading && <ActivityIndicator size="small" color={THEME_COLOR} />}
-            </View>
-        </View>
-    );
-
-    return (
-        <SafeAreaView style={styles.container} edges={['top']}>
             {jobsLoading ? (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color={THEME_COLOR} />
@@ -159,16 +176,10 @@ export default function FindJobsScreen() {
                     data={filteredJobs}
                     keyExtractor={(item) => item._id}
                     contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 100) }]}
-                    ListHeaderComponent={renderHeader}
-                    renderItem={({ item }) => (
-                        <JobCard
-                            job={item}
-                            isApplied={item.appliedUsers.some(u => u.userId === (user?.id || user?._id))}
-                            isApplying={applyMutation.isPending && applyMutation.variables?.jobId === item._id}
-                            onViewDetails={() => navigation.navigate('JobDetails', { jobId: item._id })}
-                            onApply={() => handleApply(item._id, item.appliedUsers)}
-                        />
-                    )}
+                    ListHeaderComponent={renderListHeader}
+                    renderItem={renderJobItem}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
                     refreshControl={
                         <RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={THEME_COLOR} />
                     }
@@ -191,6 +202,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#000',
         padding: 24,
         margin: 20,
+        marginBottom: 0,
         borderRadius: 24,
         flexDirection: 'row',
         position: 'relative',
@@ -208,7 +220,7 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     joinBtnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-    searchSection: { paddingHorizontal: 20, marginBottom: 20 },
+    searchSection: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
     searchContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     searchBar: {
         flex: 1,

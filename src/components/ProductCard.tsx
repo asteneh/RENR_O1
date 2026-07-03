@@ -14,6 +14,7 @@ interface ProductCardProps {
     isManagementMode?: boolean;
     onEdit?: (productId: string) => void;
     onDelete?: (productId: string) => void;
+    onPreview?: (product: Product) => void;
     onToggleAvailability?: (productId: string, currentStatus: number) => void;
 }
 
@@ -25,6 +26,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     isManagementMode,
     onEdit,
     onDelete,
+    onPreview,
     onToggleAvailability
 }) => {
     const navigation = useNavigation<any>();
@@ -128,6 +130,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
                 {isManagementMode && (
                     <View style={styles.managementRow}>
+                        <TouchableOpacity
+                            style={styles.mgmtBtn}
+                            onPress={() => onPreview?.(product)}
+                        >
+                            <Text style={styles.mgmtBtnText}>Preview</Text>
+                        </TouchableOpacity>
+
                         <TouchableOpacity
                             style={styles.mgmtBtn}
                             onPress={() => onEdit?.(product._id)}
