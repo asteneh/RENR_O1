@@ -11,6 +11,7 @@ import {
   canAccessMultiRole,
   UserRoles,
 } from '../constants/UserRoles';
+import { useTranslation } from '../i18n';
 
 // Screens
 import HomeScreen from '../screens/Home/HomeScreen';
@@ -29,6 +30,7 @@ export default function TabNavigator() {
     const getUserRoles = useAuthStore((state) => state.getUserRoles);
 
     const currentRoles = getUserRoles();
+    const { t } = useTranslation();
 
     // Determine which tabs to show based on merged role capabilities
     const canPostItems = canAccessMultiRole(currentRoles, FeatureActions.POST_SALE) || canAccessMultiRole(currentRoles, FeatureActions.POST_RENT);
@@ -73,7 +75,7 @@ export default function TabNavigator() {
                 return <Ionicons name={iconName} size={size} color={color} />;
             },
         })}>
-            <Tab.Screen name="Home" component={HomeScreen} />
+            <Tab.Screen name="Home" component={HomeScreen} options={{ title: t('home') }} />
 
             <Tab.Screen
                 name="JobsTab"
@@ -89,7 +91,7 @@ export default function TabNavigator() {
                     },
                 })}
                 options={{
-                    title: 'Jobs',
+                    title: t('jobs'),
                     tabBarIcon: ({ color, size, focused }) => (
                         <Ionicons name={focused ? 'briefcase' : 'briefcase-outline'} size={size} color={color} />
                     ),
@@ -113,7 +115,7 @@ export default function TabNavigator() {
                     },
                 })}
                 options={{
-                    title: 'Post',
+                    title: t('post'),
                     tabBarLabelStyle: { fontSize: 10, marginBottom: 5 }
                 }}
             />
@@ -123,7 +125,7 @@ export default function TabNavigator() {
             <Tab.Screen
                 name="Requests"
                 component={Placeholder}
-                options={{ title: 'Requests' }}
+                options={{ title: t('requests') }}
                 listeners={({ navigation }) => ({
                     tabPress: (e) => {
                         e.preventDefault();
@@ -140,7 +142,7 @@ export default function TabNavigator() {
             <Tab.Screen
                 name="Account"
                 component={Placeholder}
-                options={{ title: 'Account' }}
+                options={{ title: t('account') }}
                 listeners={({ navigation }) => ({
                     tabPress: (e) => {
                         e.preventDefault();

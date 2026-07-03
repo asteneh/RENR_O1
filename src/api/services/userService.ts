@@ -14,6 +14,8 @@ export interface UserProfile {
     postCount?: number;
     followers?: any[];
     userType: string;
+    experience?: string;
+    machinesYouCanOperate?: string[];
 }
 
 // API CALLS

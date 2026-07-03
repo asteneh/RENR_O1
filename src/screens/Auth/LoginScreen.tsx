@@ -12,6 +12,8 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { useNavigation } from '@react-navigation/native';
 import { useLogin, useGetOtp } from '../../api/services/authService';
+import { useTranslation } from '../../i18n';
+import { useLanguageStore } from '../../store/useLanguageStore';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -26,6 +28,8 @@ export default function LoginScreen() {
   const { setUnreadNotifications, incrementUnreadNotifications, showNotification } = useNotificationStore();
   const navigation = useNavigation<any>();
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const { t } = useTranslation();
+  const { language, toggleLanguage } = useLanguageStore();
 
   React.useEffect(() => {
     const loadSavedCredentials = async () => {
@@ -64,7 +68,7 @@ export default function LoginScreen() {
     setShowVerify(false);
 
     if (!emailOrPhone || !password) {
-      showNotification("Please enter both email/phone and password", "error");
+      showNotification(t('enterBothFields'), "error");
       return;
     }
 
@@ -111,7 +115,7 @@ export default function LoginScreen() {
         const reason = error?.response?.data?.reason;
         if (reason === 'NotVerified') {
           // Set a generic error message for the UI to show the "Verify" button
-          setSigninError("Account not verified.");
+          setSigninError(t('accountNotVerified'));
           setShowVerify(true);
         }
       }
@@ -157,8 +161,8 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.titleContainer}>
-              <Text style={styles.welcomeText}>Sign In</Text>
-              <Text style={styles.subText}>Welcome back! Please enter your details.</Text>
+              <Text style={styles.welcomeText}>{t('signIn')}</Text>
+              <Text style={styles.subText}>{t('welcomeBack')}</Text>
             </View>
 
             <View style={styles.formContainer}>
@@ -174,7 +178,7 @@ export default function LoginScreen() {
                       style={styles.verifyBtn}
                     >
                       <Text style={styles.verifyBtnText}>
-                        {getOtpMutation.isPending ? 'Sending...' : 'Verify'}
+                        {getOtpMutation.isPending ? t('sending') : t('verify')}
                       </Text>
                     </TouchableOpacity>
                   )}
@@ -184,7 +188,7 @@ export default function LoginScreen() {
               <View style={styles.inputWrapper}>
                 <Ionicons name="call-outline" size={20} color="#888" style={styles.inputIcon} />
                 <TextInput
-                  placeholder="Phone Number"
+                  placeholder={t('phoneNumber')}
                   placeholderTextColor="#888"
                   style={styles.textInput}
                   value={emailOrPhone}
@@ -195,7 +199,7 @@ export default function LoginScreen() {
               <View style={styles.inputWrapper}>
                 <Ionicons name="lock-closed-outline" size={20} color="#888" style={styles.inputIcon} />
                 <TextInput
-                  placeholder="Password"
+                  placeholder={t('password')}
                   placeholderTextColor="#888"
                   secureTextEntry={!showPassword}
                   style={styles.textInput}
@@ -215,7 +219,7 @@ export default function LoginScreen() {
                 style={styles.forgotBtn}
                 onPress={() => navigation.navigate('ForgotPassword')}
               >
-                <Text style={styles.forgotText}>Forgot Password?</Text>
+                <Text style={styles.forgotText}>{t('forgotPassword')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -226,14 +230,14 @@ export default function LoginScreen() {
                 {loginMutation.isPending ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.loginBtnText}>Sign In</Text>
+                  <Text style={styles.loginBtnText}>{t('signIn')}</Text>
                 )}
               </TouchableOpacity>
 
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Don't have an account? </Text>
+                <Text style={styles.footerText}>{t('noAccount')}</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-                  <Text style={styles.signUpText}>Register</Text>
+                  <Text style={styles.signUpText}>{t('register')}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -256,23 +260,24 @@ export default function LoginScreen() {
           onPress={() => setSettingsModalVisible(false)}
         >
           <View style={styles.settingsBox}>
-            <Text style={styles.settingsTitle}>Settings</Text>
+            <Text style={styles.settingsTitle}>{t('settings')}</Text>
 
             <TouchableOpacity style={styles.settingOption}>
               <View style={[styles.settingIconBox, { backgroundColor: '#E3F2FD' }]}>
                 <Ionicons name="color-palette-outline" size={20} color="#1565C0" />
               </View>
-              <Text style={styles.settingText}>Theme</Text>
+              <Text style={styles.settingText}>{t('theme')}</Text>
               <Ionicons name="chevron-forward" size={18} color="#ccc" />
             </TouchableOpacity>
 
             <View style={styles.separator} />
 
-            <TouchableOpacity style={styles.settingOption}>
+            <TouchableOpacity style={styles.settingOption} onPress={() => { toggleLanguage(); }}>
               <View style={[styles.settingIconBox, { backgroundColor: '#E8F5E9' }]}>
                 <Ionicons name="language-outline" size={20} color="#2E7D32" />
               </View>
-              <Text style={styles.settingText}>Language</Text>
+              <Text style={styles.settingText}>{t('language')}</Text>
+              <Text style={{ fontSize: 12, color: '#888', marginRight: 4 }}>{language === 'en' ? 'EN' : 'አማ'}</Text>
               <Ionicons name="chevron-forward" size={18} color="#ccc" />
             </TouchableOpacity>
 
@@ -282,7 +287,7 @@ export default function LoginScreen() {
               <View style={[styles.settingIconBox, { backgroundColor: '#FFF3E0' }]}>
                 <Ionicons name="information-circle-outline" size={20} color="#EF6C00" />
               </View>
-              <Text style={styles.settingText}>About Us</Text>
+              <Text style={styles.settingText}>{t('aboutUs')}</Text>
               <Ionicons name="chevron-forward" size={18} color="#ccc" />
             </TouchableOpacity>
 

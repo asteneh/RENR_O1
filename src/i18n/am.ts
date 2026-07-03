@@ -1,0 +1,88 @@
+// Amharic (አማርኛ) translations
+const am: Record<string, string> = {
+  // Tab Navigator
+  home: 'መነሻ',
+  jobs: 'ስራዎች',
+  post: 'ለጥፍ',
+  requests: 'ጥያቄዎች',
+  account: 'መለያ',
+
+  // Login Screen
+  signIn: 'ግባ',
+  welcomeBack: 'እንኳን ደህና መጡ! መረጃዎን ያስገቡ።',
+  phoneNumber: 'ስልክ ቁጥር',
+  password: 'የይለፍ ቃል',
+  forgotPassword: 'የይለፍ ቃል ረሱ?',
+  register: 'ይመዝገቡ',
+  noAccount: 'መለያ የለዎትም? ',
+  settings: 'ቅንብሮች',
+  theme: 'ገጽታ',
+  aboutUs: 'ስለ እኛ',
+  sending: 'በመላክ ላይ...',
+  verify: 'ያረጋግጡ',
+  accountNotVerified: 'መለያ አልተረጋገጠም።',
+  enterBothFields: 'እባክዎ ስልክ ቁጥር እና የይለፍ ቃል ያስገቡ',
+
+  // Home Screen
+  welcome: 'እንኳን ደህና መጡ 👋',
+  findMachinery: 'ለፕሮጀክትዎ ምርጡን ማሽነሪ ያግኙ',
+  recentListings: 'የቅርብ ዝርዝሮች',
+  myRequestsHome: 'የእኔ ጥያቄዎች',
+  noItemsFound: 'ምንም እቃዎች አልተገኙም።',
+  noRequestsFound: 'ምንም ጥያቄዎች አልተገኙም።',
+  all: 'ሁሉም',
+
+  // Profile Screen
+  myAccount: 'የእኔ መለያ',
+  editProfile: 'መገለጫ ያርትዑ',
+  changePassword: 'የይለፍ ቃል ይቀይሩ',
+  quickActions: 'ፈጣን ተግባሮች',
+  postItem: 'እቃ ይለጥፉ',
+  postRequest: 'ጥያቄ ይለጥፉ',
+  postJob: 'ስራ ይለጥፉ',
+  activities: 'እንቅስቃሴዎች',
+  notifications: 'ማሳወቂያዎች',
+  messages: 'መልዕክቶች',
+  myFavorites: 'የእኔ ተወዳጆች',
+  myPosts: 'የእኔ ልጥፎች',
+  myRequests: 'የእኔ ጥያቄዎች',
+  following: 'እየተከተሉ',
+  myPackages: 'የእኔ ፓኬጆች',
+  appliedJobs: 'ያመለከቱ ስራዎች',
+  postedJobs: 'የለጠፉ ስራዎች',
+  support: 'ድጋፍ',
+  appSettings: 'የመተግበሪያ ቅንብሮች',
+  about: 'ስለ',
+  feedback: 'አስተያየት',
+  logout: 'ውጣ',
+  logoutConfirm: 'ለመውጣት እርግጠኛ ነዎት?',
+  cancel: 'ይቅር',
+  retry: 'ድገም',
+  logoutFromAccount: 'ከመለያ ይውጡ',
+  failedToLoadProfile: 'የመገለጫ ዝርዝሮችን መጫን አልተሳካም',
+  sales: 'ሽያጮች',
+  buy: 'ግዢ',
+  every: 'ሁሉም',
+
+  // App Settings Screen
+  darkMode: 'ጨለማ ሁነታ',
+  language: 'ቋንቋ',
+  english: 'English',
+  amharic: 'አማርኛ',
+  darkModeDescription: 'ጨለማ ሁነታን ማብራት በጨለማ ቦታዎች ለአይንዎ ምቹ ያደርገዋል።',
+  languageDescription: 'የሚፈልጉትን ቋንቋ ይምረጡ። መተግበሪያው ሁሉንም ጽሑፍ በተመረጠው ቋንቋ ያሳያል።',
+
+  // About Modal
+  aboutGadalMarket: 'ስለ ጋዳል ማርኬት',
+  gadalMarket: 'ጋዳል ማርኬት',
+  version: 'ስሪት 1.0.0 (Expo)',
+  aboutDescription: 'ጋዳል ማርኬት ለኢንዱስትሪው የተገነባ ሁሉንም አይነት ማሽነሪ፣ ተሽከርካሪ እና መሣሪያ ገበያ ነው። ገዢዎችን፣ ሻጮችን፣ አከራዮችን፣ ተከራዮችን፣ ኦፕሬተሮችን እና ቀጣሪዎችን በአንድ ጠንካራ ስርዓት ውስጥ ያገናኛል።',
+  keyOfferings: 'ዋና አገልግሎቶች:',
+  offering1: 'ፕሪሚየም ከባድ ማሽነሪዎችን እና ተሽከርካሪዎችን ይግዙ ወይም ይከራዩ።',
+  offering2: 'መሳሪያዎን ለሽያጭ ወይም ለኪራይ በቀላል ሁኔታ ይለጥፉ።',
+  offering3: 'ከተረጋገጡ የማሽን ኦፕሬተሮች ጋር ይገናኙ ወይም የስራ ክፍት ቦታ ይለጥፉ።',
+  offering4: 'ተወዳዳሪ ጨረታዎችን ለማግኘት የፍላጎት ጥያቄዎችን ያቅርቡ።',
+  footerTagline: 'የኢትዮጵያ ከባድ ማሽነሪ እና መሣሪያ መድረክ',
+};
+
+export default am;

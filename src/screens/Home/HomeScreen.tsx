@@ -24,6 +24,7 @@ import { useCategoriesByService } from '../../api/services/categoryService';
 import { ServiceEnums } from '../../constants/ServiceEnums';
 import { ViewMode } from '../../store/useAuthStore';
 import { UserRoles } from '../../constants/UserRoles';
+import { useTranslation } from '../../i18n';
 
 
 // Removed global width to use useWindowDimensions hook
@@ -56,6 +57,7 @@ export default function HomeScreen() {
   const CARD_WIDTH = width - 40;
 
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   // Data
   const { data: helloData } = useHelloQuery();
@@ -180,8 +182,8 @@ export default function HomeScreen() {
 
   const renderWelcomeHeader = () => (
     <View style={styles.headerContainer}>
-      <Text style={styles.greetingText}>Welcome 👋</Text>
-      <Text style={styles.subGreeting}>Find the best machinery for your project</Text>
+      <Text style={styles.greetingText}>{t('welcome')}</Text>
+      <Text style={styles.subGreeting}>{t('findMachinery')}</Text>
     </View>
   );
 
@@ -227,7 +229,7 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {renderStickyHeader()}
       <View style={{ paddingHorizontal: 20, marginBottom: 15, marginTop: 10 }}>
-        <Text style={styles.sectionTitle}>My Requests</Text>
+        <Text style={styles.sectionTitle}>{t('myRequestsHome')}</Text>
       </View>
       <FlatList
         data={MOCK_REQUESTS}
@@ -236,7 +238,7 @@ export default function HomeScreen() {
         renderItem={({ item }) => <RequestCard request={item} />}
         ListEmptyComponent={
           <View style={styles.centeredLoading}>
-            <Text style={{ color: '#888' }}>No requests found.</Text>
+            <Text style={{ color: '#888' }}>{t('noRequestsFound')}</Text>
           </View>
         }
       />
@@ -299,7 +301,7 @@ export default function HomeScreen() {
               {renderCategories()}
 
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Listings</Text>
+                <Text style={styles.sectionTitle}>{t('recentListings')}</Text>
               </View>
             </>
           }
@@ -313,7 +315,7 @@ export default function HomeScreen() {
               </View>
             ) : (
               <View style={styles.centeredLoading}>
-                <Text>No items found.</Text>
+                <Text>{t('noItemsFound')}</Text>
               </View>
             )
           }

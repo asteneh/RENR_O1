@@ -9,6 +9,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { CONFIG } from '../../config';
 import ZoomableImageModal from '../../components/common/ZoomableImageModal';
 import { useThemeStore } from '../../store/useThemeStore';
+import { useTranslation } from '../../i18n';
 
 import {
   UserRoles,
@@ -51,6 +52,7 @@ export default function ProfileScreen() {
   const { data: profile, isLoading, error, refetch } = useUserProfile();
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
+  const { t } = useTranslation();
 
   const [isZoomModalVisible, setIsZoomModalVisible] = useState(false);
   const [zoomImage, setZoomImage] = useState('');
@@ -60,10 +62,10 @@ export default function ProfileScreen() {
   const hasActivePlan = hasMembership();
 
   const handleLogout = () => {
-    showAlert("Logout", "Are you sure you want to logout?", [
-      { text: "Cancel", style: "cancel" },
+    showAlert(t('logout'), t('logoutConfirm'), [
+      { text: t('cancel'), style: "cancel" },
       {
-        text: "Logout", style: 'destructive', onPress: () => {
+        text: t('logout'), style: 'destructive', onPress: () => {
           logout();
           navigation.navigate('Login');
         }
@@ -76,13 +78,13 @@ export default function ProfileScreen() {
   if (error) return (
     <View style={[styles.center, isDark && styles.containerDark]}>
       <Ionicons name="alert-circle-outline" size={48} color="#FF6B6B" />
-      <Text style={{ marginTop: 10, color: isDark ? '#aaa' : '#666' }}>Failed to load profile details</Text>
+      <Text style={{ marginTop: 10, color: isDark ? '#aaa' : '#666' }}>{t('failedToLoadProfile')}</Text>
       <TouchableOpacity onPress={() => refetch()} style={{ marginTop: 20, backgroundColor: THEME_COLOR, paddingHorizontal: 30, paddingVertical: 12, borderRadius: 8, width: 200, alignItems: 'center' }}>
-        <Text style={{ color: '#fff', fontWeight: 'bold' }}>Retry</Text>
+        <Text style={{ color: '#fff', fontWeight: 'bold' }}>{t('retry')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={handleLogout} style={{ marginTop: 15, padding: 10 }}>
-        <Text style={{ color: '#FF6B6B', fontWeight: '600' }}>Logout from account</Text>
+        <Text style={{ color: '#FF6B6B', fontWeight: '600' }}>{t('logoutFromAccount')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -143,17 +145,17 @@ export default function ProfileScreen() {
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, isDark && styles.statValueDark]}>{profile?.postCount || 0}</Text>
-                  <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>Sales</Text>
+                  <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>{t('sales')}</Text>
                 </View>
                 <View style={[styles.statDivider, isDark && styles.dividerDark]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, isDark && styles.statValueDark]}>0</Text>
-                  <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>Buy</Text>
+                  <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>{t('buy')}</Text>
                 </View>
                 <View style={[styles.statDivider, isDark && styles.dividerDark]} />
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, isDark && styles.statValueDark]}>0</Text>
-                  <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>Every</Text>
+                  <Text style={[styles.statLabel, isDark && styles.statLabelDark]}>{t('every')}</Text>
                 </View>
               </View>
             </View>
@@ -162,17 +164,17 @@ export default function ProfileScreen() {
 
         {/* My Account Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>My Account</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>{t('myAccount')}</Text>
           <View style={[styles.card, isDark && styles.cardDark]}>
             <MenuOption
               icon="person-outline"
-              label="Edit Profile"
+              label={t('editProfile')}
               onPress={() => navigation.navigate('EditProfile')}
             />
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
               icon="lock-closed-outline"
-              label="Change Password"
+              label={t('changePassword')}
               onPress={() => navigation.navigate('ResetPassword', { phone: profile?.phoneNumber })}
             />
           </View>
@@ -180,7 +182,7 @@ export default function ProfileScreen() {
 
         {/* Quick Actions Section (Role-Specific) */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Quick Actions</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>{t('quickActions')}</Text>
           <View style={styles.quickActionsRow}>
             {(canPostSale || canPostRent) && (
               <TouchableOpacity
@@ -190,7 +192,7 @@ export default function ProfileScreen() {
                 <View style={[styles.quickActionIcon, { backgroundColor: isDark ? '#2C1D0A' : '#FFF5E5' }]}>
                   <Ionicons name="add-circle-outline" size={24} color={THEME_COLOR} />
                 </View>
-                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>Post Item</Text>
+                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{t('postItem')}</Text>
               </TouchableOpacity>
             )}
             {(canRequestBuy || canRequestRent) && (
@@ -201,7 +203,7 @@ export default function ProfileScreen() {
                 <View style={[styles.quickActionIcon, { backgroundColor: isDark ? '#0A2535' : '#E5F6FF' }]}>
                   <Ionicons name="document-text-outline" size={24} color="#2196F3" />
                 </View>
-                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>Post Request</Text>
+                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{t('postRequest')}</Text>
               </TouchableOpacity>
             )}
             {canPostJob && (
@@ -212,7 +214,7 @@ export default function ProfileScreen() {
                 <View style={[styles.quickActionIcon, { backgroundColor: isDark ? '#0F2C0F' : '#E5FFE5' }]}>
                   <Ionicons name="briefcase-outline" size={24} color="#4CAF50" />
                 </View>
-                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>Post Job</Text>
+                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{t('postJob')}</Text>
               </TouchableOpacity>
             )}
 
@@ -221,12 +223,12 @@ export default function ProfileScreen() {
 
         {/* Activities Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Activities</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>{t('activities')}</Text>
           <View style={[styles.card, isDark && styles.cardDark]}>
             <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Notification')}>
               <View style={styles.menuLeft}>
                 <Ionicons name="notifications-outline" size={22} color={THEME_COLOR} />
-                <Text style={[styles.menuText, isDark && styles.menuTextDark]}>Notifications</Text>
+                <Text style={[styles.menuText, isDark && styles.menuTextDark]}>{t('notifications')}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {unreadNotifications > 0 && (
@@ -240,13 +242,13 @@ export default function ProfileScreen() {
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
               icon="chatbubble-ellipses-outline"
-              label="Messages"
+              label={t('messages')}
               onPress={() => navigation.navigate('Messages')}
             />
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
               icon="heart-outline"
-              label="My Favorites"
+              label={t('myFavorites')}
               onPress={() => navigation.navigate('Favorites')}
             />
             {(canPostSale || canPostRent) && (
@@ -254,7 +256,7 @@ export default function ProfileScreen() {
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
                   icon="list-outline"
-                  label="My Posts"
+                  label={t('myPosts')}
                   onPress={() => navigation.navigate('MyListings')}
                 />
               </>
@@ -264,7 +266,7 @@ export default function ProfileScreen() {
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
                   icon="document-text-outline"
-                  label="My Requests"
+                  label={t('myRequests')}
                   onPress={() => navigation.navigate('MyRequests')}
                 />
               </>
@@ -272,13 +274,13 @@ export default function ProfileScreen() {
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
               icon="people-outline"
-              label="Following"
+              label={t('following')}
               onPress={() => navigation.navigate('Followings')}
             />
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
               icon="cube-outline"
-              label="My Packages"
+              label={t('myPackages')}
               onPress={() => navigation.navigate('MyPackages')}
             />
             {isOperator && (
@@ -286,7 +288,7 @@ export default function ProfileScreen() {
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
                   icon="briefcase-outline"
-                  label="Applied Jobs"
+                  label={t('appliedJobs')}
                   onPress={() => navigation.navigate('MyJobs', { mode: 'applied' })}
                 />
               </>
@@ -296,7 +298,7 @@ export default function ProfileScreen() {
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
                   icon="briefcase-outline"
-                  label="Posted Jobs"
+                  label={t('postedJobs')}
                   onPress={() => navigation.navigate('MyJobs', { mode: 'posted' })}
                 />
               </>
@@ -306,15 +308,15 @@ export default function ProfileScreen() {
 
         {/* Support Section */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>Support</Text>
+          <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>{t('support')}</Text>
           <View style={[styles.card, isDark && styles.cardDark]}>
-            <MenuOption icon="settings-outline" label="App Settings" onPress={() => navigation.navigate('AppSettings')} />
+            <MenuOption icon="settings-outline" label={t('appSettings')} onPress={() => navigation.navigate('AppSettings')} />
 
             <View style={[styles.divider, isDark && styles.dividerDark]} />
-            <MenuOption icon="information-circle-outline" label="About" onPress={() => setIsAboutVisible(true)} />
+            <MenuOption icon="information-circle-outline" label={t('about')} onPress={() => setIsAboutVisible(true)} />
 
             <View style={[styles.divider, isDark && styles.dividerDark]} />
-            <MenuOption icon="chatbubble-outline" label="Feedback" onPress={() => navigation.navigate('Feedback')} />
+            <MenuOption icon="chatbubble-outline" label={t('feedback')} onPress={() => navigation.navigate('Feedback')} />
           </View>
         </View>
 
@@ -322,14 +324,14 @@ export default function ProfileScreen() {
         <View style={styles.actionSection}>
           <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Ionicons name="log-out-outline" size={20} color="#fff" style={styles.btnIcon} />
-            <Text style={styles.logoutBtnText}>Logout</Text>
+            <Text style={styles.logoutBtnText}>{t('logout')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* App Info Footer */}
         <View style={styles.footerInfo}>
-          <Text style={[styles.footerText, isDark && styles.footerTextDark]}>Gadal Market v1.0.0</Text>
-          <Text style={[styles.footerSubtext, isDark && styles.footerTextDark]}>Ethiopia's Heavy Machinery & Equipment Platform</Text>
+          <Text style={[styles.footerText, isDark && styles.footerTextDark]}>{t('gadalMarket')} v1.0.0</Text>
+          <Text style={[styles.footerSubtext, isDark && styles.footerTextDark]}>{t('footerTagline')}</Text>
         </View>
 
       </ScrollView>
@@ -350,7 +352,7 @@ export default function ProfileScreen() {
         <View style={styles.modalOverlay}>
           <View style={[styles.aboutModalContent, isDark && styles.cardDark]}>
             <View style={styles.aboutHeader}>
-              <Text style={[styles.aboutHeaderTitle, isDark && styles.textDark]}>About Gadal Market</Text>
+              <Text style={[styles.aboutHeaderTitle, isDark && styles.textDark]}>{t('aboutGadalMarket')}</Text>
               <TouchableOpacity onPress={() => setIsAboutVisible(false)}>
                 <Ionicons name="close-circle" size={28} color={THEME_COLOR} />
               </TouchableOpacity>
@@ -362,31 +364,31 @@ export default function ProfileScreen() {
                   source={require('../../../assets/orange-logo.png')}
                   style={styles.aboutLogo}
                 />
-                <Text style={[styles.aboutAppName, isDark && styles.textDark]}>Gadal Market</Text>
-                <Text style={styles.aboutAppVersion}>Version 1.0.0 (Expo)</Text>
+                <Text style={[styles.aboutAppName, isDark && styles.textDark]}>{t('gadalMarket')}</Text>
+                <Text style={styles.aboutAppVersion}>{t('version')}</Text>
               </View>
 
               <Text style={[styles.aboutDescription, isDark && styles.aboutDescriptionDark]}>
-                Gadal Market is a comprehensive machinery, vehicle, and equipment marketplace platform built specifically for the industry. It connects Buyers, Sellers, Lessors (Akeray), Lessees (Tekeray), Operators, and Employers in a single, robust ecosystem.
+                {t('aboutDescription')}
               </Text>
 
               <View style={styles.featureList}>
-                <Text style={[styles.featureTitle, isDark && styles.textDark]}>Key Offerings:</Text>
+                <Text style={[styles.featureTitle, isDark && styles.textDark]}>{t('keyOfferings')}</Text>
                 <View style={styles.featureItem}>
                   <Ionicons name="checkmark-circle-outline" size={18} color={THEME_COLOR} />
-                  <Text style={[styles.featureText, isDark && styles.aboutDescriptionDark]}>Buy or Rent premium heavy machinery and vehicles.</Text>
+                  <Text style={[styles.featureText, isDark && styles.aboutDescriptionDark]}>{t('offering1')}</Text>
                 </View>
                 <View style={styles.featureItem}>
                   <Ionicons name="checkmark-circle-outline" size={18} color={THEME_COLOR} />
-                  <Text style={[styles.featureText, isDark && styles.aboutDescriptionDark]}>List your equipment for sale or lease using a simple posting wizard.</Text>
+                  <Text style={[styles.featureText, isDark && styles.aboutDescriptionDark]}>{t('offering2')}</Text>
                 </View>
                 <View style={styles.featureItem}>
                   <Ionicons name="checkmark-circle-outline" size={18} color={THEME_COLOR} />
-                  <Text style={[styles.featureText, isDark && styles.aboutDescriptionDark]}>Connect with certified machine operators or post job vacancies.</Text>
+                  <Text style={[styles.featureText, isDark && styles.aboutDescriptionDark]}>{t('offering3')}</Text>
                 </View>
                 <View style={styles.featureItem}>
                   <Ionicons name="checkmark-circle-outline" size={18} color={THEME_COLOR} />
-                  <Text style={[styles.featureText, isDark && styles.aboutDescriptionDark]}>Submit demand requests to get competitive bids from suppliers.</Text>
+                  <Text style={[styles.featureText, isDark && styles.aboutDescriptionDark]}>{t('offering4')}</Text>
                 </View>
               </View>
 

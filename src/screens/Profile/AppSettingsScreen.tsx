@@ -4,12 +4,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useThemeStore } from '../../store/useThemeStore';
+import { useLanguageStore } from '../../store/useLanguageStore';
+import { useTranslation } from '../../i18n';
 
 const THEME_COLOR = '#FF8C00';
 
 export default function AppSettingsScreen() {
   const navigation = useNavigation();
   const { theme, toggleTheme } = useThemeStore();
+  const { language, toggleLanguage } = useLanguageStore();
+  const { t } = useTranslation();
   const isDark = theme === 'dark';
 
   return (
@@ -19,17 +23,18 @@ export default function AppSettingsScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : '#000'} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.textDark]}>App Settings</Text>
+        <Text style={[styles.headerTitle, isDark && styles.textDark]}>{t('appSettings')}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       {/* Settings List */}
       <View style={styles.content}>
         <View style={[styles.card, isDark && styles.cardDark]}>
+          {/* Dark Mode Toggle */}
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>
               <Ionicons name={isDark ? "moon-outline" : "sunny-outline"} size={22} color={THEME_COLOR} />
-              <Text style={[styles.settingText, isDark && styles.textDark]}>Dark Mode</Text>
+              <Text style={[styles.settingText, isDark && styles.textDark]}>{t('darkMode')}</Text>
             </View>
             <Switch
               value={isDark}
@@ -38,11 +43,32 @@ export default function AppSettingsScreen() {
               thumbColor={isDark ? THEME_COLOR : '#f4f3f4'}
             />
           </View>
+
+          <View style={[styles.divider, isDark && styles.dividerDark]} />
+
+          {/* Language Toggle */}
+          <TouchableOpacity style={styles.settingRow} onPress={toggleLanguage} activeOpacity={0.7}>
+            <View style={styles.settingLeft}>
+              <Ionicons name="language-outline" size={22} color={THEME_COLOR} />
+              <Text style={[styles.settingText, isDark && styles.textDark]}>{t('language')}</Text>
+            </View>
+            <View style={styles.languageRight}>
+              <View style={[styles.languageBadge, language === 'am' && styles.languageBadgeActive]}>
+                <Text style={[styles.languageBadgeText, language === 'am' && styles.languageBadgeTextActive]}>
+                  {language === 'en' ? 'English' : 'አማርኛ'}
+                </Text>
+              </View>
+              <Ionicons name="swap-horizontal-outline" size={20} color={isDark ? '#888' : '#aaa'} style={{ marginLeft: 8 }} />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Display Current Mode Details */}
         <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-          Switching to dark mode will adjust the interface to be easier on your eyes in low-light environments.
+          {t('darkModeDescription')}
+        </Text>
+        <Text style={[styles.infoText, isDark && styles.infoTextDark, { marginTop: 8 }]}>
+          {t('languageDescription')}
         </Text>
       </View>
     </SafeAreaView>
@@ -90,6 +116,29 @@ const styles = StyleSheet.create({
   },
   settingLeft: { flexDirection: 'row', alignItems: 'center' },
   settingText: { fontSize: 16, color: '#333', marginLeft: 15, fontWeight: '500' },
+  divider: { height: 1, backgroundColor: '#FAF9F6', marginHorizontal: 0 },
+  dividerDark: { backgroundColor: '#2C2C2C' },
+  languageRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  languageBadge: {
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  languageBadgeActive: {
+    backgroundColor: '#FFF3E0',
+  },
+  languageBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+  },
+  languageBadgeTextActive: {
+    color: THEME_COLOR,
+  },
   infoText: {
     marginTop: 15,
     marginHorizontal: 10,
