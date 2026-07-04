@@ -75,7 +75,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     )}
                     {product.postType?.name !== 'Basic' && (
                         <View style={[styles.postTypeBadge, { backgroundColor: product.postType?.name === 'Gold' ? '#FFD700' : '#C0C0C0' }]}>
-                            <Text style={styles.badgeText}>{product.postType?.name}</Text>
+                            <Text style={styles.badgeText}>
+                                {product.postType?.name === 'Gold' ? 'Featured' : product.postType?.name}
+                            </Text>
                         </View>
                     )}
                 </View>

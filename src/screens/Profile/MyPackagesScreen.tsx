@@ -26,6 +26,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { CONFIG } from '../../config';
 import { formatEtb } from '../../utils/currency';
+import { usePostTypesQuery } from '../../api/services/productService';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const THEME_COLOR = '#FF8C00';
@@ -57,7 +58,7 @@ const TIERS: PackageTier[] = [
         bg: '#EBF4FF',
         countField: 'numberOfBasicPosts',
         postLabel: 'Posts',
-        description: 'Standard basic listing posts on Gadal Market.',
+        description: 'Suitable for individual users and occasional postings.',
     },
     {
         type: 'golden',
@@ -67,7 +68,7 @@ const TIERS: PackageTier[] = [
         bg: '#FFF8E6',
         countField: 'numberOfGoldPosts',
         postLabel: 'Golden Posts',
-        description: 'Featured category posts with high visibility.',
+        description: 'Suitable for active users who require more posting capacity and enhanced visibility.',
     },
     {
         type: 'premium',
@@ -77,7 +78,7 @@ const TIERS: PackageTier[] = [
         bg: '#F5EEF8',
         countField: 'numberOfPremiumPosts',
         postLabel: 'Premium Posts',
-        description: 'Top-tier home-page posts with maximum reach.',
+        description: 'Suitable for businesses and professional users seeking maximum exposure.',
     },
 ];
 
@@ -116,9 +117,77 @@ function findDefinitionForTier(
     });
     if (exactMatch) return exactMatch;
 
-    // Fallback: definition that has the tier's count > 0 at all
     return defs.find((d) => ((d as any)[tier.countField] as number) > 0);
 }
+
+const getFeaturesForTier = (tierType: PackageType, definition: PackageDefinition) => {
+    if (tierType === 'basic') {
+        return [
+            {
+                value: `Up to ${definition.numberOfBasicPosts || 5} posts`,
+                desc: 'Standard basic listing posts on Gadal Market.',
+            },
+            {
+                value: 'Standard visibility',
+                desc: 'Listings are visible to all users under default search and browsing.',
+            },
+            {
+                value: 'Lifetime Validity',
+                desc: 'This package never expires — use it at your own pace.',
+            },
+        ];
+    } else if (tierType === 'golden') {
+        return [
+            {
+                value: `Up to ${definition.numberOfGoldPosts || 15} posts`,
+                desc: 'Featured category posts with high visibility.',
+            },
+            {
+                value: 'Enhanced visibility',
+                desc: 'Gold posts are prioritized in category search results.',
+            },
+            {
+                value: 'Featured badge on posts',
+                desc: 'Postings show a prominent "Featured" badge.',
+            },
+            {
+                value: '1 free post refresh per month',
+                desc: 'Refresh your listing to the top once a month for free.',
+            },
+            {
+                value: 'Lifetime Validity',
+                desc: 'This package never expires — use it at your own pace.',
+            },
+        ];
+    } else {
+        return [
+            {
+                value: `Up to ${definition.numberOfPremiumPosts || 25} posts`,
+                desc: 'Top-tier posts with maximum reach across Gadal Market.',
+            },
+            {
+                value: 'Highest visibility',
+                desc: 'Premium posts receive maximum exposure and rank at the top.',
+            },
+            {
+                value: 'Premium badge on posts',
+                desc: 'Postings display an exclusive "Premium" badge.',
+            },
+            {
+                value: '3 free post refreshes per month',
+                desc: 'Keep your listings fresh with three complimentary refreshes per month.',
+            },
+            {
+                value: 'Featured placement on the home page',
+                desc: 'Showcase your items directly on the home page for higher conversion.',
+            },
+            {
+                value: 'Lifetime Validity',
+                desc: 'This package never expires — use it at your own pace.',
+            },
+        ];
+    }
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function MyPackagesScreen({ route }: any) {
@@ -129,6 +198,18 @@ export default function MyPackagesScreen({ route }: any) {
     const { data: packages = [], isLoading: packagesLoading, refetch } = useUserPackages();
     const { data: packageDefinitions = [], isLoading: packageDefinitionsLoading } =
         usePackageDefinitions();
+    const { data: postTypes = [] } = usePostTypesQuery();
+
+    const getPackagePrice = (definition: PackageDefinition | undefined) => {
+        if (!definition) return 0;
+        const basicPrice = postTypes?.find((p: any) => p.name === 'Basic')?.price || 50;
+        const goldPrice = postTypes?.find((p: any) => p.name === 'Gold')?.price || 100;
+        const premiumPrice = postTypes?.find((p: any) => p.name === 'Premium')?.price || 150;
+
+        return (definition.numberOfBasicPosts * basicPrice) +
+               (definition.numberOfGoldPosts * goldPrice) +
+               (definition.numberOfPremiumPosts * premiumPrice);
+    };
 
     const purchaseMutation = useCreatePackagePurchaseMutation();
     const verifyMutation = useVerifyPackagePaymentMutation();
@@ -227,7 +308,7 @@ export default function MyPackagesScreen({ route }: any) {
             {
                 packageDefinition: definition._id,
                 user: userId,
-                amount: TEST_PACKAGE_PRICE,
+                amount: getPackagePrice(definition),
                 returnUrl: MOBILE_PAYMENT_RETURN_URL,
                 description: definition.name,
                 startDate: new Date().toISOString(),
@@ -446,7 +527,7 @@ export default function MyPackagesScreen({ route }: any) {
                                     </Text>
                                 </View>
                                 <Text style={styles.planPrice}>
-                                    {formatEtb(TEST_PACKAGE_PRICE)}
+                                    {formatEtb(getPackagePrice(selectedDefinition))}
                                 </Text>
                             </View>
 
@@ -466,52 +547,8 @@ export default function MyPackagesScreen({ route }: any) {
 
                             {detailsExpanded && (
                                 <View style={styles.accordionBody}>
-                                    <View style={styles.featureRow}>
-                                        <View
-                                            style={[
-                                                styles.featureDot,
-                                                { backgroundColor: selectedTier.color },
-                                            ]}
-                                        />
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.featureValue}>
-                                                {selectedPostCount} {selectedTier.postLabel}
-                                            </Text>
-                                            <Text style={styles.featureDesc}>
-                                                {selectedTier.description}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.featureRow}>
-                                        <View
-                                            style={[
-                                                styles.featureDot,
-                                                { backgroundColor: selectedTier.color },
-                                            ]}
-                                        />
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.featureValue}>Lifetime Validity</Text>
-                                            <Text style={styles.featureDesc}>
-                                                This package never expires — use it at your own pace.
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.featureRow}>
-                                        <View
-                                            style={[
-                                                styles.featureDot,
-                                                { backgroundColor: selectedTier.color },
-                                            ]}
-                                        />
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.featureValue}>Auto-removed when done</Text>
-                                            <Text style={styles.featureDesc}>
-                                                Package is automatically removed once all posts are used.
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    {selectedDefinition.numberOfFreeEstimations > 0 && (
-                                        <View style={styles.featureRow}>
+                                    {getFeaturesForTier(selectedTier.type, selectedDefinition).map((feat, idx) => (
+                                        <View key={idx} style={styles.featureRow}>
                                             <View
                                                 style={[
                                                     styles.featureDot,
@@ -519,33 +556,11 @@ export default function MyPackagesScreen({ route }: any) {
                                                 ]}
                                             />
                                             <View style={{ flex: 1 }}>
-                                                <Text style={styles.featureValue}>
-                                                    {selectedDefinition.numberOfFreeEstimations} Free Estimations
-                                                </Text>
-                                                <Text style={styles.featureDesc}>
-                                                    Complimentary price estimations included with this package.
-                                                </Text>
+                                                <Text style={styles.featureValue}>{feat.value}</Text>
+                                                <Text style={styles.featureDesc}>{feat.desc}</Text>
                                             </View>
                                         </View>
-                                    )}
-                                    {selectedDefinition.offPercent > 0 && (
-                                        <View style={styles.featureRow}>
-                                            <View
-                                                style={[
-                                                    styles.featureDot,
-                                                    { backgroundColor: selectedTier.color },
-                                                ]}
-                                            />
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.featureValue}>
-                                                    {selectedDefinition.offPercent}% Bonus Discount
-                                                </Text>
-                                                <Text style={styles.featureDesc}>
-                                                    Additional savings on eligible services.
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    )}
+                                    ))}
                                 </View>
                             )}
 
