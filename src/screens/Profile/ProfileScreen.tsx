@@ -171,6 +171,20 @@ export default function ProfileScreen() {
               label={t('editProfile')}
               onPress={() => navigation.navigate('EditProfile')}
             />
+            {isOperator && (
+              <>
+                <View style={[styles.divider, isDark && styles.dividerDark]} />
+                <MenuOption
+                  icon="construct-outline"
+                  label="Edit Operator Profile"
+                  onPress={() =>
+                    navigation.navigate('EditOperatorProfile', {
+                      operatorId: authUser?._id || authUser?.id,
+                    })
+                  }
+                />
+              </>
+            )}
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
               icon="lock-closed-outline"

@@ -52,7 +52,7 @@ export default function OperatorListScreen({ navigation }: any) {
                     style={styles.joinBtn}
                     onPress={() => navigation.navigate('OperatorRegistration')}
                 >
-                    <Text style={styles.joinBtnText}>Join as Operator</Text>
+                    <Text style={styles.joinBtnText}>Looking For a Job</Text>
                 </TouchableOpacity>
             </View>
 

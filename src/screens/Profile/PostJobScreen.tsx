@@ -294,8 +294,8 @@ export default function PostJobScreen() {
                     >
                         <Ionicons name="construct-outline" size={22} color={THEME_COLOR} />
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.operatorLinkTitle}>Join as Operator</Text>
-                            <Text style={styles.operatorLinkSub}>Register as a machinery operator to apply for jobs</Text>
+                            <Text style={styles.operatorLinkTitle}>Looking For a Job</Text>
+                            <Text style={styles.operatorLinkSub}>Register as a machinery operator to find and apply for jobs</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color="#999" />
                     </TouchableOpacity>

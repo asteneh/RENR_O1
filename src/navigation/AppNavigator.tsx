@@ -35,6 +35,7 @@ import MyRequestsScreen from '../screens/Profile/MyRequestsScreen';
 import MyJobsScreen from '../screens/Profile/MyJobsScreen';
 import MyPackagesScreen from '../screens/Profile/MyPackagesScreen';
 import OperatorRegistrationScreen from '../screens/Jobs/OperatorRegistrationScreen';
+import EditOperatorProfileScreen from '../screens/Jobs/EditOperatorProfileScreen';
 import EditListingScreen from '../screens/Profile/EditListingScreen';
 import TermsAndPrivacyScreen from '../screens/Auth/TermsAndPrivacyScreen';
 import PostJobScreen from '../screens/Profile/PostJobScreen';
@@ -143,6 +144,11 @@ export default function AppNavigator() {
           name="OperatorRegistration"
           component={OperatorRegistrationScreen}
           options={{ title: 'Operator Registration' }}
+        />
+        <Stack.Screen
+          name="EditOperatorProfile"
+          component={EditOperatorProfileScreen}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="EditListing"

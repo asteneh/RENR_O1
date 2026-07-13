@@ -41,6 +41,7 @@ export type RootStackParamList = {
   MyJobs: { mode?: 'applied' | 'posted' } | undefined;
   MyPackages: { selectedPlan?: any; txRef?: string; serviceType?: string; returnTo?: string } | undefined;
   OperatorRegistration: undefined;
+  EditOperatorProfile: { operatorId: string };
   EditListing: { productId: string };
   TermsAndPrivacy: undefined;
   PostJob: undefined;
