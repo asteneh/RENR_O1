@@ -5,8 +5,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useCreateJobMutation } from '../../api/services/jobService';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useCreateJobMutation, useUpdateJobMutation } from '../../api/services/jobService';
 import { useCategoriesByService } from '../../api/services/categoryService';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -20,27 +20,31 @@ const JOB_TYPES = ['Full Time', 'Part Time', 'Contract'];
 
 export default function PostJobScreen() {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
+    const editJob = route.params?.job;
+    const isEditMode = !!editJob;
     const { user } = useAuthStore();
     const { showNotification } = useNotificationStore();
     const createJobMutation = useCreateJobMutation();
+    const updateJobMutation = useUpdateJobMutation();
     const { data: machineries } = useCategoriesByService(1); // 1 for Machinery
     const { data: vehicles } = useCategoriesByService(3); // 3 for Vehicles
 
     const allCategories = [...(machineries || []), ...(vehicles || [])];
 
     const [formData, setFormData] = useState({
-        companyName: '',
-        jobTitle: '',
-        jobType: 'Full Time',
-        jobDescription: '',
-        salary: '',
-        machineType: [] as string[],
-        location: '',
-        jobRequirements: [] as string[],
-        jobResponsiblities: [] as string[],
-        jobStatus: 'Open',
+        companyName: editJob?.companyName || '',
+        jobTitle: editJob?.jobTitle || '',
+        jobType: editJob?.jobType || 'Full Time',
+        jobDescription: editJob?.jobDescription || '',
+        salary: editJob?.salary || '',
+        machineType: editJob?.machineType || [] as string[],
+        location: editJob?.location || '',
+        jobRequirements: editJob?.jobRequirements || [] as string[],
+        jobResponsiblities: editJob?.jobResponsiblities || [] as string[],
+        jobStatus: editJob?.jobStatus || 'Open',
         postedBy: user?._id || '',
-        postThroughGadal: false
+        postThroughGadal: editJob?.postThroughGadal || false
     });
 
     const [newRequirement, setNewRequirement] = useState('');
@@ -61,7 +65,7 @@ export default function PostJobScreen() {
     const handleRemoveRequirement = (index: number) => {
         setFormData(prev => ({
             ...prev,
-            jobRequirements: prev.jobRequirements.filter((_, i) => i !== index)
+            jobRequirements: prev.jobRequirements.filter((_: string, i: number) => i !== index)
         }));
     };
 
@@ -78,7 +82,7 @@ export default function PostJobScreen() {
     const handleRemoveResponsibility = (index: number) => {
         setFormData(prev => ({
             ...prev,
-            jobResponsiblities: prev.jobResponsiblities.filter((_, i) => i !== index)
+            jobResponsiblities: prev.jobResponsiblities.filter((_: string, i: number) => i !== index)
         }));
     };
 
@@ -86,7 +90,7 @@ export default function PostJobScreen() {
         setFormData(prev => ({
             ...prev,
             machineType: prev.machineType.includes(id)
-                ? prev.machineType.filter(m => m !== id)
+                ? prev.machineType.filter((m: string) => m !== id)
                 : [...prev.machineType, id]
         }));
     };
@@ -97,15 +101,27 @@ export default function PostJobScreen() {
             return;
         }
 
-        createJobMutation.mutate(formData, {
-            onSuccess: () => {
-                showNotification('Job posted successfully', 'success');
-                navigation.goBack();
-            },
-            onError: (error: any) => {
-                showNotification(error.message || 'Failed to post job', 'error');
-            }
-        });
+        if (isEditMode) {
+            updateJobMutation.mutate({ jobId: editJob._id, jobData: formData }, {
+                onSuccess: () => {
+                    showNotification('Job updated successfully', 'success');
+                    navigation.goBack();
+                },
+                onError: (error: any) => {
+                    showNotification(error.message || 'Failed to update job', 'error');
+                }
+            });
+        } else {
+            createJobMutation.mutate(formData, {
+                onSuccess: () => {
+                    showNotification('Job posted successfully', 'success');
+                    navigation.goBack();
+                },
+                onError: (error: any) => {
+                    showNotification(error.message || 'Failed to post job', 'error');
+                }
+            });
+        }
     };
 
     const handleBack = useCallback(() => {
@@ -137,7 +153,7 @@ export default function PostJobScreen() {
                 <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Post New Job</Text>
+                <Text style={styles.headerTitle}>{isEditMode ? 'Edit Job' : 'Post New Job'}</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -214,8 +230,8 @@ export default function PostJobScreen() {
                         </TouchableOpacity>
 
                         <View style={styles.chipsContainer}>
-                            {formData.machineType.map(id => {
-                                const machine = allCategories?.find(m => m._id === id);
+                            {formData.machineType.map((id: string) => {
+                                const machine = allCategories?.find((m: any) => m._id === id);
                                 return (
                                     <View key={id} style={styles.chip}>
                                         <Text style={styles.chipText}>{machine?.name || id}</Text>
@@ -241,7 +257,7 @@ export default function PostJobScreen() {
                                 <Ionicons name="add" size={28} color="#FFF" />
                             </TouchableOpacity>
                         </View>
-                        {formData.jobRequirements.map((req, index) => (
+                        {formData.jobRequirements.map((req: string, index: number) => (
                             <View key={index} style={styles.listItem}>
                                 <Text style={styles.listItemText}>• {req}</Text>
                                 <TouchableOpacity onPress={() => handleRemoveRequirement(index)}>
@@ -264,7 +280,7 @@ export default function PostJobScreen() {
                                 <Ionicons name="add" size={28} color="#FFF" />
                             </TouchableOpacity>
                         </View>
-                        {formData.jobResponsiblities.map((resp, index) => (
+                        {formData.jobResponsiblities.map((resp: string, index: number) => (
                             <View key={index} style={styles.listItem}>
                                 <Text style={styles.listItemText}>• {resp}</Text>
                                 <TouchableOpacity onPress={() => handleRemoveResponsibility(index)}>
@@ -301,14 +317,14 @@ export default function PostJobScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.submitBtn, createJobMutation.isPending && styles.disabledBtn]}
+                        style={[styles.submitBtn, (createJobMutation.isPending || updateJobMutation.isPending) && styles.disabledBtn]}
                         onPress={handleSubmit}
-                        disabled={createJobMutation.isPending}
+                        disabled={createJobMutation.isPending || updateJobMutation.isPending}
                     >
-                        {createJobMutation.isPending ? (
+                        {(createJobMutation.isPending || updateJobMutation.isPending) ? (
                             <ActivityIndicator color="#FFF" />
                         ) : (
-                            <Text style={styles.submitBtnText}>Post Job</Text>
+                            <Text style={styles.submitBtnText}>{isEditMode ? 'Save Changes' : 'Post Job'}</Text>
                         )}
                     </TouchableOpacity>
                 </ScrollView>

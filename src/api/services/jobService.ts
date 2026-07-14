@@ -74,6 +74,16 @@ export const createJob = async (jobData: any): Promise<Job> => {
     return response.data;
 };
 
+export const updateJob = async ({ jobId, jobData }: { jobId: string; jobData: any }): Promise<Job> => {
+    const response = await apiClient.put<Job>(`jobs/${jobId}`, jobData);
+    return response.data;
+};
+
+export const deleteJob = async (jobId: string): Promise<any> => {
+    const response = await apiClient.put(`jobs/${jobId}`, { recordStatus: 0 });
+    return response.data;
+};
+
 // Hooks
 export const useJobsQuery = (params: JobQueryParams = {}) => {
     return useQuery({
@@ -104,6 +114,26 @@ export const useCreateJobMutation = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: createJob,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        },
+    });
+};
+
+export const useUpdateJobMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: updateJob,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        },
+    });
+};
+
+export const useDeleteJobMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: deleteJob,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['jobs'] });
         },

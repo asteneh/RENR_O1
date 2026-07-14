@@ -32,6 +32,13 @@ export default function JobDetailsScreen() {
         return uId === (user?.id || user?._id);
     });
 
+    const isOwner = (() => {
+        if (!job || !user) return false;
+        const poster = job.postedBy;
+        const posterId = poster && typeof poster === 'object' ? (poster._id || poster.id) : poster;
+        return posterId === (user?.id || user?._id);
+    })();
+
     const handleApply = async () => {
         if (isApplied) return showAlert("Already Applied", "You have already applied for this position.");
 
@@ -182,29 +189,38 @@ export default function JobDetailsScreen() {
             </ScrollView>
 
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-                {isApplied && (
-                    <TouchableOpacity style={styles.contactBtn} onPress={handleContactEmployer}>
-                        <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
-                        <Text style={styles.contactBtnText}>Contact Employer</Text>
-                    </TouchableOpacity>
+                {isOwner ? (
+                    <View style={styles.ownerBanner}>
+                        <Ionicons name="person-circle-outline" size={20} color={THEME_COLOR} />
+                        <Text style={styles.ownerBannerText}>This is your job posting</Text>
+                    </View>
+                ) : (
+                    <>
+                        {isApplied && (
+                            <TouchableOpacity style={styles.contactBtn} onPress={handleContactEmployer}>
+                                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+                                <Text style={styles.contactBtnText}>Contact Employer</Text>
+                            </TouchableOpacity>
+                        )}
+                        <TouchableOpacity
+                            style={[
+                                styles.applyBtn,
+                                isApplied && styles.appliedBtn,
+                                applyMutation.isPending && styles.disabledBtn
+                            ]}
+                            onPress={handleApply}
+                            disabled={isApplied || applyMutation.isPending}
+                        >
+                            {applyMutation.isPending ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={[styles.applyBtnText, isApplied && styles.appliedBtnText]}>
+                                    {isApplied ? 'Applied' : 'Apply Now'}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    </>
                 )}
-                <TouchableOpacity
-                    style={[
-                        styles.applyBtn,
-                        isApplied && styles.appliedBtn,
-                        applyMutation.isPending && styles.disabledBtn
-                    ]}
-                    onPress={handleApply}
-                    disabled={isApplied || applyMutation.isPending}
-                >
-                    {applyMutation.isPending ? (
-                        <ActivityIndicator color="#fff" />
-                    ) : (
-                        <Text style={[styles.applyBtnText, isApplied && styles.appliedBtnText]}>
-                            {isApplied ? 'Applied' : 'Apply Now'}
-                        </Text>
-                    )}
-                </TouchableOpacity>
             </View>
         </SafeAreaView>
     );
@@ -285,4 +301,16 @@ const styles = StyleSheet.create({
     appliedBtn: { backgroundColor: '#E8F5E9' },
     appliedBtnText: { color: '#4CAF50' },
     disabledBtn: { opacity: 0.7 },
+    ownerBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 14,
+        backgroundColor: '#FFF8F0',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#FFE0B2',
+    },
+    ownerBannerText: { color: THEME_COLOR, fontSize: 15, fontWeight: '700' },
 });

@@ -44,7 +44,7 @@ export type RootStackParamList = {
   EditOperatorProfile: { operatorId: string };
   EditListing: { productId: string };
   TermsAndPrivacy: undefined;
-  PostJob: undefined;
+  PostJob: { job?: any } | undefined;
   AppSettings: undefined;
   Feedback: undefined;
 };

@@ -3,9 +3,10 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useJobsQuery } from '../../api/services/jobService';
+import { useJobsQuery, useDeleteJobMutation } from '../../api/services/jobService';
 import { useUserProfile } from '../../api/services/userService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useNotificationStore } from '../../store/useNotificationStore';
 import { format } from 'date-fns';
 
 const THEME_COLOR = '#FF8C00';
@@ -15,7 +16,9 @@ export default function MyJobsScreen() {
     const route = useRoute<any>();
     const { data: profile } = useUserProfile();
     const { user, getUserRoles } = useAuthStore();
+    const { showAlert } = useNotificationStore();
     const userId = user?._id || user?.id || profile?._id;
+    const deleteJobMutation = useDeleteJobMutation();
 
     const isOperator =
         getUserRoles().includes('OPERATOR') ||
@@ -34,6 +37,25 @@ export default function MyJobsScreen() {
         profile?.experience ||
         (profile?.machinesYouCanOperate && profile.machinesYouCanOperate.length > 0)
     );
+
+    const handleEditJob = (item: any) => {
+        navigation.navigate('PostJob', { job: item });
+    };
+
+    const handleDeleteJob = (item: any) => {
+        showAlert(
+            'Delete Job',
+            `Are you sure you want to delete "${item.jobTitle}"? This action cannot be undone.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: () => deleteJobMutation.mutate(item._id),
+                },
+            ]
+        );
+    };
 
     const renderItem = ({ item }: { item: any }) => {
         const applicantCount = item.appliedUsers?.length || 0;
@@ -88,8 +110,27 @@ export default function MyJobsScreen() {
                 </View>
 
                 <View style={styles.cardFooter}>
-                    <Text style={styles.salary}>{item.salary}</Text>
-                    <Text style={styles.date}>{format(new Date(item.createdAt), 'MMM dd, yyyy')}</Text>
+                    <View style={styles.cardFooterLeft}>
+                        <Text style={styles.salary}>{item.salary}</Text>
+                        <Text style={styles.date}>{format(new Date(item.createdAt), 'MMM dd, yyyy')}</Text>
+                    </View>
+                    {!showApplied && (
+                        <View style={styles.cardActions}>
+                            <TouchableOpacity
+                                style={styles.actionBtn}
+                                onPress={() => handleEditJob(item)}
+                            >
+                                <Ionicons name="pencil" size={16} color={THEME_COLOR} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionBtn, styles.deleteBtn]}
+                                onPress={() => handleDeleteJob(item)}
+                                disabled={deleteJobMutation.isPending}
+                            >
+                                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
             </TouchableOpacity>
         );
@@ -205,6 +246,14 @@ const styles = StyleSheet.create({
     detailTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
     detailTagText: { fontSize: 11, fontWeight: '600' },
     cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 12 },
+    cardFooterLeft: { flex: 1 },
+    cardActions: { flexDirection: 'row', gap: 8 },
+    actionBtn: {
+        width: 34, height: 34, borderRadius: 8, backgroundColor: '#FFF8F0',
+        justifyContent: 'center', alignItems: 'center',
+        borderWidth: 1, borderColor: '#FFE0B2',
+    },
+    deleteBtn: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
     salary: { fontSize: 14, fontWeight: 'bold', color: '#333' },
     date: { fontSize: 12, color: '#888' },
     operatorCard: {

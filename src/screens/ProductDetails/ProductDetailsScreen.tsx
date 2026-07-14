@@ -17,6 +17,7 @@ import { CONFIG } from '../../config';
 import { Product, useAddFavMutation, useRemoveFavMutation, useSingleProductQuery } from '../../api/services/productService';
 import { useReviewsQuery, useCreateReviewMutation } from '../../api/services/reviewService';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useFollow, useUnfollow } from '../../api/services/userService';
 import { Rating } from 'react-native-ratings';
 import { format } from 'date-fns';
 import { TextInput as RNTextInput } from 'react-native';
@@ -121,8 +122,44 @@ export default function ProductDetailsScreen() {
   const addFavMutation = useAddFavMutation();
   const removeFavMutation = useRemoveFavMutation();
   const createReviewMutation = useCreateReviewMutation(displayProduct._id);
+  const followMutation = useFollow();
+  const unfollowMutation = useUnfollow();
 
   const isLiked = user ? (displayProduct.likedBy || []).includes(user.id || user._id) : false;
+  const isFollowing = user ? (displayProduct.consignee?.followers || []).some((f: any) => (f?._id || f) === (user.id || user._id)) : false;
+
+  const handleFollowToggle = () => {
+    if (!user) {
+      navigation.navigate('Login');
+      return;
+    }
+    const currentUserId = user.id || user._id;
+    const targetUserId = displayProduct.consignee?._id;
+    if (!targetUserId) return;
+
+    if (currentUserId === targetUserId) {
+      Alert.alert("Error", "You cannot follow yourself.");
+      return;
+    }
+
+    if (isFollowing) {
+      unfollowMutation.mutate(
+        { user: currentUserId, userToUnfollow: targetUserId },
+        {
+          onSuccess: () => showNotification("Unfollowed successfully", "success"),
+          onError: (err: any) => showNotification(cleanErrorMessage(err) || "Failed to unfollow", "error"),
+        }
+      );
+    } else {
+      followMutation.mutate(
+        { user: currentUserId, userToFollow: targetUserId },
+        {
+          onSuccess: () => showNotification("Followed successfully", "success"),
+          onError: (err: any) => showNotification(cleanErrorMessage(err) || "Failed to follow", "error"),
+        }
+      );
+    }
+  };
 
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
@@ -432,8 +469,16 @@ export default function ProductDetailsScreen() {
                 <Text style={styles.dealerSub}>{displayProduct.consignee?.followers?.length || 0} Followers</Text>
               </View>
 
-              <TouchableOpacity style={styles.followBtn}>
-                <Text style={styles.followBtnText}>Follow</Text>
+              <TouchableOpacity 
+                style={[styles.followBtn, isFollowing && styles.followingBtn]} 
+                onPress={handleFollowToggle}
+                disabled={followMutation.isPending || unfollowMutation.isPending}
+              >
+                {followMutation.isPending || unfollowMutation.isPending ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <Text style={styles.followBtnText}>{isFollowing ? 'Following' : 'Follow'}</Text>
+                )}
               </TouchableOpacity>
 
             </View>
@@ -697,6 +742,7 @@ const styles = StyleSheet.create({
   dealerName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   dealerSub: { fontSize: 13, color: '#777' },
   followBtn: { marginLeft: 'auto', backgroundColor: '#FEE2A1', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20 },
+  followingBtn: { backgroundColor: '#E0E0E0' },
   followBtnText: { color: '#000', fontWeight: 'bold', fontSize: 12 },
 
   contactActionsRow: {

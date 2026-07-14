@@ -96,8 +96,13 @@ export const fetchFollowings = async (userId: string) => {
     return response.data;
 };
 
+export const followUser = async (data: { user: string, userToFollow: string }) => {
+    const response = await apiClient.put(`users/follow/${data.user}/${data.userToFollow}`);
+    return response.data;
+};
+
 export const unfollowUser = async (data: { user: string, userToUnfollow: string }) => {
-    const response = await apiClient.post('users/unfollow', data);
+    const response = await apiClient.put(`users/unFollow/${data.user}/${data.userToUnfollow}`);
     return response.data;
 };
 
@@ -109,12 +114,27 @@ export const useFollowings = (userId: string) => {
     });
 };
 
+export const useFollow = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: followUser,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['followings'] });
+            queryClient.invalidateQueries({ queryKey: ['getSingleProduct'] });
+            queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        },
+    });
+};
+
 export const useUnfollow = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: unfollowUser,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['followings'] });
+            queryClient.invalidateQueries({ queryKey: ['getSingleProduct'] });
+            queryClient.invalidateQueries({ queryKey: ['userProfile'] });
         },
     });
 };
+
