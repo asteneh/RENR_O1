@@ -16,6 +16,8 @@ export interface UserProfile {
     userType: string;
     experience?: string;
     machinesYouCanOperate?: string[];
+    referralCode?: string;
+    referredBy?: string;
 }
 
 // API CALLS
@@ -114,12 +116,26 @@ export const useFollowings = (userId: string) => {
     });
 };
 
+export const fetchFollowers = async (userId: string) => {
+    const response = await apiClient.get(`users/followers/${userId}`);
+    return response.data;
+};
+
+export const useFollowers = (userId: string) => {
+    return useQuery({
+        queryKey: ['followers', userId],
+        queryFn: () => fetchFollowers(userId),
+        enabled: !!userId,
+    });
+};
+
 export const useFollow = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: followUser,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['followings'] });
+            queryClient.invalidateQueries({ queryKey: ['followers'] });
             queryClient.invalidateQueries({ queryKey: ['getSingleProduct'] });
             queryClient.invalidateQueries({ queryKey: ['userProfile'] });
         },
@@ -132,6 +148,7 @@ export const useUnfollow = () => {
         mutationFn: unfollowUser,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['followings'] });
+            queryClient.invalidateQueries({ queryKey: ['followers'] });
             queryClient.invalidateQueries({ queryKey: ['getSingleProduct'] });
             queryClient.invalidateQueries({ queryKey: ['userProfile'] });
         },

@@ -12,7 +12,7 @@ import { useNotificationStore } from '../../store/useNotificationStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
-import { TITLE_PLACEHOLDER } from '../../constants/formPlaceholders';
+import { TITLE_PLACEHOLDER_JOB } from '../../constants/formPlaceholders';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -148,248 +148,248 @@ export default function PostJobScreen() {
 
     return (
         <RoleAccessGuard feature={FeatureActions.POST_JOB}>
-        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#333" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{isEditMode ? 'Edit Job' : 'Post New Job'}</Text>
-                <View style={{ width: 40 }} />
-            </View>
-
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                style={{ flex: 1 }}
-            >
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <View style={styles.section}>
-                        <Text style={styles.label}>Job Title *</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder={TITLE_PLACEHOLDER}
-                            placeholderTextColor="#888"
-                            value={formData.jobTitle}
-                            onChangeText={(text) => setFormData({ ...formData, jobTitle: text })}
-                        />
-
-                        <Text style={styles.label}>Company Name *</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Enter company name"
-                            value={formData.companyName}
-                            onChangeText={(text) => setFormData({ ...formData, companyName: text })}
-                        />
-
-                        <View style={styles.row}>
-                            <View style={{ flex: 1, marginRight: 10 }}>
-                                <Text style={styles.label}>Job Type</Text>
-                                <TouchableOpacity style={styles.selector} onPress={() => setShowTypeModal(true)}>
-                                    <Text style={styles.selectorText}>{formData.jobType}</Text>
-                                    <Ionicons name="chevron-down" size={20} color="#666" />
-                                </TouchableOpacity>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.label}>Salary</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    placeholder="e.g. Negotiable"
-                                    value={formData.salary}
-                                    onChangeText={(text) => setFormData({ ...formData, salary: text })}
-                                />
-                            </View>
-                        </View>
-
-                        <Text style={styles.label}>Location</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="City, Region"
-                            value={formData.location}
-                            onChangeText={(text) => setFormData({ ...formData, location: text })}
-                        />
-
-                        <Text style={styles.label}>Job Description *</Text>
-                        <TextInput
-                            style={[styles.input, styles.textArea]}
-                            placeholder="Describe the job role..."
-                            multiline
-                            numberOfLines={4}
-                            value={formData.jobDescription}
-                            onChangeText={(text) => setFormData({ ...formData, jobDescription: text })}
-                        />
-                    </View>
-
-                    <View style={styles.section}>
-                        <Text style={styles.label}>Required Machine Types</Text>
-                        <TouchableOpacity style={styles.selector} onPress={() => setShowMachineModal(true)}>
-                            <Text style={styles.selectorText}>
-                                {formData.machineType.length > 0
-                                    ? `${formData.machineType.length} Machines Selected`
-                                    : "Select Machines"}
-                            </Text>
-                            <Ionicons name="add-circle-outline" size={24} color={THEME_COLOR} />
-                        </TouchableOpacity>
-
-                        <View style={styles.chipsContainer}>
-                            {formData.machineType.map((id: string) => {
-                                const machine = allCategories?.find((m: any) => m._id === id);
-                                return (
-                                    <View key={id} style={styles.chip}>
-                                        <Text style={styles.chipText}>{machine?.name || id}</Text>
-                                        <TouchableOpacity onPress={() => handleMachineToggle(id)}>
-                                            <Ionicons name="close-circle" size={18} color="#FFF" />
-                                        </TouchableOpacity>
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    </View>
-
-                    <View style={styles.section}>
-                        <Text style={styles.label}>Job Requirements</Text>
-                        <View style={styles.builderRow}>
-                            <TextInput
-                                style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                                placeholder="Add a requirement"
-                                value={newRequirement}
-                                onChangeText={setNewRequirement}
-                            />
-                            <TouchableOpacity style={styles.addIconBtn} onPress={handleAddRequirement}>
-                                <Ionicons name="add" size={28} color="#FFF" />
-                            </TouchableOpacity>
-                        </View>
-                        {formData.jobRequirements.map((req: string, index: number) => (
-                            <View key={index} style={styles.listItem}>
-                                <Text style={styles.listItemText}>• {req}</Text>
-                                <TouchableOpacity onPress={() => handleRemoveRequirement(index)}>
-                                    <Ionicons name="trash-outline" size={20} color="red" />
-                                </TouchableOpacity>
-                            </View>
-                        ))}
-                    </View>
-
-                    <View style={styles.section}>
-                        <Text style={styles.label}>Job Responsibilities</Text>
-                        <View style={styles.builderRow}>
-                            <TextInput
-                                style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                                placeholder="Add a responsibility"
-                                value={newResponsibility}
-                                onChangeText={setNewResponsibility}
-                            />
-                            <TouchableOpacity style={styles.addIconBtn} onPress={handleAddResponsibility}>
-                                <Ionicons name="add" size={28} color="#FFF" />
-                            </TouchableOpacity>
-                        </View>
-                        {formData.jobResponsiblities.map((resp: string, index: number) => (
-                            <View key={index} style={styles.listItem}>
-                                <Text style={styles.listItemText}>• {resp}</Text>
-                                <TouchableOpacity onPress={() => handleRemoveResponsibility(index)}>
-                                    <Ionicons name="trash-outline" size={20} color="red" />
-                                </TouchableOpacity>
-                            </View>
-                        ))}
-                    </View>
-
-                    <View style={styles.section}>
-                        <TouchableOpacity 
-                            style={styles.checkboxContainer} 
-                            onPress={() => setFormData(prev => ({ ...prev, postThroughGadal: !prev.postThroughGadal }))}
-                        >
-                            <Ionicons 
-                                name={formData.postThroughGadal ? "checkbox" : "square-outline"} 
-                                size={24} 
-                                color={THEME_COLOR} 
-                            />
-                            <Text style={styles.checkboxLabel}>Post through Gadal (Cross-platform listing)</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.operatorLink}
-                        onPress={() => navigation.navigate('OperatorRegistration')}
-                    >
-                        <Ionicons name="construct-outline" size={22} color={THEME_COLOR} />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.operatorLinkTitle}>Looking For a Job</Text>
-                            <Text style={styles.operatorLinkSub}>Register as a machinery operator to find and apply for jobs</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#999" />
+            <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color="#333" />
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.submitBtn, (createJobMutation.isPending || updateJobMutation.isPending) && styles.disabledBtn]}
-                        onPress={handleSubmit}
-                        disabled={createJobMutation.isPending || updateJobMutation.isPending}
-                    >
-                        {(createJobMutation.isPending || updateJobMutation.isPending) ? (
-                            <ActivityIndicator color="#FFF" />
-                        ) : (
-                            <Text style={styles.submitBtnText}>{isEditMode ? 'Save Changes' : 'Post Job'}</Text>
-                        )}
-                    </TouchableOpacity>
-                </ScrollView>
-            </KeyboardAvoidingView>
-
-            {/* Job Type Modal */}
-            <Modal visible={showTypeModal} transparent animationType="fade" onRequestClose={handleBack}>
-                <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowTypeModal(false)}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Select Job Type</Text>
-                        {JOB_TYPES.map(type => (
-                            <TouchableOpacity
-                                key={type}
-                                style={styles.modalOption}
-                                onPress={() => {
-                                    setFormData({ ...formData, jobType: type });
-                                    setShowTypeModal(false);
-                                }}
-                            >
-                                <Text style={[styles.optionText, formData.jobType === type && styles.activeOptionText]}>
-                                    {type}
-                                </Text>
-                                {formData.jobType === type && <Ionicons name="checkmark" size={20} color={THEME_COLOR} />}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </TouchableOpacity>
-            </Modal>
-
-            {/* Machine Type Modal */}
-            <Modal visible={showMachineModal} transparent animationType="slide" onRequestClose={handleBack}>
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { maxHeight: '70%', width: '90%' }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Select Machines</Text>
-                            <TouchableOpacity onPress={() => setShowMachineModal(false)}>
-                                <Ionicons name="close" size={24} color="#333" />
-                            </TouchableOpacity>
-                        </View>
-                        <FlatList
-                            data={allCategories}
-                            keyExtractor={item => item._id}
-                            renderItem={({ item }) => (
-                                <TouchableOpacity
-                                    style={styles.modalOption}
-                                    onPress={() => handleMachineToggle(item._id)}
-                                >
-                                    <Text style={[styles.optionText, formData.machineType.includes(item._id) && styles.activeOptionText]}>
-                                        {item.name}
-                                    </Text>
-                                    <Ionicons
-                                        name={formData.machineType.includes(item._id) ? "checkbox" : "square-outline"}
-                                        size={24}
-                                        color={formData.machineType.includes(item._id) ? THEME_COLOR : "#DDD"}
-                                    />
-                                </TouchableOpacity>
-                            )}
-                        />
-                        <TouchableOpacity style={styles.modalDoneBtn} onPress={() => setShowMachineModal(false)}>
-                            <Text style={styles.modalDoneBtnText}>Done</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <Text style={styles.headerTitle}>{isEditMode ? 'Edit Job' : 'Post New Job'}</Text>
+                    <View style={{ width: 40 }} />
                 </View>
-            </Modal>
-        </SafeAreaView>
+
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                        <View style={styles.section}>
+                            <Text style={styles.label}>Job Title *</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder={TITLE_PLACEHOLDER_JOB}
+                                placeholderTextColor="#888"
+                                value={formData.jobTitle}
+                                onChangeText={(text) => setFormData({ ...formData, jobTitle: text })}
+                            />
+
+                            <Text style={styles.label}>Company Name *</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Enter company name"
+                                value={formData.companyName}
+                                onChangeText={(text) => setFormData({ ...formData, companyName: text })}
+                            />
+
+                            <View style={styles.row}>
+                                <View style={{ flex: 1, marginRight: 10 }}>
+                                    <Text style={styles.label}>Job Type</Text>
+                                    <TouchableOpacity style={styles.selector} onPress={() => setShowTypeModal(true)}>
+                                        <Text style={styles.selectorText}>{formData.jobType}</Text>
+                                        <Ionicons name="chevron-down" size={20} color="#666" />
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.label}>Salary</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="e.g. Negotiable"
+                                        value={formData.salary}
+                                        onChangeText={(text) => setFormData({ ...formData, salary: text })}
+                                    />
+                                </View>
+                            </View>
+
+                            <Text style={styles.label}>Location</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="City, Region"
+                                value={formData.location}
+                                onChangeText={(text) => setFormData({ ...formData, location: text })}
+                            />
+
+                            <Text style={styles.label}>Job Description *</Text>
+                            <TextInput
+                                style={[styles.input, styles.textArea]}
+                                placeholder="Describe the job role..."
+                                multiline
+                                numberOfLines={4}
+                                value={formData.jobDescription}
+                                onChangeText={(text) => setFormData({ ...formData, jobDescription: text })}
+                            />
+                        </View>
+
+                        <View style={styles.section}>
+                            <Text style={styles.label}>Required Machine Types</Text>
+                            <TouchableOpacity style={styles.selector} onPress={() => setShowMachineModal(true)}>
+                                <Text style={styles.selectorText}>
+                                    {formData.machineType.length > 0
+                                        ? `${formData.machineType.length} Machines Selected`
+                                        : "Select Machines"}
+                                </Text>
+                                <Ionicons name="add-circle-outline" size={24} color={THEME_COLOR} />
+                            </TouchableOpacity>
+
+                            <View style={styles.chipsContainer}>
+                                {formData.machineType.map((id: string) => {
+                                    const machine = allCategories?.find((m: any) => m._id === id);
+                                    return (
+                                        <View key={id} style={styles.chip}>
+                                            <Text style={styles.chipText}>{machine?.name || id}</Text>
+                                            <TouchableOpacity onPress={() => handleMachineToggle(id)}>
+                                                <Ionicons name="close-circle" size={18} color="#FFF" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        </View>
+
+                        <View style={styles.section}>
+                            <Text style={styles.label}>Job Requirements</Text>
+                            <View style={styles.builderRow}>
+                                <TextInput
+                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                                    placeholder="Add a requirement"
+                                    value={newRequirement}
+                                    onChangeText={setNewRequirement}
+                                />
+                                <TouchableOpacity style={styles.addIconBtn} onPress={handleAddRequirement}>
+                                    <Ionicons name="add" size={28} color="#FFF" />
+                                </TouchableOpacity>
+                            </View>
+                            {formData.jobRequirements.map((req: string, index: number) => (
+                                <View key={index} style={styles.listItem}>
+                                    <Text style={styles.listItemText}>• {req}</Text>
+                                    <TouchableOpacity onPress={() => handleRemoveRequirement(index)}>
+                                        <Ionicons name="trash-outline" size={20} color="red" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+
+                        <View style={styles.section}>
+                            <Text style={styles.label}>Job Responsibilities</Text>
+                            <View style={styles.builderRow}>
+                                <TextInput
+                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                                    placeholder="Add a responsibility"
+                                    value={newResponsibility}
+                                    onChangeText={setNewResponsibility}
+                                />
+                                <TouchableOpacity style={styles.addIconBtn} onPress={handleAddResponsibility}>
+                                    <Ionicons name="add" size={28} color="#FFF" />
+                                </TouchableOpacity>
+                            </View>
+                            {formData.jobResponsiblities.map((resp: string, index: number) => (
+                                <View key={index} style={styles.listItem}>
+                                    <Text style={styles.listItemText}>• {resp}</Text>
+                                    <TouchableOpacity onPress={() => handleRemoveResponsibility(index)}>
+                                        <Ionicons name="trash-outline" size={20} color="red" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+
+                        <View style={styles.section}>
+                            <TouchableOpacity
+                                style={styles.checkboxContainer}
+                                onPress={() => setFormData(prev => ({ ...prev, postThroughGadal: !prev.postThroughGadal }))}
+                            >
+                                <Ionicons
+                                    name={formData.postThroughGadal ? "checkbox" : "square-outline"}
+                                    size={24}
+                                    color={THEME_COLOR}
+                                />
+                                <Text style={styles.checkboxLabel}>Post through Gadal (Cross-platform listing)</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.operatorLink}
+                            onPress={() => navigation.navigate('OperatorRegistration')}
+                        >
+                            <Ionicons name="construct-outline" size={22} color={THEME_COLOR} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.operatorLinkTitle}>Looking For a Job</Text>
+                                <Text style={styles.operatorLinkSub}>Register as a machinery operator to find and apply for jobs</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#999" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.submitBtn, (createJobMutation.isPending || updateJobMutation.isPending) && styles.disabledBtn]}
+                            onPress={handleSubmit}
+                            disabled={createJobMutation.isPending || updateJobMutation.isPending}
+                        >
+                            {(createJobMutation.isPending || updateJobMutation.isPending) ? (
+                                <ActivityIndicator color="#FFF" />
+                            ) : (
+                                <Text style={styles.submitBtnText}>{isEditMode ? 'Save Changes' : 'Post Job'}</Text>
+                            )}
+                        </TouchableOpacity>
+                    </ScrollView>
+                </KeyboardAvoidingView>
+
+                {/* Job Type Modal */}
+                <Modal visible={showTypeModal} transparent animationType="fade" onRequestClose={handleBack}>
+                    <TouchableOpacity style={styles.modalOverlay} onPress={() => setShowTypeModal(false)}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Select Job Type</Text>
+                            {JOB_TYPES.map(type => (
+                                <TouchableOpacity
+                                    key={type}
+                                    style={styles.modalOption}
+                                    onPress={() => {
+                                        setFormData({ ...formData, jobType: type });
+                                        setShowTypeModal(false);
+                                    }}
+                                >
+                                    <Text style={[styles.optionText, formData.jobType === type && styles.activeOptionText]}>
+                                        {type}
+                                    </Text>
+                                    {formData.jobType === type && <Ionicons name="checkmark" size={20} color={THEME_COLOR} />}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
+
+                {/* Machine Type Modal */}
+                <Modal visible={showMachineModal} transparent animationType="slide" onRequestClose={handleBack}>
+                    <View style={styles.modalOverlay}>
+                        <View style={[styles.modalContent, { maxHeight: '70%', width: '90%' }]}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Select Machines</Text>
+                                <TouchableOpacity onPress={() => setShowMachineModal(false)}>
+                                    <Ionicons name="close" size={24} color="#333" />
+                                </TouchableOpacity>
+                            </View>
+                            <FlatList
+                                data={allCategories}
+                                keyExtractor={item => item._id}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={styles.modalOption}
+                                        onPress={() => handleMachineToggle(item._id)}
+                                    >
+                                        <Text style={[styles.optionText, formData.machineType.includes(item._id) && styles.activeOptionText]}>
+                                            {item.name}
+                                        </Text>
+                                        <Ionicons
+                                            name={formData.machineType.includes(item._id) ? "checkbox" : "square-outline"}
+                                            size={24}
+                                            color={formData.machineType.includes(item._id) ? THEME_COLOR : "#DDD"}
+                                        />
+                                    </TouchableOpacity>
+                                )}
+                            />
+                            <TouchableOpacity style={styles.modalDoneBtn} onPress={() => setShowMachineModal(false)}>
+                                <Text style={styles.modalDoneBtnText}>Done</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+            </SafeAreaView>
         </RoleAccessGuard>
     );
 }

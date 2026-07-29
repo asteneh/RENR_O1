@@ -47,6 +47,16 @@ const am: Record<string, string> = {
   myPosts: 'የእኔ ልጥፎች',
   myRequests: 'የእኔ ጥያቄዎች',
   following: 'እየተከተሉ',
+  followers: 'ተከታዮች',
+  noFollowersYet: 'እስካሁን ምንም ተከታዮች የሉዎትም።',
+  unfollow: 'አለመከተል',
+  unfollowConfirm: 'ለመተው እርግጠኛ ነዎት',
+  unfollowedSuccess: 'አልተከተሉም',
+  unfollowFailed: 'ማቋረጥ አልተሳካም',
+  followedSuccess: 'በተሳካ ሁኔታ ተከታትለዋል',
+  followFailed: 'መከተል አልተሳካም',
+  user: 'ተጠቃሚ',
+  followBack: 'መልሰው ይከተሉ',
   myPackages: 'የእኔ ፓኬጆች',
   appliedJobs: 'ያመለከቱ ስራዎች',
   postedJobs: 'የለጠፉ ስራዎች',
@@ -83,6 +93,16 @@ const am: Record<string, string> = {
   offering3: 'ከተረጋገጡ የማሽን ኦፕሬተሮች ጋር ይገናኙ ወይም የስራ ክፍት ቦታ ይለጥፉ።',
   offering4: 'ተወዳዳሪ ጨረታዎችን ለማግኘት የፍላጎት ጥያቄዎችን ያቅርቡ።',
   footerTagline: 'የኢትዮጵያ ከባድ ማሽነሪ እና መሣሪያ መድረክ',
+
+  // Referral System
+  referFriend: 'ጓደኛን ይጋብዙ',
+  referralCode: 'የሪፈራል ኮድ',
+  referralCodeOptional: 'የሪፈራል ኮድ (አማራጭ)',
+  referralDescription: 'ጓደኞችዎን ወደ ጋዳል ማርኬት ይጋብዙ! እነሱ ፕሪሚየም ማሽነሪዎችን እና ስራዎችን ያገኛሉ፣ እርስዎም ሽልማቶችን ያገኛሉ።',
+  copyCode: 'ኮፒ አድርግ',
+  codeCopied: 'የሪፈራል ኮድ ወደ ክሊፕቦርድ ተገልብጧል!',
+  shareCode: 'የሪፈራል ሊንክ ያጋሩ',
+  referralTitle: 'ይጋብዙ እና ያትርፉ',
 };
 
 export default am;

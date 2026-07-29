@@ -61,7 +61,7 @@ export default function HomeScreen() {
 
   // Data
   const { data: helloData } = useHelloQuery();
-  const { data: productsData, isLoading: productsLoading, refetch: refetchProducts } = useProductsQuery({ state: 1 });
+  const { data: productsData, isLoading: productsLoading, refetch: refetchProducts } = useProductsQuery({ state: 1, recordStatus: 1 });
   const products = productsData?.products || [];
 
   useFocusEffect(

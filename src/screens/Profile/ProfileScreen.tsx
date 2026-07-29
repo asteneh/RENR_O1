@@ -1,6 +1,7 @@
-import React, { useState } from 'react'; // Refactored to fix hook order and syntax error
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react'; // Refactored to fix hook order and syntax error
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, ActivityIndicator, Modal, Share } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -10,6 +11,7 @@ import { CONFIG } from '../../config';
 import ZoomableImageModal from '../../components/common/ZoomableImageModal';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useTranslation } from '../../i18n';
+import { useUnreadMessagesCount } from '../../api/services/messageService';
 
 import {
   UserRoles,
@@ -48,8 +50,18 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { logout, user: authUser, getUserRoles, hasMembership } = useAuthStore();
-  const { showNotification, showAlert, unreadNotifications } = useNotificationStore();
+  const { showNotification, showAlert, unreadNotifications, unreadMessages, setUnreadMessages } = useNotificationStore();
   const { data: profile, isLoading, error, refetch } = useUserProfile();
+
+  const userId = authUser?.id || authUser?._id;
+  const { data: unreadMessagesData } = useUnreadMessagesCount(userId);
+  const displayUnreadMessages = unreadMessagesData?.unreadCount ?? unreadMessages;
+
+  useEffect(() => {
+    if (unreadMessagesData && typeof unreadMessagesData.unreadCount === 'number') {
+      setUnreadMessages(unreadMessagesData.unreadCount);
+    }
+  }, [unreadMessagesData]);
   const { theme } = useThemeStore();
   const isDark = theme === 'dark';
   const { t } = useTranslation();
@@ -57,6 +69,7 @@ export default function ProfileScreen() {
   const [isZoomModalVisible, setIsZoomModalVisible] = useState(false);
   const [zoomImage, setZoomImage] = useState('');
   const [isAboutVisible, setIsAboutVisible] = useState(false);
+  const [isReferralModalVisible, setIsReferralModalVisible] = useState(false);
 
   const currentRoles = getUserRoles();
   const hasActivePlan = hasMembership();
@@ -71,6 +84,27 @@ export default function ProfileScreen() {
         }
       }
     ]);
+  };
+
+  const handleCopyReferralCode = async () => {
+    if (profile?.referralCode) {
+      await Clipboard.setStringAsync(profile.referralCode);
+      showNotification(t('codeCopied') || 'Referral code copied to clipboard!', 'success');
+    }
+  };
+
+  const handleShareReferral = async () => {
+    if (profile?.referralCode) {
+      try {
+        const message = `Join me on Gadal Market! Use my referral code ${profile.referralCode} to sign up.\nDownload the app and start: gadalmarket://referral/${profile.referralCode}\nOr signup online: https://gadalmarket.com/referral/${profile.referralCode}`;
+        await Share.share({
+          message,
+          title: 'Refer a Friend',
+        });
+      } catch (error) {
+        console.error('Share error:', error);
+      }
+    }
   };
 
   if (isLoading) return <View style={[styles.center, isDark && styles.containerDark]}><ActivityIndicator size="large" color={THEME_COLOR} /></View>;
@@ -191,6 +225,12 @@ export default function ProfileScreen() {
               label={t('changePassword')}
               onPress={() => navigation.navigate('ResetPassword', { phone: profile?.phoneNumber })}
             />
+            <View style={[styles.divider, isDark && styles.dividerDark]} />
+            <MenuOption
+              icon="gift-outline"
+              label={t('referFriend') || 'Refer a Friend'}
+              onPress={() => setIsReferralModalVisible(true)}
+            />
           </View>
         </View>
 
@@ -258,6 +298,7 @@ export default function ProfileScreen() {
               icon="chatbubble-ellipses-outline"
               label={t('messages')}
               onPress={() => navigation.navigate('Messages')}
+              badge={displayUnreadMessages > 0 ? displayUnreadMessages : undefined}
             />
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
@@ -290,6 +331,12 @@ export default function ProfileScreen() {
               icon="people-outline"
               label={t('following')}
               onPress={() => navigation.navigate('Followings')}
+            />
+            <View style={[styles.divider, isDark && styles.dividerDark]} />
+            <MenuOption
+              icon="people-outline"
+              label={t('followers')}
+              onPress={() => navigation.navigate('Followers')}
             />
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
@@ -409,6 +456,53 @@ export default function ProfileScreen() {
               <Text style={styles.copyrightText}>
                 © {new Date().getFullYear()} Gadal Market. All rights reserved.
               </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Referral Modal */}
+      <Modal
+        visible={isReferralModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsReferralModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.referralModalContent, isDark && styles.cardDark]}>
+            <View style={styles.referralHeader}>
+              <Text style={[styles.referralHeaderTitle, isDark && styles.textDark]}>{t('referralTitle') || 'Refer & Earn'}</Text>
+              <TouchableOpacity onPress={() => setIsReferralModalVisible(false)}>
+                <Ionicons name="close-circle" size={28} color={THEME_COLOR} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.referralScrollContent}>
+              <View style={styles.referralHeroContainer}>
+                <View style={styles.giftIconContainer}>
+                  <Ionicons name="gift-outline" size={48} color="#fff" />
+                </View>
+                <Text style={[styles.referralDescriptionText, isDark && styles.aboutDescriptionDark]}>
+                  {t('referralDescription')}
+                </Text>
+              </View>
+
+              <View style={[styles.codeBox, isDark && styles.codeBoxDark]}>
+                <Text style={styles.codeLabel}>{t('referralCode')}</Text>
+                <Text style={[styles.codeText, isDark && styles.textDark]}>{profile?.referralCode || 'N/A'}</Text>
+                
+                {profile?.referralCode ? (
+                  <TouchableOpacity style={styles.copyBtn} onPress={handleCopyReferralCode}>
+                    <Ionicons name="copy-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+                    <Text style={styles.copyBtnText}>{t('copyCode')}</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral}>
+                <Ionicons name="share-social-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.shareBtnText}>{t('shareCode')}</Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -690,5 +784,117 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 15,
     textAlign: 'center',
+  },
+  referralModalContent: {
+    width: '90%',
+    maxHeight: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 20,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  referralHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    paddingBottom: 12,
+    marginBottom: 15,
+  },
+  referralHeaderTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#111',
+  },
+  referralScrollContent: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  referralHeroContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  giftIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: THEME_COLOR,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  referralDescriptionText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+  },
+  codeBox: {
+    width: '100%',
+    backgroundColor: '#FFF5E5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FFE0B2',
+    borderStyle: 'dashed',
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  codeBoxDark: {
+    backgroundColor: '#2C1D0A',
+    borderColor: '#4E3618',
+  },
+  codeLabel: {
+    fontSize: 12,
+    color: '#FF8C00',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  codeText: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#111',
+    letterSpacing: 2,
+    marginBottom: 12,
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    backgroundColor: THEME_COLOR,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  copyBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    backgroundColor: '#2196F3',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+  },
+  shareBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
   },
 });

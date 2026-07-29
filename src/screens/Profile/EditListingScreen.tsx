@@ -448,7 +448,7 @@ export default function EditListingScreen({ navigation, route }: any) {
                             }}
                         >
                             <View style={styles.cropUploadButton}>
-                                <Ionicons name="crop-outline" size={24} color="#fff" />
+                                <Ionicons name="crop-outline" size={28} color="#fff" />
                                 <Text style={styles.cropUploadButtonText}>Crop & Upload Photo</Text>
                             </View>
                             <Text style={styles.uploadHint}>Select a photo, then adjust the crop before saving.</Text>
@@ -566,30 +566,30 @@ const styles = StyleSheet.create({
     activeChip: { backgroundColor: THEME_COLOR },
     chipText: { color: '#333' },
     activeChipText: { color: '#fff', fontWeight: 'bold' },
-    uploadBox: { height: 150, borderWidth: 2, borderColor: '#ddd', borderStyle: 'dashed', borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fafafa' },
+    uploadBox: { height: 170, borderWidth: 2, borderColor: '#ddd', borderStyle: 'dashed', borderRadius: 12, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fafafa' },
     cropUploadButton: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: THEME_COLOR,
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        borderRadius: 8,
-        gap: 8,
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+        borderRadius: 12,
+        gap: 10,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.15,
         shadowRadius: 4,
-        elevation: 2,
+        elevation: 3,
     },
     cropUploadButtonText: {
         color: '#fff',
-        fontSize: 15,
+        fontSize: 17,
         fontWeight: 'bold',
     },
     uploadHint: {
         color: '#666',
-        fontSize: 12,
-        marginTop: 10,
+        fontSize: 13,
+        marginTop: 12,
         textAlign: 'center',
         paddingHorizontal: 15,
     },

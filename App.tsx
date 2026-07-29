@@ -21,6 +21,7 @@ import { useAuthStore } from './src/store/useAuthStore';
 import { useNotificationStore } from './src/store/useNotificationStore';
 import { notificationService } from './src/api/services/notificationService';
 import { useThemeStore } from './src/store/useThemeStore';
+import { fetchUnreadMessagesCount } from './src/api/services/messageService';
 
 
 // 1. Keep Native Screen visible until we are ready
@@ -41,7 +42,13 @@ export default function App() {
   const scaleAnim = useRef(new Animated.Value(0.5)).current; // Zoom of logo
 
   const { token, user } = useAuthStore();
-  const { setUnreadNotifications, incrementUnreadNotifications, showNotification } = useNotificationStore();
+  const { 
+    setUnreadNotifications, 
+    incrementUnreadNotifications, 
+    showNotification,
+    setUnreadMessages,
+    incrementUnreadMessages
+  } = useNotificationStore();
   const { theme } = useThemeStore();
 
 
@@ -67,6 +74,23 @@ export default function App() {
         }
       });
 
+      socket.on('new_message', (data: any) => {
+        console.log('New message received via socket:', data);
+        if (data.receiver === user._id) {
+          incrementUnreadMessages();
+          showNotification(
+            'You have a new message',
+            'info',
+            'New Message'
+          );
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          queryClient.invalidateQueries({ queryKey: ['unreadMessagesCount', user._id] });
+          if (data.messageId) {
+            queryClient.invalidateQueries({ queryKey: ['messages', data.messageId] });
+          }
+        }
+      });
+
       socket.on('connect_error', (error) => {
         console.error('Socket Connection Error:', error);
       });
@@ -82,9 +106,17 @@ export default function App() {
         }
       }).catch(console.error);
 
+      // Initial unread messages count fetch
+      fetchUnreadMessagesCount(user._id).then((data: any) => {
+        if (data && typeof data.unreadCount === 'number') {
+          setUnreadMessages(data.unreadCount);
+        }
+      }).catch(console.error);
+
       return () => {
         console.log('Cleaning up socket listeners and disconnecting...');
         socket.off('notification');
+        socket.off('new_message');
         socket.off('connect_error');
         socket.off('error');
         socket.disconnect();

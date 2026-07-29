@@ -78,6 +78,18 @@ export const startNewConversation = async (data: { product: string, owner: strin
     return response.data;
 };
 
+// Fetch total unread messages count for a user
+export const fetchUnreadMessagesCount = async (userId: string): Promise<{ unreadCount: number }> => {
+    const response = await apiClient.get<{ unreadCount: number }>(`getUnreadMessages/${userId}`);
+    return response.data;
+};
+
+// Mark messages in a conversation as seen
+export const markMessagesAsSeen = async (data: { conversationId: string, receiverId: string }) => {
+    const response = await apiClient.put(`updateSeen/${data.conversationId}/${data.receiverId}`);
+    return response.data;
+};
+
 // Hooks
 export const useConversations = (userId: string) => {
     return useQuery({
@@ -113,5 +125,25 @@ export const useStartConversation = () => {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['conversations'] });
         }
+    });
+};
+
+export const useUnreadMessagesCount = (userId: string) => {
+    return useQuery({
+        queryKey: ['unreadMessagesCount', userId],
+        queryFn: () => fetchUnreadMessagesCount(userId),
+        enabled: !!userId,
+    });
+};
+
+export const useMarkMessagesAsSeen = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: markMessagesAsSeen,
+        onSuccess: (data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['conversations'] });
+            queryClient.invalidateQueries({ queryKey: ['messages', variables.conversationId] });
+            queryClient.invalidateQueries({ queryKey: ['unreadMessagesCount', variables.receiverId] });
+        },
     });
 };

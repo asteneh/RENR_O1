@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/useAuthStore';
-import { useMessages, useSendMessage } from '../../api/services/messageService';
+import { useMessages, useSendMessage, useMarkMessagesAsSeen } from '../../api/services/messageService';
 import { Ionicons } from '@expo/vector-icons';
 import { CONFIG } from '../../config';
 import { formatEtb } from '../../utils/currency';
+import { socket } from '../../api/socket';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -18,7 +19,39 @@ export default function ChatScreen({ route, navigation }: any) {
     // Fetch full conversation details
     const { data: conversationDetail, refetch } = useMessages(conversation?._id);
     const sendMutation = useSendMessage();
+    const markSeenMutation = useMarkMessagesAsSeen();
     const [text, setText] = useState('');
+
+    // Mark messages as seen when conversation opens
+    useEffect(() => {
+        if (conversation?._id && userId) {
+            markSeenMutation.mutate({
+                conversationId: conversation._id,
+                receiverId: userId
+            });
+        }
+    }, [conversation?._id, userId]);
+
+    // Listen for incoming messages in real-time
+    useEffect(() => {
+        if (!conversation?._id || !userId) return;
+
+        const handleNewMessage = (data: any) => {
+            console.log('ChatScreen socket new_message event received:', data);
+            if (data.messageId === conversation._id) {
+                refetch();
+                markSeenMutation.mutate({
+                    conversationId: conversation._id,
+                    receiverId: userId
+                });
+            }
+        };
+
+        socket.on('new_message', handleNewMessage);
+        return () => {
+            socket.off('new_message', handleNewMessage);
+        };
+    }, [conversation?._id, userId, refetch]);
 
     const messages = conversationDetail?.conversations || [];
     const product = conversationDetail?.product;

@@ -41,6 +41,9 @@ interface NotificationState {
     unreadNotifications: number;
     setUnreadNotifications: (count: number) => void;
     incrementUnreadNotifications: () => void;
+    unreadMessages: number;
+    setUnreadMessages: (count: number) => void;
+    incrementUnreadMessages: () => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set) => ({
@@ -92,4 +95,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     unreadNotifications: 0,
     setUnreadNotifications: (unreadNotifications) => set({ unreadNotifications }),
     incrementUnreadNotifications: () => set((state) => ({ unreadNotifications: state.unreadNotifications + 1 })),
+    unreadMessages: 0,
+    setUnreadMessages: (unreadMessages) => set({ unreadMessages }),
+    incrementUnreadMessages: () => set((state) => ({ unreadMessages: state.unreadMessages + 1 })),
 }));

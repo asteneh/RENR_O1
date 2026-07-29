@@ -14,7 +14,7 @@ export type RootStackParamList = {
   ProductDetails: { product: any };
   Cart: undefined;
   PostProperty: undefined;
-  SignUp: undefined;
+  SignUp: { refCode?: string } | undefined;
   Login: undefined;
   Profile: undefined; // Move Profile to Stack
   Search: undefined;
@@ -37,6 +37,7 @@ export type RootStackParamList = {
   EditProfile: undefined;
   MyListings: undefined;
   Followings: undefined;
+  Followers: undefined;
   MyRequests: undefined;
   MyJobs: { mode?: 'applied' | 'posted' } | undefined;
   MyPackages: { selectedPlan?: any; txRef?: string; serviceType?: string; returnTo?: string } | undefined;

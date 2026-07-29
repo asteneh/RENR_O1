@@ -15,6 +15,8 @@ import { formatPhoneNumber } from '../../utils/formatPhoneNumber';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { UserRoles, UserRole, RoleLabels, RoleDescriptions, RoleIcons, RoleToBackend, SELECTABLE_ROLES } from '../../constants/UserRoles';
+import * as Clipboard from 'expo-clipboard';
+import { useTranslation } from '../../i18n';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -34,17 +36,16 @@ const COUNTRIES: Country[] = [
   { code: 'CN', name: 'China', dial_code: '+86', flag: '🇨🇳' },
 ];
 
-// Use SELECTABLE_ROLES from constants (excludes USER)
-// Users can select multiple roles during registration
-
-export default function SignUpScreen() {
+export default function SignUpScreen({ route }: any) {
   const navigation = useNavigation<any>();
+  const { t } = useTranslation();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [referralCode, setReferralCode] = useState('');
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -169,6 +170,54 @@ export default function SignUpScreen() {
   };
 
   const { showNotification } = useNotificationStore();
+
+  useEffect(() => {
+    if (route?.params?.refCode) {
+      setReferralCode(route.params.refCode);
+      showNotification(`Referral code ${route.params.refCode} applied!`, 'success');
+    }
+  }, [route?.params?.refCode]);
+
+  useEffect(() => {
+    const checkClipboard = async () => {
+      try {
+        const hasString = await Clipboard.hasStringAsync();
+        if (!hasString) return;
+
+        const clipboardContent = await Clipboard.getStringAsync();
+        if (!clipboardContent) return;
+
+        let code = '';
+        const deepLinkPattern = /gadalmarket:\/\/referral\/([A-Z0-9\-]+)/i;
+        const webLinkPattern = /gadalmarket\.com\/referral\/([A-Z0-9\-]+)/i;
+        const codePattern = /^(GADAL-[A-Z0-9]+)$/i;
+        const simpleCodePattern = /^([A-Z]+[0-9]+)$/i;
+
+        if (deepLinkPattern.test(clipboardContent)) {
+          const match = clipboardContent.match(deepLinkPattern);
+          if (match) code = match[1];
+        } else if (webLinkPattern.test(clipboardContent)) {
+          const match = clipboardContent.match(webLinkPattern);
+          if (match) code = match[1];
+        } else if (codePattern.test(clipboardContent.trim())) {
+          code = clipboardContent.trim();
+        } else if (simpleCodePattern.test(clipboardContent.trim()) && clipboardContent.trim().length >= 5 && clipboardContent.trim().length <= 15) {
+          code = clipboardContent.trim();
+        }
+
+        if (code) {
+          setReferralCode(code.toUpperCase());
+          showNotification(`Referral code ${code.toUpperCase()} auto-filled from clipboard!`, 'success');
+        }
+      } catch (e) {
+        console.log('Clipboard error:', e);
+      }
+    };
+
+    if (!route?.params?.refCode) {
+      checkClipboard();
+    }
+  }, [route?.params?.refCode]);
 
   const getPreviousStep = useCallback((currentStep: number) => {
     if (currentStep === 5 && !hasBelongingsRole) {
@@ -305,6 +354,7 @@ export default function SignUpScreen() {
       roles: JSON.stringify(backendRoles),
       wantsPackageAfterRegistration,
       postThroughGadal: false,
+      referralCode,
     };
 
     if (machineryList.length > 0) {
@@ -626,6 +676,18 @@ export default function SignUpScreen() {
                   </TouchableOpacity>
                 </View>
                 {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
+
+                <View style={styles.inputContainer}>
+                  <Ionicons name="gift-outline" size={20} color="#FF8C00" style={styles.icon} />
+                  <TextInput
+                    placeholder={t('referralCodeOptional') || 'Referral Code (Optional)'}
+                    placeholderTextColor="#888"
+                    style={styles.input}
+                    value={referralCode}
+                    onChangeText={(val) => setReferralCode(val)}
+                    autoCapitalize="characters"
+                  />
+                </View>
 
                 <Text style={styles.roleLabel}>I AM A: (select one or more)</Text>
                 <TouchableOpacity

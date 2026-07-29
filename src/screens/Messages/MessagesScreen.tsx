@@ -27,11 +27,20 @@ export default function MessagesScreen({ navigation }: any) {
                 </View>
                 <View style={styles.content}>
                     <Text style={styles.name}>{partnerName}</Text>
-                    <Text style={styles.message} numberOfLines={1}>{lastMsgText}</Text>
+                    <Text style={[styles.message, item.unreadCount > 0 && styles.unreadMessage]} numberOfLines={1}>
+                        {lastMsgText}
+                    </Text>
                 </View>
-                <Text style={styles.date}>
-                    {item.lastConversation?.updatedAt ? new Date(item.lastConversation.updatedAt).toLocaleDateString() : new Date(item.updatedAt).toLocaleDateString()}
-                </Text>
+                <View style={styles.rightContent}>
+                    <Text style={styles.date}>
+                        {item.lastConversation?.updatedAt ? new Date(item.lastConversation.updatedAt).toLocaleDateString() : new Date(item.updatedAt).toLocaleDateString()}
+                    </Text>
+                    {item.unreadCount > 0 && (
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{item.unreadCount}</Text>
+                        </View>
+                    )}
+                </View>
             </TouchableOpacity>
         );
     };
@@ -80,5 +89,9 @@ const styles = StyleSheet.create({
     content: { flex: 1 },
     name: { fontWeight: 'bold', fontSize: 16 },
     message: { color: '#666', fontSize: 13 },
-    date: { fontSize: 11, color: '#999' }
+    unreadMessage: { color: '#000', fontWeight: '600' },
+    date: { fontSize: 11, color: '#999' },
+    rightContent: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 10 },
+    badge: { backgroundColor: THEME_COLOR, minWidth: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 5, paddingHorizontal: 5 },
+    badgeText: { color: '#fff', fontSize: 11, fontWeight: 'bold' }
 });

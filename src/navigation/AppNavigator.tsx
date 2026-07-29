@@ -31,6 +31,7 @@ import SupplierHomeScreen from '../screens/Supplier/SupplierHomeScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 import MyListingsScreen from '../screens/Profile/MyListingsScreen';
 import FollowingsScreen from '../screens/Profile/FollowingsScreen';
+import FollowersScreen from '../screens/Profile/FollowersScreen';
 import MyRequestsScreen from '../screens/Profile/MyRequestsScreen';
 import MyJobsScreen from '../screens/Profile/MyJobsScreen';
 import MyPackagesScreen from '../screens/Profile/MyPackagesScreen';
@@ -52,6 +53,7 @@ const linking: LinkingOptions<RootStackParamList> = {
   config: {
     screens: {
       MyPackages: 'payment-return',
+      SignUp: 'referral/:refCode',
     },
   },
 };
@@ -123,6 +125,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Followings"
           component={FollowingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Followers"
+          component={FollowersScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

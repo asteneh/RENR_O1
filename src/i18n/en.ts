@@ -47,6 +47,16 @@ const en = {
   myPosts: 'My Posts',
   myRequests: 'My Requests',
   following: 'Following',
+  followers: 'Followers',
+  noFollowersYet: 'You do not have any followers yet.',
+  unfollow: 'Unfollow',
+  unfollowConfirm: 'Are you sure you want to unfollow',
+  unfollowedSuccess: 'Unfollowed successfully',
+  unfollowFailed: 'Failed to unfollow',
+  followedSuccess: 'Followed successfully',
+  followFailed: 'Failed to follow',
+  user: 'User',
+  followBack: 'Follow Back',
   myPackages: 'My Packages',
   appliedJobs: 'Applied Jobs',
   postedJobs: 'Posted Jobs',
@@ -83,6 +93,16 @@ const en = {
   offering3: 'Connect with certified machine operators or post job vacancies.',
   offering4: 'Submit demand requests to get competitive bids from suppliers.',
   footerTagline: "Ethiopia's Heavy Machinery & Equipment Platform",
+
+  // Referral System
+  referFriend: 'Refer a Friend',
+  referralCode: 'Referral Code',
+  referralCodeOptional: 'Referral Code (Optional)',
+  referralDescription: 'Invite your friends to Gadal Market! They get access to premium heavy machinery and jobs, and you get rewards.',
+  copyCode: 'Copy Code',
+  codeCopied: 'Referral code copied to clipboard!',
+  shareCode: 'Share Referral Link',
+  referralTitle: 'Refer & Earn',
 };
 
 export default en;

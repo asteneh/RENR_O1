@@ -18,6 +18,7 @@ export default function SearchResultsScreen() {
   const { data, isLoading, isError } = useProductsQuery({ 
     search: query,
     state: 1, // Available
+    recordStatus: 1,
     ...filters 
   });
 
