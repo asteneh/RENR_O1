@@ -26,6 +26,7 @@ import { cleanErrorMessage } from '../../utils/errorUtils';
 import { useRoleAccess } from '../../components/common/RoleAccessGuard';
 import { FeatureActions } from '../../constants/UserRoles';
 import { formatEtb } from '../../utils/currency';
+import { formatPostDate } from '../../utils/dateUtils';
 
 type DetailsRouteProp = RouteProp<RootStackParamList, 'ProductDetails'>;
 
@@ -302,6 +303,15 @@ export default function ProductDetailsScreen() {
                 {displayProduct.location?.descripton} {displayProduct.subCity ? `, ${displayProduct.subCity.descripton}` : ''} {displayProduct.wereda ? `, ${displayProduct.wereda.descripton}` : ''}
               </Text>
             </View>
+
+            {Boolean(displayProduct.createdAt) && (
+              <View style={styles.dateContainer}>
+                <Ionicons name="calendar-outline" size={14} color="#777" />
+                <Text style={styles.dateText}>
+                  {formatPostDate(displayProduct.createdAt)}
+                </Text>
+              </View>
+            )}
 
             <View style={styles.priceRow}>
               <Text style={styles.price}>
@@ -687,8 +697,10 @@ const styles = StyleSheet.create({
   breadcrumbRow: { marginBottom: 5 },
   breadcrumbText: { fontSize: 12, color: '#888' },
   title: { fontSize: 24, fontWeight: 'bold', color: '#222', marginBottom: 10 },
-  locationContainer: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 15 },
+  locationContainer: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
   locationValue: { color: '#666', fontSize: 14, fontWeight: 'bold' },
+  dateContainer: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 15 },
+  dateText: { color: '#777', fontSize: 13, fontWeight: '500' },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   price: { fontSize: 22, fontWeight: 'bold', color: THEME_COLOR },
   fixedBadge: { backgroundColor: '#F4F3F1', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },

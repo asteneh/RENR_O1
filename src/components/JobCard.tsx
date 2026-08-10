@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Job } from '../api/services/jobService';
+import { formatPostDate } from '../utils/dateUtils';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -37,7 +38,7 @@ export default function JobCard({ job, onViewDetails, onApply, isApplied, isAppl
                 </View>
                 <View style={styles.metaItem}>
                     <Ionicons name="time-outline" size={14} color="#666" />
-                    <Text style={styles.metaText}>{new Date(job.createdAt).toLocaleDateString()}</Text>
+                    <Text style={styles.metaText}>{formatPostDate(job.createdAt) || 'N/A'}</Text>
                 </View>
             </View>
 

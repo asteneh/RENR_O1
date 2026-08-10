@@ -7,6 +7,7 @@ import { Product, useAddFavMutation, useRemoveFavMutation } from '../api/service
 import { useAuthStore } from '../store/useAuthStore';
 import { Rating } from 'react-native-ratings';
 import { formatEtb } from '../utils/currency';
+import { formatPostDate } from '../utils/dateUtils';
 
 interface ProductCardProps {
     product: Product;
@@ -118,6 +119,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
                         <Text style={styles.fixedText}>{product.isFixed ? 'Fixed' : 'Negotiable'}</Text>
                     </View>
                 </View>
+
+                {Boolean(product.createdAt) && (
+                    <View style={styles.dateRow}>
+                        <Ionicons name="calendar-outline" size={12} color="#888" />
+                        <Text style={styles.dateText}>{formatPostDate(product.createdAt)}</Text>
+                    </View>
+                )}
 
                 <View style={styles.priceRow}>
                     <Text style={styles.price}>
@@ -281,6 +289,16 @@ const styles = StyleSheet.create({
         fontSize: 10,
         color: '#05B815',
         fontWeight: 'bold',
+    },
+    dateRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginBottom: 6,
+    },
+    dateText: {
+        fontSize: 11,
+        color: '#888',
     },
     priceRow: {
         flexDirection: 'row',

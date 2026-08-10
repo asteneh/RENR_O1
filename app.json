@@ -18,14 +18,34 @@
       "bundleIdentifier": "com.gadalmarket.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "associatedDomains": [
+        "applinks:gadalmarket.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/orange-logo.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.gadalmarket"
+      "package": "com.gadalmarket",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gadalmarket.com",
+              "pathPrefix": "/referral"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

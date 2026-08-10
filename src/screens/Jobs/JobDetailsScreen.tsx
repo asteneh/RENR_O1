@@ -11,6 +11,7 @@ import { useJobDetailQuery, useApplyToJobMutation, Job } from '../../api/service
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { useAuthStore } from '../../store/useAuthStore';
+import { formatPostDate } from '../../utils/dateUtils';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -150,6 +151,12 @@ export default function JobDetailsScreen() {
                             <Ionicons name="location-outline" size={14} color={THEME_COLOR} />
                             <Text style={styles.tagText}>{job.location || 'Remote'}</Text>
                         </View>
+                        {Boolean(job.createdAt) && (
+                            <View style={styles.tag}>
+                                <Ionicons name="time-outline" size={14} color={THEME_COLOR} />
+                                <Text style={styles.tagText}>{formatPostDate(job.createdAt)}</Text>
+                            </View>
+                        )}
                     </View>
 
                     <View style={styles.salaryContainer}>

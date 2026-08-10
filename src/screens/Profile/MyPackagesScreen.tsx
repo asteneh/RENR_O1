@@ -202,14 +202,28 @@ export default function MyPackagesScreen({ route }: any) {
 
     const getPackagePrice = (definition: PackageDefinition | undefined) => {
         if (!definition) return 0;
-        const basicPrice = postTypes?.find((p: any) => p.name === 'Basic')?.price || 50;
-        const goldPrice = postTypes?.find((p: any) => p.name === 'Gold')?.price || 100;
-        const premiumPrice = postTypes?.find((p: any) => p.name === 'Premium')?.price || 150;
 
-        return (definition.numberOfBasicPosts * basicPrice) +
-               (definition.numberOfGoldPosts * goldPrice) +
-               (definition.numberOfPremiumPosts * premiumPrice);
+        const findPrice = (tierName: string, fallback: number) => {
+            const match = postTypes?.find((p: any) => {
+                const name = String(p?.name || '').trim().toLowerCase();
+                return name === tierName || name.includes(tierName);
+            });
+            return match ? match.price : fallback;
+        };
+
+        const basicPrice = findPrice('basic', 50);
+        const goldPrice = findPrice('gold', 100);
+        const premiumPrice = findPrice('premium', 150);
+
+        const subtotal = (definition.numberOfBasicPosts * basicPrice) +
+                         (definition.numberOfGoldPosts * goldPrice) +
+                         (definition.numberOfPremiumPosts * premiumPrice);
+
+        const discount = (definition.offPercent || 0) / 100;
+        return Math.round(subtotal * (1 - discount));
     };
+
+
 
     const purchaseMutation = useCreatePackagePurchaseMutation();
     const verifyMutation = useVerifyPackagePaymentMutation();

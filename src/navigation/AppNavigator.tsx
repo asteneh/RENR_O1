@@ -49,10 +49,18 @@ import { RootStackParamList } from './types';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: ['gadalmarket://', 'gadalmarket:///'],
+  prefixes: [
+    'gadalmarket://',
+    'gadalmarket:///',
+    'https://gadalmarket.com',
+    'http://gadalmarket.com',
+  ],
   config: {
     screens: {
       MyPackages: 'payment-return',
+      // Handles both:
+      //   gadalmarket://referral/CODE   (custom scheme — shared from ProfileScreen)
+      //   https://gadalmarket.com/referral/CODE  (universal link — dashboard copy)
       SignUp: 'referral/:refCode',
     },
   },

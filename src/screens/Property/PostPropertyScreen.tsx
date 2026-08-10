@@ -587,13 +587,24 @@ export default function PostPropertyScreen({ navigation }: any) {
         {currentStep === 4 && (
           <View>
             <Text style={styles.label}>Product Photos</Text>
-            <TouchableOpacity style={[styles.uploadBox, validationErrors.images && styles.inputError]} onPress={() => pickImage(false)}>
-              <View style={styles.cropUploadButton}>
-                <Ionicons name="crop-outline" size={28} color="#fff" />
-                <Text style={styles.cropUploadButtonText}>Crop & Upload Photo</Text>
+            <View style={[styles.uploadBox, validationErrors.images && styles.inputError]}>
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity style={styles.cropUploadButton} onPress={() => pickImage(false)}>
+                  <Ionicons name="crop-outline" size={24} color="#fff" />
+                  <Text style={styles.cropUploadButtonText}>Crop & Upload Photo</Text>
+                </TouchableOpacity>
+                {images.length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.clearPhotosButton} 
+                    onPress={() => setImages([])}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+                    <Text style={styles.clearPhotosButtonText}>Clear</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <Text style={styles.uploadHint}>Select a photo, then adjust the crop before saving.</Text>
-            </TouchableOpacity>
+            </View>
             <View style={styles.imageGrid}>
               {images.map((img, idx) => (
                 <View key={idx} style={styles.imageWrapper}>
@@ -841,6 +852,27 @@ const styles = StyleSheet.create({
   imageWrapper: { width: 100, height: 100, marginRight: 10, marginBottom: 10 },
   thumbnail: { width: '100%', height: '100%', borderRadius: 8 },
   removeBtn: { position: 'absolute', top: -5, right: -5, backgroundColor: 'white', borderRadius: 10 },
+  clearPhotosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFE5E5',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FFA39E',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  clearPhotosButtonText: {
+    color: '#FF3B30',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
 
   // Footer
   footer: { flexDirection: 'row', padding: 20, borderTopWidth: 1, borderTopColor: '#eee', backgroundColor: '#fff' },
