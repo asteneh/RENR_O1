@@ -69,8 +69,8 @@ const linking: LinkingOptions<RootStackParamList> = {
 export default function AppNavigator() {
   useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync('white');
-      NavigationBar.setButtonStyleAsync('dark');
+      NavigationBar.setBackgroundColorAsync('white').catch(() => {});
+      NavigationBar.setButtonStyleAsync('dark').catch(() => {});
     }
   }, []);
 

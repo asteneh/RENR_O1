@@ -4,10 +4,5 @@ const { getDefaultConfig } = require('expo/metro-config');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-config.resolver.extraNodeModules = {
-    ...config.resolver.extraNodeModules,
-    'react-native-worklets': require('path').resolve(__dirname, 'node_modules/react-native-worklets'),
-};
-
 module.exports = config;
 

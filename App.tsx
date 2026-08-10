@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Image, StyleSheet, Animated, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Image, StyleSheet, Animated, Dimensions, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -25,13 +25,47 @@ import { fetchUnreadMessagesCount } from './src/api/services/messageService';
 
 
 // 1. Keep Native Screen visible until we are ready
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* ignore splash prevent auto hide errors */
+});
 
 const { width } = Dimensions.get('window');
 const THEME_COLOR = '#FF8C00'; // Orange
 
 // Create a client
 const queryClient = new QueryClient();
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
+  state: { hasError: boolean; error: any } = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Global Error Boundary caught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#ffffff' }}>
+          <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#e53e3e', marginBottom: 12 }}>An Error Occurred</Text>
+          <Text style={{ fontSize: 13, color: '#4a5568', textAlign: 'center', marginBottom: 20 }}>
+            {this.state.error?.message || this.state.error?.toString() || 'Unknown error'}
+          </Text>
+          <TouchableOpacity
+            style={{ backgroundColor: '#FF8C00', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
+            onPress={() => this.setState({ hasError: false, error: null })}
+          >
+            <Text style={{ color: '#ffffff', fontWeight: '600' }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const [isSplashDone, setIsSplashDone] = useState(false);
@@ -128,7 +162,7 @@ export default function App() {
     async function prepare() {
       try {
         // 1. Hide the Native Static Splash immediately
-        await SplashScreen.hideAsync();
+        await SplashScreen.hideAsync().catch(() => {});
 
         // 2. Start Splash Content Animations
         Animated.parallel([
@@ -166,37 +200,39 @@ export default function App() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <View style={{ flex: 1 }}>
-            <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
-            <AppNavigator />
-            <ToastOverlay />
-            <CustomAlertOverlay />
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <View style={{ flex: 1 }}>
+              <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+              <AppNavigator />
+              <ToastOverlay />
+              <CustomAlertOverlay />
 
-            {!isSplashDone && (
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.splashOverlay, { opacity: splashFadeAnim }]}
-              >
-                {/* Custom Splash Content */}
-                <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
-                  <Image
-                    source={require('./assets/orange-logo.png')}
-                    style={styles.logo}
-                  />
+              {!isSplashDone && (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.splashOverlay, { opacity: splashFadeAnim }]}
+                >
+                  {/* Custom Splash Content */}
+                  <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
+                    <Image
+                      source={require('./assets/orange-logo.png')}
+                      style={styles.logo}
+                    />
+                  </Animated.View>
+
+                  <View style={styles.loaderContainer}>
+                    <ActivityIndicator size="large" color={THEME_COLOR} />
+                  </View>
                 </Animated.View>
-
-                <View style={styles.loaderContainer}>
-                  <ActivityIndicator size="large" color={THEME_COLOR} />
-                </View>
-              </Animated.View>
-            )}
-          </View>
-        </SafeAreaProvider>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+              )}
+            </View>
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 
 }
