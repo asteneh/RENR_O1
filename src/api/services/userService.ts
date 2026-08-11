@@ -35,6 +35,15 @@ export const updateUserProfile = async (formData: FormData): Promise<any> => {
     return response.data;
 };
 
+export const updateUserProfileJson = async (data: Record<string, any>): Promise<any> => {
+    const response = await apiClient.put('users', data, {
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    });
+    return response.data;
+};
+
 export const fetchUserAds = async (args: {
     userId: string,
     serviceType?: number,
@@ -73,6 +82,16 @@ export const useUpdateUserProfile = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: updateUserProfile,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        },
+    });
+};
+
+export const useUpdateUserProfileJson = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: updateUserProfileJson,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['userProfile'] });
         },
