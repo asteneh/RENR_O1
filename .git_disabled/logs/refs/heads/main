@@ -1,0 +1,23 @@
+0000000000000000000000000000000000000000 0891a07a482d94fbab120a7ecc06acd540109b8b atse <atseneha@gmail.com> 1765377014 +0300	commit (initial): project init
+0891a07a482d94fbab120a7ecc06acd540109b8b 61b49d0b01d5ad8500dfd9d99f57e2a729aee70c atse <atseneha@gmail.com> 1765377172 +0300	commit: x
+61b49d0b01d5ad8500dfd9d99f57e2a729aee70c 79634c3da01dfacbe75f6ada502d54f2be48782d atse <atseneha@gmail.com> 1765808622 +0300	commit: api integrated
+79634c3da01dfacbe75f6ada502d54f2be48782d 9ac824287764101240c8b06b04401501b6eb2503 atse <atseneha@gmail.com> 1770283957 +0300	commit: x
+9ac824287764101240c8b06b04401501b6eb2503 eae80bdb0ef3e90b74e912b15bae101551dca153 atse <atseneha@gmail.com> 1774004373 +0300	commit: final comment
+eae80bdb0ef3e90b74e912b15bae101551dca153 b347f546e497af592b50d1bcc2b27dcb8d9d3773 atse <atseneha@gmail.com> 1774094928 +0300	commit: final stands
+b347f546e497af592b50d1bcc2b27dcb8d9d3773 c243e28e03cd3fcf5c2b7f65b077990d8819da0a atse <atseneha@gmail.com> 1777121716 +0300	commit: many changes
+c243e28e03cd3fcf5c2b7f65b077990d8819da0a 38d73a4845144de625b0cec96c5fa7eaced3df2d atse <atseneha@gmail.com> 1777723615 +0300	commit: x
+38d73a4845144de625b0cec96c5fa7eaced3df2d b2f423287f9845d39bd50a11b26389602222384b atse <atseneha@gmail.com> 1778333741 +0300	commit: change of role to multiple
+b2f423287f9845d39bd50a11b26389602222384b 79d2d3979d2df4c7b7bc1d222ef4f7b3957cc9f5 atse <atseneha@gmail.com> 1780410217 +0300	commit: latest changes
+79d2d3979d2df4c7b7bc1d222ef4f7b3957cc9f5 b10fae3bbe2498750e7866f96d8393e840968c69 atse <atseneha@gmail.com> 1781257397 +0300	commit: add message and fix most of final comments
+b10fae3bbe2498750e7866f96d8393e840968c69 9fb1ebd8ae7a57dacacd92852bf407b7caa274b7 atse <atseneha@gmail.com> 1781274786 +0300	commit: final
+9fb1ebd8ae7a57dacacd92852bf407b7caa274b7 25380a638695b3da45d2e94ee6db468752d7a3a6 atse <atseneha@gmail.com> 1783069760 +0300	pull: Fast-forward
+25380a638695b3da45d2e94ee6db468752d7a3a6 f0f4a35b613294631aefb7711fecf47698938a18 atse <atseneha@gmail.com> 1783081733 +0300	commit: final comments 1
+f0f4a35b613294631aefb7711fecf47698938a18 a69cb7454a8da403f97acfad780710d05ca8dce3 atse <atseneha@gmail.com> 1783088917 +0300	commit: add amharic
+a69cb7454a8da403f97acfad780710d05ca8dce3 ac2798d1840c5c03a880354da725a367c9bf6787 atse <atseneha@gmail.com> 1783166973 +0300	commit: package update
+ac2798d1840c5c03a880354da725a367c9bf6787 4649e81574a8ce5d0ae88a68809ab2ac204bc1e2 atse <atseneha@gmail.com> 1783947880 +0300	commit: add edit to oprator registration
+4649e81574a8ce5d0ae88a68809ab2ac204bc1e2 bdb0981fcc855b6263c4c06e37bb2445569af357 atse <atseneha@gmail.com> 1784038161 +0300	commit: fix new comments
+bdb0981fcc855b6263c4c06e37bb2445569af357 caed018550d4c5f0271c1266a2eb7854912dcbe3 atse <atseneha@gmail.com> 1785333463 +0300	commit: test response
+caed018550d4c5f0271c1266a2eb7854912dcbe3 309956100d52660d37e3cf83c26607cf582cbba1 atse <atseneha@gmail.com> 1786370731 +0300	commit: multiple changes
+309956100d52660d37e3cf83c26607cf582cbba1 c279fd3656d354fdc77d18819e589f61ea32c346 atse <atseneha@gmail.com> 1786370735 +0300	pull: Merge made by the 'ort' strategy.
+c279fd3656d354fdc77d18819e589f61ea32c346 178f2e4c40c45c1b79f1328437024641f716c5ac atse <atseneha@gmail.com> 1786435206 +0300	pull: Fast-forward
+178f2e4c40c45c1b79f1328437024641f716c5ac e9d64e65679668fc0cdc6ebcda5c818c90b684b4 atse <atseneha@gmail.com> 1786448575 +0300	commit: edit oprator

@@ -1,0 +1,203 @@
+import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
+import { LinkingOptions, NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as NavigationBar from 'expo-navigation-bar';
+
+// Navigators
+import TabNavigator from './TabNavigator';
+
+// Screens
+import ProductDetailsScreen from '../screens/ProductDetails/ProductDetailsScreen';
+import ProfileScreen from '../screens/Profile/ProfileScreen';
+import LoginScreen from '../screens/Auth/LoginScreen';
+import SignUpScreen from '../screens/Auth/SignUpScreen';
+import CategoryScreen from '../screens/Category/CategoryScreen';
+import CartScreen from '../screens/Cart/CartScreen';
+import PostPropertyScreen from '../screens/Property/PostPropertyScreen';
+import JobsNavigator from './JobsNavigator';
+import ForgotPasswordScreen from '../screens/Auth/ForgotPasswordScreen';
+import VerifyPhoneScreen from '../screens/Auth/VerifyPhoneScreen';
+import ResetPasswordScreen from '../screens/Auth/ResetPasswordScreen';
+import FavoritesScreen from '../screens/Profile/FavoritesScreen';
+import NotificationScreen from '../screens/Notification/NotificationScreen';
+import MessagesScreen from '../screens/Messages/MessagesScreen';
+import ChatScreen from '../screens/Messages/ChatScreen';
+import SearchScreen from '../screens/Search/SearchScreen';
+import FilterScreen from '../screens/Search/FilterScreen';
+import SearchResultsScreen from '../screens/Search/SearchResultsScreen';
+import PostRequestScreen from '../screens/Supplier/PostRequestScreen';
+import SupplierHomeScreen from '../screens/Supplier/SupplierHomeScreen';
+import EditProfileScreen from '../screens/Profile/EditProfileScreen';
+import MyListingsScreen from '../screens/Profile/MyListingsScreen';
+import FollowingsScreen from '../screens/Profile/FollowingsScreen';
+import FollowersScreen from '../screens/Profile/FollowersScreen';
+import MyRequestsScreen from '../screens/Profile/MyRequestsScreen';
+import MyJobsScreen from '../screens/Profile/MyJobsScreen';
+import MyPackagesScreen from '../screens/Profile/MyPackagesScreen';
+import OperatorRegistrationScreen from '../screens/Jobs/OperatorRegistrationScreen';
+import EditOperatorProfileScreen from '../screens/Jobs/EditOperatorProfileScreen';
+import EditListingScreen from '../screens/Profile/EditListingScreen';
+import TermsAndPrivacyScreen from '../screens/Auth/TermsAndPrivacyScreen';
+import PostJobScreen from '../screens/Profile/PostJobScreen';
+import JobApplicantsScreen from '../screens/Jobs/JobApplicantsScreen';
+import OtpVerifyRegistrationScreen from '../screens/Auth/OtpVerifyRegistrationScreen';
+import AppSettingsScreen from '../screens/Profile/AppSettingsScreen';
+import FeedbackScreen from '../screens/Profile/FeedbackScreen';
+
+import { RootStackParamList } from './types';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [
+    'gadalmarket://',
+    'gadalmarket:///',
+    'https://gadalmarket.com',
+    'http://gadalmarket.com',
+  ],
+  config: {
+    screens: {
+      MyPackages: 'payment-return',
+      // Handles both:
+      //   gadalmarket://referral/CODE   (custom scheme — shared from ProfileScreen)
+      //   https://gadalmarket.com/referral/CODE  (universal link — dashboard copy)
+      SignUp: 'referral/:refCode',
+    },
+  },
+};
+
+export default function AppNavigator() {
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setBackgroundColorAsync('white').catch(() => {});
+      NavigationBar.setButtonStyleAsync('dark').catch(() => {});
+    }
+  }, []);
+
+  return (
+    <NavigationContainer linking={linking}>
+      <Stack.Navigator>
+        {/* Main Tabs */}
+        <Stack.Screen name="Tabs" component={TabNavigator} options={{ headerShown: false }} />
+
+        {/* Common Screens */}
+        <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Category" component={CategoryScreen} options={{ headerShown: false }} />
+
+        {/* Auth Screens (Available in Stack) */}
+        <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} options={{ title: 'Recovery' }} />
+        <Stack.Screen name="VerifyPhone" component={VerifyPhoneScreen} options={{ title: 'Verify' }} />
+        <Stack.Screen name="OtpVerifyRegistration" component={OtpVerifyRegistrationScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} options={{ title: 'Reset Password' }} />
+        <Stack.Screen name="Favorites" component={FavoritesScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Notification" component={NotificationScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Messages" component={MessagesScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat' }} />
+        <Stack.Screen name="Search" component={SearchScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Filter" component={FilterScreen} options={{ headerShown: true, title: 'Filters' }} />
+        <Stack.Screen name="SearchResults" component={SearchResultsScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
+        {/* Property Screens */}
+        <Stack.Screen
+          name="PostProperty"
+          component={PostPropertyScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Jobs"
+          component={JobsNavigator}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PostRequest"
+          component={PostRequestScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SupplierHome"
+          component={SupplierHomeScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EditProfile"
+          component={EditProfileScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyListings"
+          component={MyListingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Followings"
+          component={FollowingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Followers"
+          component={FollowersScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyRequests"
+          component={MyRequestsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyJobs"
+          component={MyJobsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="MyPackages"
+          component={MyPackagesScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="OperatorRegistration"
+          component={OperatorRegistrationScreen}
+          options={{ title: 'Operator Registration' }}
+        />
+        <Stack.Screen
+          name="EditOperatorProfile"
+          component={EditOperatorProfileScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EditListing"
+          component={EditListingScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="TermsAndPrivacy"
+          component={TermsAndPrivacyScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="JobApplicants"
+          component={JobApplicantsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PostJob"
+          component={PostJobScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="AppSettings"
+          component={AppSettingsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Feedback"
+          component={FeedbackScreen}
+          options={{ headerShown: false }}
+        />
+      </Stack.Navigator>
+
+    </NavigationContainer>
+  );
+}

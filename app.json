@@ -1,0 +1,75 @@
+{
+  "expo": {
+    "name": "Gadal Market",
+    "slug": "New_Rent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/orange-logo.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "gadalmarket",
+    "splash": {
+      "image": "./assets/orange-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gadalmarket.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "associatedDomains": [
+        "applinks:gadalmarket.com"
+      ]
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/orange-logo.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.gadalmarket",
+      "permissions": [
+        "NOTIFICATIONS",
+        "POST_NOTIFICATIONS"
+      ],
+      "intentFilters": [
+
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "gadalmarket.com",
+              "pathPrefix": "/referral"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "45cd56e3-5181-4b54-8b92-fcf4d07edf89"
+      }
+    },
+    "plugins": [
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/orange-logo.png",
+          "color": "#FF8C00"
+        }
+      ]
+    ]
+
+  }
+}

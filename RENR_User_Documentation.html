@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RENR — User Documentation</title>
+    <style>
+        /* ========== RESET & BASE ========== */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            background: #f9fafb;
+            line-height: 1.7;
+            font-size: 15px;
+        }
+
+        /* ========== HEADER ========== */
+        .doc-header {
+            background: linear-gradient(135deg, #FF8C00, #FF6B00);
+            color: #fff;
+            text-align: center;
+            padding: 50px 20px 40px;
+        }
+
+        .doc-header h1 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .doc-header .subtitle {
+            font-size: 1.05rem;
+            opacity: 0.9;
+            margin-top: 8px;
+        }
+
+        .doc-header .version {
+            font-size: 0.85rem;
+            margin-top: 14px;
+            opacity: 0.75;
+        }
+
+        /* ========== DOWNLOAD BAR ========== */
+        .download-bar {
+            text-align: center;
+            padding: 18px;
+            background: #fff;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .download-bar button {
+            background: #FF8C00;
+            color: #fff;
+            border: none;
+            padding: 10px 28px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .download-bar button:hover {
+            background: #E07800;
+        }
+
+        /* ========== LAYOUT ========== */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px 24px 80px;
+        }
+
+        /* ========== TOC ========== */
+        .toc {
+            background: #fff;
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin-bottom: 40px;
+            border: 1px solid #eee;
+        }
+
+        .toc h2 {
+            font-size: 1.3rem;
+            margin-bottom: 16px;
+            color: #222;
+        }
+
+        .toc ol {
+            padding-left: 20px;
+        }
+
+        .toc li {
+            margin-bottom: 6px;
+        }
+
+        .toc a {
+            text-decoration: none;
+            color: #FF8C00;
+            font-weight: 600;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .toc ol ol {
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        .toc ol ol a {
+            font-weight: 500;
+            color: #555;
+        }
+
+        /* ========== SECTIONS ========== */
+        section {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px 32px;
+            margin-bottom: 28px;
+            border: 1px solid #eee;
+        }
+
+        section h2 {
+            font-size: 1.45rem;
+            color: #FF8C00;
+            margin-bottom: 18px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #FFF0DB;
+        }
+
+        section h3 {
+            font-size: 1.1rem;
+            color: #222;
+            margin: 22px 0 10px;
+        }
+
+        /* ========== STEPS ========== */
+        .steps {
+            counter-reset: step;
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .steps li {
+            counter-increment: step;
+            position: relative;
+            padding: 10px 0 10px 44px;
+            border-left: 2px solid #FFD9A0;
+            margin-left: 14px;
+        }
+
+        .steps li::before {
+            content: counter(step);
+            position: absolute;
+            left: -14px;
+            top: 8px;
+            width: 28px;
+            height: 28px;
+            background: #FF8C00;
+            color: #fff;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .steps li:last-child {
+            border-left-color: transparent;
+        }
+
+        /* ========== CALLOUTS ========== */
+        .tip,
+        .note,
+        .warning {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin: 14px 0;
+            font-size: 14px;
+        }
+
+        .tip {
+            background: #F0FFF4;
+            border-left: 4px solid #38A169;
+        }
+
+        .note {
+            background: #EBF5FF;
+            border-left: 4px solid #3182CE;
+        }
+
+        .warning {
+            background: #FFFBEB;
+            border-left: 4px solid #D69E2E;
+        }
+
+        .tip strong,
+        .note strong,
+        .warning strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        /* ========== TABLE ========== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 14px 0;
+            font-size: 14px;
+        }
+
+        th,
+        td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #FFF5E5;
+            color: #333;
+            font-weight: 700;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        tr:hover td {
+            background: #FAFAFA;
+        }
+
+        /* ========== MISC ========== */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-right: 6px;
+        }
+
+        .badge-orange {
+            background: #FFF0DB;
+            color: #B45309;
+        }
+
+        .badge-green {
+            background: #D1FAE5;
+            color: #065F46;
+        }
+
+        .badge-blue {
+            background: #DBEAFE;
+            color: #1E40AF;
+        }
+
+        .badge-red {
+            background: #FEE2E2;
+            color: #991B1B;
+        }
+
+        code {
+            background: #f4f4f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .field-table td:first-child {
+            font-weight: 600;
+            white-space: nowrap;
+            width: 160px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0;
+            margin: 14px 0;
+        }
+
+        .nav-tab {
+            padding: 8px 18px;
+            background: #f4f4f5;
+            font-weight: 600;
+            font-size: 13px;
+            border-radius: 8px 8px 0 0;
+            border: 1px solid #eee;
+            border-bottom: none;
+            color: #666;
+        }
+
+        .nav-tab.active {
+            background: #FF8C00;
+            color: #fff;
+            border-color: #FF8C00;
+        }
+
+        /* ========== PRINT STYLES ========== */
+        @media print {
+            body {
+                background: #fff;
+                font-size: 12px;
+            }
+
+            .download-bar {
+                display: none;
+            }
+
+            .doc-header {
+                padding: 30px 20px;
+            }
+
+            .container {
+                padding: 0 10px;
+            }
+
+            section {
+                break-inside: avoid;
+                border: none;
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+
+            .toc {
+                page-break-after: always;
+            }
+
+            a {
+                color: #333 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER -->
+    <div class="doc-header">
+        <h1>📙 RENR — User Guide</h1>
+        <p class="subtitle">Complete Documentation for Buyers, Sellers, Operators & Employers</p>
+        <p class="version">Version 1.0 &bull; March 2026</p>
+    </div>
+
+    <!-- DOWNLOAD BAR -->
+    <div class="download-bar">
+        <button onclick="window.print()">⬇️ Download as PDF (Print)</button>
+    </div>
+
+    <div class="container">
+
+        <!-- TABLE OF CONTENTS -->
+        <div class="toc">
+            <h2>📑 Table of Contents</h2>
+            <ol>
+                <li><a href="#overview">App Overview</a></li>
+                <li><a href="#getting-started">Getting Started</a>
+                    <ol>
+                        <li><a href="#registration">Creating an Account (Registration)</a></li>
+                        <li><a href="#login">Signing In</a></li>
+                        <li><a href="#password-recovery">Password Recovery</a></li>
+                        <li><a href="#phone-verification">Phone Verification (OTP)</a></li>
+                    </ol>
+                </li>
+                <li><a href="#navigation">App Navigation</a></li>
+                <li><a href="#home">Home Screen</a></li>
+                <li><a href="#search">Search &amp; Filters</a></li>
+                <li><a href="#categories">Categories</a></li>
+                <li><a href="#product-details">Product Details</a></li>
+                <li><a href="#cart">Cart &amp; Checkout</a></li>
+                <li><a href="#post-listing">Posting a New Listing</a></li>
+                <li><a href="#jobs">Jobs Module</a>
+                    <ol>
+                        <li><a href="#find-jobs">Finding &amp; Applying for Jobs</a></li>
+                        <li><a href="#post-job">Posting a Job</a></li>
+                        <li><a href="#operator-registration">Becoming an Operator</a></li>
+                    </ol>
+                </li>
+                <li><a href="#requests">Supplier Requests</a></li>
+                <li><a href="#messages">Messages &amp; Chat</a></li>
+                <li><a href="#notifications">Notifications</a></li>
+                <li><a href="#profile">Profile &amp; Account Management</a>
+                    <ol>
+                        <li><a href="#edit-profile">Edit Profile</a></li>
+                        <li><a href="#change-password">Change Password</a></li>
+                        <li><a href="#my-listings">My Listings</a></li>
+                        <li><a href="#favorites">My Favorites</a></li>
+                        <li><a href="#followings">Following</a></li>
+                        <li><a href="#my-requests">My Requests</a></li>
+                        <li><a href="#my-packages">My Packages</a></li>
+                        <li><a href="#my-jobs">My Jobs</a></li>
+                    </ol>
+                </li>
+                <li><a href="#settings">Settings</a></li>
+                <li><a href="#roles">User Roles Explained</a></li>
+                <li><a href="#faq">FAQ &amp; Troubleshooting</a></li>
+            </ol>
+        </div>
+
+        <!-- 1. APP OVERVIEW -->
+        <section id="overview">
+            <h2>1. App Overview</h2>
+            <p>
+                <strong>RENR</strong> is a mobile marketplace platform built for the machinery, vehicle, and equipment
+                industry.
+                It connects <strong>Buyers</strong>, <strong>Sellers</strong>, <strong>Lessors (Akeray)</strong>,
+                <strong>Lessees (Tekeray)</strong>,
+                <strong>Operators</strong>, and <strong>Employers</strong> in a single ecosystem.
+            </p>
+            <h3>What You Can Do</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Buy / Rent</td>
+                        <td>Browse and purchase machinery, vehicles, and equipment or rent them</td>
+                    </tr>
+                    <tr>
+                        <td>Sell / Lease</td>
+                        <td>Post your own items for sale or lease with a guided wizard</td>
+                    </tr>
+                    <tr>
+                        <td>Jobs</td>
+                        <td>Find operator jobs or post job openings</td>
+                    </tr>
+                    <tr>
+                        <td>Supplier Requests</td>
+                        <td>Post and respond to supply/demand requests</td>
+                    </tr>
+                    <tr>
+                        <td>Messaging</td>
+                        <td>Chat with sellers, buyers, and operators in real-time</td>
+                    </tr>
+                    <tr>
+                        <td>Reviews</td>
+                        <td>Rate and review products to help the community</td>
+                    </tr>
+                    <tr>
+                        <td>Favorites</td>
+                        <td>Save products you are interested in for quick access later</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 2. GETTING STARTED -->
+        <section id="getting-started">
+            <h2>2. Getting Started</h2>
+
+            <!-- 2.1 Registration -->
+            <h3 id="registration">2.1 Creating an Account (Registration)</h3>
+            <p>To use the full features of RENR, you need to create an account. Follow these steps:</p>
+
+            <h4>Step 1 — Personal Information</h4>
+            <ol class="steps">
+                <li>Open the app and tap <strong>"Register"</strong> on the login screen.</li>
+                <li>Enter your <strong>First Name</strong> and <strong>Last Name</strong>.</li>
+                <li>Select your <strong>Country</strong> by tapping the flag icon.</li>
+                <li>Enter your <strong>Phone Number</strong> (primary login).</li>
+                <li>Enter your <strong>Email Address</strong> (optional).</li>
+                <li>Create and confirm your <strong>Password</strong>.</li>
+                <li>
+                    Select your <strong>Role</strong>:
+                    <table class="field-table">
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="badge badge-orange">Akeray (Lessor)</span></td>
+                                <td>Own equipment and want to lease it out</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-green">Buyer</span></td>
+                                <td>Want to purchase machinery or vehicles</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-blue">Seller</span></td>
+                                <td>Have items to sell on the platform</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-orange">Tekeray (Lessee)</span></td>
+                                <td>Want to rent/lease equipment</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-red">Operator</span></td>
+                                <td>Machine operator looking for work</td>
+                            </tr>
+                            <tr>
+                                <td><span class="badge badge-blue">Employer</span></td>
+                                <td>Want to hire operators</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </li>
+                <li>Check the agreement box and tap <strong>"Next Step"</strong>.</li>
+            </ol>
+
+            <h4>Step 2 — Supplier Assets (Sellers &amp; Lessors Only)</h4>
+            <ol class="steps">
+                <li>Select <strong>Machinery Type</strong> and <strong>Brands</strong>.</li>
+                <li>Tap <strong>"Add to List"</strong>.</li>
+                <li>Upload <strong>Legal Documents</strong> (images).</li>
+                <li>Tap <strong>"Next: Membership"</strong>.</li>
+            </ol>
+
+            <h4>Step 3 — Membership Selection</h4>
+            <ol class="steps">
+                <li>
+                    Choose a membership plan based on your role.
+                    <div class="note">
+                        <strong>👷 Operator Note:</strong> Operators have an option <strong>"Post Through
+                            Gadal"</strong>. If selected, you don't need to choose a membership plan.
+                    </div>
+                </li>
+                <li>Select from <strong>Basic</strong>, <strong>Gold</strong>, or <strong>Premium</strong> plans
+                    (details below).</li>
+                <li>Tap <strong>"Complete Registration"</strong> to finish.</li>
+            </ol>
+
+            <h3 id="membership-plans">2.2 Membership Plans Detail</h3>
+            <p>Membership plans provide different posting and vacancy limits depending on your role.</p>
+
+            <h4>Akeray (Lessor) &amp; Seller</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Price (Birr)</th>
+                        <th>Items Post / Month</th>
+                        <th>Job Vacancies / Month</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Basic</td>
+                        <td>100</td>
+                        <td>10</td>
+                        <td>3</td>
+                    </tr>
+                    <tr>
+                        <td>Gold</td>
+                        <td>200</td>
+                        <td>25 (Akeray) / 30 (Seller)</td>
+                        <td>6</td>
+                    </tr>
+                    <tr>
+                        <td>Premium</td>
+                        <td>400</td>
+                        <td>Unlimited</td>
+                        <td>Unlimited (Akeray) / 12 (Seller)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Buyer</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Price (Birr)</th>
+                        <th>Buying Request Post / Month</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Basic</td>
+                        <td>50</td>
+                        <td>10</td>
+                    </tr>
+                    <tr>
+                        <td>Gold</td>
+                        <td>100</td>
+                        <td>15</td>
+                    </tr>
+                    <tr>
+                        <td>Premium</td>
+                        <td>200</td>
+                        <td>Unlimited</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Tekeray (Lessee)</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Price (Birr)</th>
+                        <th>Request Post / Month</th>
+                        <th>Job Vacancies / Month</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Basic</td>
+                        <td>100</td>
+                        <td>10</td>
+                        <td>3</td>
+                    </tr>
+                    <tr>
+                        <td>Gold</td>
+                        <td>200</td>
+                        <td>15</td>
+                        <td>6</td>
+                    </tr>
+                    <tr>
+                        <td>Premium</td>
+                        <td>400</td>
+                        <td>Unlimited</td>
+                        <td>12</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Operator (Employee)</h4>
+            <ul>
+                <li><strong>Basic Plan:</strong> 50 Birr / Month.</li>
+                <li><strong>Alternative:</strong> Select <strong>"Post Through Gadal"</strong> to skip membership
+                    selection.</li>
+            </ul>
+
+            <!-- 2.2 Login -->
+            <h3 id="login">2.2 Signing In</h3>
+            <ol class="steps">
+                <li>On the Sign In screen, enter your registered <strong>Phone Number</strong>.</li>
+                <li>Enter your <strong>Password</strong>. You can tap the eye icon to toggle visibility.</li>
+                <li>Tap <strong>"Sign In"</strong>.</li>
+                <li>Upon success, you will see a <strong>"Welcome back!"</strong> notification and be taken to the Home
+                    screen.</li>
+            </ol>
+
+            <div class="note">
+                <strong>ℹ️ Not Verified?</strong>
+                If your account is not yet verified, a red banner will appear with a <strong>"Verify"</strong> button.
+                Tap it to receive an OTP and complete verification.
+            </div>
+
+            <!-- 2.3 Password Recovery -->
+            <h3 id="password-recovery">2.3 Password Recovery</h3>
+            <ol class="steps">
+                <li>On the login screen, tap <strong>"Forgot Password?"</strong>.</li>
+                <li>Enter your registered phone number.</li>
+                <li>You will receive an OTP code via SMS.</li>
+                <li>Enter the OTP on the verification screen.</li>
+                <li>Create and confirm your new password on the Reset Password screen.</li>
+            </ol>
+
+            <!-- 2.4 Phone Verification -->
+            <h3 id="phone-verification">2.4 Phone Verification (OTP)</h3>
+            <p>
+                After registration or when signing in with an unverified account, you will be taken to the
+                <strong>Verify Phone</strong> screen. Enter the OTP code sent to your phone number to activate your
+                account.
+            </p>
+        </section>
+
+        <!-- 3. NAVIGATION -->
+        <section id="navigation">
+            <h2>3. App Navigation</h2>
+            <p>The app uses a <strong>bottom tab bar</strong> with five main sections:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tab</th>
+                        <th>Icon</th>
+                        <th>What It Does</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Home</strong></td>
+                        <td>🏠</td>
+                        <td>Browse featured and recent listings</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Jobs</strong></td>
+                        <td>💼</td>
+                        <td>Find jobs, view operator listings, or post jobs</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Post</strong></td>
+                        <td>✏️</td>
+                        <td>Create a new listing (machinery, vehicle)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Requests</strong></td>
+                        <td>📋</td>
+                        <td>View and post supplier requests</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Account</strong></td>
+                        <td>👤</td>
+                        <td>Your profile, settings, and account management</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="warning">
+                <strong>⚠️ Login Required:</strong> Tapping Jobs, Post, Requests, or Account will redirect you to the
+                Login screen if you are not signed in.
+            </div>
+        </section>
+
+        <!-- 4. HOME SCREEN -->
+        <section id="home">
+            <h2>4. Home Screen</h2>
+            <p>The Home screen is your starting point. It features:</p>
+
+            <h3>Search Bar</h3>
+            <p>Tap the search bar at the top to quickly find products by keyword. Tap the filter icon to access advanced
+                filters.</p>
+
+            <h3>Action Buttons</h3>
+            <p>Quick-access buttons at the top let you jump to <strong>Cart</strong>, <strong>Notifications</strong>,
+                and <strong>Messages</strong>.</p>
+
+            <h3>Categories</h3>
+            <p>Horizontally scrollable category chips let you filter products by type (e.g., "All", specific machinery
+                categories). Tap a category to view only products in that category.</p>
+
+            <h3>Featured Products</h3>
+            <p>A horizontally scrollable carousel of highlighted products. Tap any product card to view its full
+                details.</p>
+
+            <h3>Recent Products</h3>
+            <p>A vertical list of the most recently posted items below the featured section.</p>
+
+            <h3>Pull to Refresh</h3>
+            <p>Swipe down anywhere on the Home screen to refresh all data.</p>
+
+            <div class="tip">
+                <strong>💡 Role Switcher:</strong> If you are a Tekeray (Lessee), the Home screen shows a
+                tenant-specific dashboard view tailored to your needs.
+            </div>
+        </section>
+
+        <!-- 5. SEARCH -->
+        <section id="search">
+            <h2>5. Search &amp; Filters</h2>
+
+            <h3>Searching</h3>
+            <ol class="steps">
+                <li>Tap the <strong>Search bar</strong> on the Home screen or navigate to the Search tab.</li>
+                <li>Type a keyword (e.g., "excavator", "loader", "truck").</li>
+                <li>Press <strong>Enter</strong> or tap the search icon to see results.</li>
+                <li>Tap the <strong>✕</strong> next to the search field to clear your query.</li>
+            </ol>
+
+            <h3>Filters</h3>
+            <p>Tap the <strong>filter icon</strong> (⚙️) next to the search bar to access filters. Filters help you
+                narrow down results by specific criteria such as price range, location, and category.</p>
+
+            <h3>Search Results</h3>
+            <p>Results are displayed as product cards. Tap any card to view the full product details page.</p>
+        </section>
+
+        <!-- 6. CATEGORIES -->
+        <section id="categories">
+            <h2>6. Categories</h2>
+            <p>
+                Categories organize all listings by type. You can access categories from the <strong>Home screen
+                    category chips</strong> or the dedicated Category screen.
+                Each category displays a grid of products with images, titles, and prices.
+            </p>
+        </section>
+
+        <!-- 7. PRODUCT DETAILS -->
+        <section id="product-details">
+            <h2>7. Product Details</h2>
+            <p>Tap on any product card to open its detailed view. The Product Details screen includes:</p>
+
+            <h3>Image Gallery</h3>
+            <ul>
+                <li>A large <strong>hero image</strong> at the top with parallax scroll effect.</li>
+                <li>Tap the image to open a <strong>full-screen zoom view</strong> — use pinch gestures to zoom in and
+                    out.</li>
+                <li>A thumbnail gallery at the bottom lets you switch between all product images.</li>
+            </ul>
+
+            <h3>Product Information</h3>
+            <table class="field-table">
+                <tbody>
+                    <tr>
+                        <td>Category</td>
+                        <td>Shows the product category and transaction type (Rent / Sale)</td>
+                    </tr>
+                    <tr>
+                        <td>Title</td>
+                        <td>Name of the product listing</td>
+                    </tr>
+                    <tr>
+                        <td>Location</td>
+                        <td>City, Sub-City, and Wereda where the item is located</td>
+                    </tr>
+                    <tr>
+                        <td>Price</td>
+                        <td>Current price in the listed currency with Fixed / Negotiable indicator</td>
+                    </tr>
+                    <tr>
+                        <td>Rating</td>
+                        <td>Average star rating and total review count</td>
+                    </tr>
+                    <tr>
+                        <td>Specifications</td>
+                        <td>Dynamic attributes like Model year, Horse Power, Working Hours, etc.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Tabs: Description &amp; Reviews</h3>
+            <div class="nav-tabs">
+                <div class="nav-tab active">Description</div>
+                <div class="nav-tab">Reviews</div>
+            </div>
+            <ul>
+                <li><strong>Description Tab:</strong> Full text description of the product.</li>
+                <li><strong>Reviews Tab:</strong> User reviews with star ratings, dates, and comments. Logged-in users
+                    can submit their own review with a star rating and text.</li>
+            </ul>
+
+            <h3>Actions</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>❤️ Favorite</td>
+                        <td>Save or remove the product from your favorites list</td>
+                    </tr>
+                    <tr>
+                        <td>🏷️ Offer Price</td>
+                        <td>Send a counter-offer to the seller (for negotiable items)</td>
+                    </tr>
+                    <tr>
+                        <td>🔗 Share</td>
+                        <td>Share the listing via SMS, social media, or other apps</td>
+                    </tr>
+                    <tr>
+                        <td>🛒 Add to Cart</td>
+                        <td>Add the product to your shopping cart</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Seller Info</h3>
+            <p>View the seller's name, profile picture, follower count, and a <strong>"Follow"</strong> button to stay
+                updated on their listings.</p>
+        </section>
+
+        <!-- 8. CART & CHECKOUT -->
+        <section id="cart">
+            <h2>8. Cart &amp; Checkout</h2>
+            <ol class="steps">
+                <li>View your cart by tapping the <strong>Cart icon</strong> on the Home screen or navigating to the
+                    Cart screen.</li>
+                <li>Review items in your cart — each shows the product image, title, price (in ETB), and quantity.</li>
+                <li>Tap the <strong>trash icon</strong> (🗑️) to remove an item from the cart.</li>
+                <li>Review the <strong>Total Amount</strong> displayed at the bottom.</li>
+                <li>Tap <strong>"Checkout Now"</strong> to place your order.</li>
+                <li>Upon success, you'll see a confirmation notification and be redirected to the Home screen.</li>
+            </ol>
+
+            <div class="note">
+                <strong>ℹ️ Empty Cart:</strong> If your cart is empty, you'll see a prompt with a <strong>"Start
+                    Shopping"</strong> button that takes you back to the Home screen.
+            </div>
+        </section>
+
+        <!-- 9. POSTING A NEW LISTING -->
+        <section id="post-listing">
+            <h2>9. Posting a New Listing</h2>
+            <p>
+                Creating a new listing follows a <strong>6-step guided wizard</strong>.
+                Tap the <strong>"Post"</strong> tab in the bottom navigation to begin.
+            </p>
+
+            <h3>Step 1 — Type</h3>
+            <ul>
+                <li>Select the <strong>Service Type</strong>: <span class="badge badge-orange">Machinery</span> or <span
+                        class="badge badge-blue">Vehicle</span></li>
+                <li>Select the <strong>Transaction Type</strong>: <span class="badge badge-green">Rent</span> or <span
+                        class="badge badge-orange">Sale</span></li>
+            </ul>
+
+            <h3>Step 2 — Category</h3>
+            <ul>
+                <li>Choose a product category from the list (e.g., Excavator, Loader, Crane, Truck).</li>
+                <li>Categories load dynamically based on the service type selected in Step 1.</li>
+            </ul>
+
+            <h3>Step 3 — Details</h3>
+            <table class="field-table">
+                <tbody>
+                    <tr>
+                        <td>Title</td>
+                        <td>A short, descriptive name for your listing</td>
+                    </tr>
+                    <tr>
+                        <td>Description</td>
+                        <td>A detailed description of the item's condition, features, etc.</td>
+                    </tr>
+                    <tr>
+                        <td>Price</td>
+                        <td>The asking price — select the currency (ETB is default)</td>
+                    </tr>
+                    <tr>
+                        <td>Fixed / Negotiable</td>
+                        <td>Indicate if the price is firm or open to offers</td>
+                    </tr>
+                    <tr>
+                        <td>Brand</td>
+                        <td>Select the brand (e.g., Caterpillar, Komatsu) — depends on the chosen category</td>
+                    </tr>
+                    <tr>
+                        <td>Specifications</td>
+                        <td>Fill in category-specific attributes like Model Year, Working Hours, Horse Power, etc.</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Step 4 — Location</h3>
+            <ul>
+                <li>Select your <strong>City / Location</strong> from the horizontal chips.</li>
+                <li>Choose a <strong>Sub-City</strong> (appears after selecting a location).</li>
+                <li>Choose a <strong>Wereda</strong> (appears after selecting a sub-city).</li>
+            </ul>
+
+            <h3>Step 5 — Media</h3>
+            <ul>
+                <li><strong>Product Photos:</strong> Tap the upload area to add photos of your item. You can add
+                    multiple images and remove any by tapping the ✕ icon.</li>
+                <li><strong>Legal Documents:</strong> Upload images of ownership certificates, libre, or business
+                    license.</li>
+                <li><strong>YouTube Video Link:</strong> Optionally paste a YouTube link showcasing your item.</li>
+            </ul>
+
+            <h3>Step 6 — Options (Posting Package)</h3>
+            <ul>
+                <li>Choose a <strong>Posting Package</strong> — each package has different visibility options and
+                    prices.</li>
+                <li>Select the package that fits your needs and tap <strong>"Post Item"</strong>.</li>
+            </ul>
+
+            <div class="tip">
+                <strong>💡 Tip:</strong> You can go back to any previous step using the <strong>"Back"</strong> button.
+                Your data is preserved across steps.
+            </div>
+        </section>
+
+        <!-- 10. JOBS MODULE -->
+        <section id="jobs">
+            <h2>10. Jobs Module</h2>
+            <p>The Jobs module connects machine operators with employers.</p>
+
+            <!-- 10.1 Find Jobs -->
+            <h3 id="find-jobs">10.1 Finding &amp; Applying for Jobs</h3>
+            <ol class="steps">
+                <li>Tap the <strong>Jobs</strong> tab in the bottom navigation.</li>
+                <li>Browse available job listings. Use the search bar to filter by keyword.</li>
+                <li>Each job card shows the job title, description, location, and number of applicants.</li>
+                <li>Tap a job card to view full details.</li>
+                <li>Tap <strong>"Apply"</strong> to submit your application. A confirmation dialog will appear.</li>
+                <li>If you've already applied, you'll see a <strong>"Already Applied"</strong> status instead.</li>
+            </ol>
+
+            <h3>Operator List</h3>
+            <p>Employers can view a list of registered operators, including their profiles, experience, and machinery
+                expertise.</p>
+
+            <h3>Job Filters</h3>
+            <p>Use the filters screen to narrow down job listings by location, category, or job type.</p>
+
+            <!-- 10.2 Post Job -->
+            <h3 id="post-job">10.2 Posting a Job</h3>
+            <ol class="steps">
+                <li>Navigate to your <strong>Profile</strong> and tap <strong>"Posted Jobs"</strong>.</li>
+                <li>Tap the <strong>"+"</strong> button to create a new job listing.</li>
+                <li>Fill in the job title, description, location, and requirements.</li>
+                <li>Submit the job posting.</li>
+            </ol>
+
+            <!-- 10.3 Becoming an Operator -->
+            <h3 id="operator-registration">10.3 Becoming an Operator</h3>
+            <ol class="steps">
+                <li>Go to your <strong>Profile</strong> screen.</li>
+                <li>Tap <strong>"Become an Operator"</strong> at the bottom of the page.</li>
+                <li>Fill in the Operator Registration form with your skills, experience, and machinery expertise.</li>
+                <li>Submit the form to register as an operator and start receiving job offers.</li>
+            </ol>
+            <div class="note">
+                <strong>ℹ️ Already an Operator?</strong> If you're already registered, the button will read
+                <strong>"Update Operator Profile"</strong>, allowing you to update your details.
+            </div>
+        </section>
+
+        <!-- 11. SUPPLIER REQUESTS -->
+        <section id="requests">
+            <h2>11. Supplier Requests</h2>
+            <p>The Requests module allows users to post supply/demand requirements and browse existing ones.</p>
+
+            <h3>Viewing Requests</h3>
+            <ol class="steps">
+                <li>Tap the <strong>Requests</strong> tab in the bottom navigation.</li>
+                <li>Browse the list of active requests. Each card shows the title, description, date, and requester
+                    info.</li>
+                <li>Use the search bar to filter requests by keyword.</li>
+                <li>Pull down to refresh the list.</li>
+            </ol>
+
+            <h3>Posting a Request</h3>
+            <ol class="steps">
+                <li>On the Supplier Home screen, tap the <strong>"+"</strong> button to post a new request.</li>
+                <li>Fill in the request details: title, description, quantity, and any specific requirements.</li>
+                <li>Tap <strong>"Submit"</strong> to publish your request.</li>
+            </ol>
+        </section>
+
+        <!-- 12. MESSAGES -->
+        <section id="messages">
+            <h2>12. Messages &amp; Chat</h2>
+
+            <h3>Viewing Messages</h3>
+            <ol class="steps">
+                <li>Access your messages from the <strong>Home screen</strong> message icon or from the Messages screen.
+                </li>
+                <li>Your inbox shows all conversations with other users, sorted by most recent.</li>
+                <li>Tap any conversation to open the full chat view.</li>
+            </ol>
+
+            <h3>Chatting</h3>
+            <ul>
+                <li>Type your message in the input field at the bottom.</li>
+                <li>Tap the <strong>send button</strong> to deliver your message.</li>
+                <li>Messages are delivered in real-time via the app's messaging system.</li>
+            </ul>
+        </section>
+
+        <!-- 13. NOTIFICATIONS -->
+        <section id="notifications">
+            <h2>13. Notifications</h2>
+            <p>Stay informed about activity related to your account:</p>
+            <ul>
+                <li>Access notifications from the <strong>bell icon</strong> on the Home screen or from <strong>Profile
+                        → Notifications</strong>.</li>
+                <li>A <strong>red badge</strong> on the Notifications menu item shows your unread count.</li>
+                <li>Notifications include alerts for new messages, job applications, order updates, and more.</li>
+            </ul>
+        </section>
+
+        <!-- 14. PROFILE -->
+        <section id="profile">
+            <h2>14. Profile &amp; Account Management</h2>
+            <p>Tap the <strong>Account</strong> tab to access your profile. Your profile displays:</p>
+            <ul>
+                <li><strong>Profile Picture</strong> — Your avatar image.</li>
+                <li><strong>Name &amp; Phone Number</strong> — Your registered details.</li>
+                <li><strong>Stats</strong> — Number of Ads (listings) and Followers.</li>
+            </ul>
+
+            <h3>Profile Menu Sections</h3>
+
+            <h4>My Account</h4>
+            <table>
+                <tbody>
+                    <tr>
+                        <td><strong id="edit-profile">Edit Profile</strong></td>
+                        <td>Update your name, email, phone number, and profile picture</td>
+                    </tr>
+                    <tr>
+                        <td><strong id="change-password">Change Password</strong></td>
+                        <td>Reset your password from within the app</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Activities</h4>
+            <table>
+                <tbody>
+                    <tr>
+                        <td><strong>Notifications</strong></td>
+                        <td>View all notifications (with unread badge count)</td>
+                    </tr>
+                    <tr>
+                        <td><strong id="favorites">My Favorites</strong></td>
+                        <td>Products you've liked/saved for later</td>
+                    </tr>
+                    <tr>
+                        <td><strong id="my-listings">My Listings</strong></td>
+                        <td>All products you have posted — edit or manage them</td>
+                    </tr>
+                    <tr>
+                        <td><strong id="my-requests">My Requests</strong></td>
+                        <td>Supplier requests you have submitted</td>
+                    </tr>
+                    <tr>
+                        <td><strong id="followings">Following</strong></td>
+                        <td>Users whose listings you follow</td>
+                    </tr>
+                    <tr>
+                        <td><strong id="my-packages">My Packages</strong></td>
+                        <td>Posting packages you have purchased</td>
+                    </tr>
+                    <tr>
+                        <td><strong id="my-jobs">My Jobs</strong></td>
+                        <td>Jobs you've posted (as Employer) or applied to (as Operator)</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h4>Support</h4>
+            <table>
+                <tbody>
+                    <tr>
+                        <td><strong>App Settings</strong></td>
+                        <td>Configure app preferences</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Help &amp; Support</strong></td>
+                        <td>Contact support or view FAQs</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Editing a Listing</h3>
+            <p>From <strong>My Listings</strong>, tap a listing to edit its title, description, price, images, location,
+                and other details.</p>
+
+            <h3>Logout</h3>
+            <p>Tap the <strong>"Logout"</strong> button at the bottom of the Profile screen. A confirmation dialog will
+                appear before signing you out.</p>
+        </section>
+
+        <!-- 15. SETTINGS -->
+        <section id="settings">
+            <h2>15. Settings</h2>
+            <p>Access settings from the <strong>Login screen gear icon</strong> or from <strong>Profile → App
+                    Settings</strong>.</p>
+            <table>
+                <tbody>
+                    <tr>
+                        <td><strong>🎨 Theme</strong></td>
+                        <td>Customize the app's visual appearance</td>
+                    </tr>
+                    <tr>
+                        <td><strong>🌐 Language</strong></td>
+                        <td>Switch the app language</td>
+                    </tr>
+                    <tr>
+                        <td><strong>ℹ️ About Us</strong></td>
+                        <td>Learn about the RENR platform</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 16. USER ROLES -->
+        <section id="roles">
+            <h2>16. User Roles Explained</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>Can Do</th>
+                        <th>Special Features</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="badge badge-orange">Akeray (Lessor)</span></td>
+                        <td>Post items for rent/lease, manage listings</td>
+                        <td>Must provide machinery details and legal documents during registration</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-green">Buyer</span></td>
+                        <td>Browse, search, purchase, add to cart, review products</td>
+                        <td>Standard shopping experience</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-blue">Seller</span></td>
+                        <td>Post items for sale, manage listings</td>
+                        <td>Must provide machinery details and legal documents during registration</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-orange">Tekeray (Lessee)</span></td>
+                        <td>Browse and rent equipment</td>
+                        <td>Sees a tenant-specific dashboard on the Home screen</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-red">Operator</span></td>
+                        <td>Find and apply for jobs, manage applied jobs</td>
+                        <td>Can register as an operator from the Profile screen</td>
+                    </tr>
+                    <tr>
+                        <td><span class="badge badge-blue">Employer</span></td>
+                        <td>Post job openings, browse operators</td>
+                        <td>Can view operator list and manage posted jobs</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="note">
+                <strong>ℹ️ Note:</strong> All roles can access core features like favorites, messaging, notifications,
+                and profile management. Role-specific features are activated based on what you select during
+                registration.
+            </div>
+        </section>
+
+        <!-- 17. FAQ -->
+        <section id="faq">
+            <h2>17. FAQ &amp; Troubleshooting</h2>
+
+            <h3>Q: I forgot my password. What do I do?</h3>
+            <p>
+                Tap <strong>"Forgot Password?"</strong> on the login screen. Enter your phone number to receive an OTP,
+                then set a new password.
+            </p>
+
+            <h3>Q: My account says "Not Verified." How do I verify?</h3>
+            <p>
+                When you try to sign in, a red banner with a <strong>"Verify"</strong> button will appear.
+                Tap it to receive an OTP via SMS and complete verification.
+            </p>
+
+            <h3>Q: How do I change my role?</h3>
+            <p>
+                Your role is set during registration. To change your role, please contact RENR support via
+                <strong>Profile → Help &amp; Support</strong>.
+            </p>
+
+            <h3>Q: Why can't I see the Jobs, Post, or Requests tabs?</h3>
+            <p>
+                These features require you to be logged in. Please sign in first to access them.
+            </p>
+
+            <h3>Q: How do I become an operator?</h3>
+            <p>
+                Go to <strong>Profile → Become an Operator</strong> at the bottom of the profile screen and fill out the
+                registration form.
+            </p>
+
+            <h3>Q: Can I edit my listing after posting?</h3>
+            <p>
+                Yes! Go to <strong>Profile → My Listings</strong>, find the listing, and tap to edit it.
+                You can update the title, description, price, images, and other details.
+            </p>
+
+            <h3>Q: How do I contact a seller?</h3>
+            <p>
+                On the Product Details page, use the messaging feature or view the seller's contact info to start a
+                conversation.
+            </p>
+
+            <h3>Q: What are posting packages?</h3>
+            <p>
+                When posting a new listing, the final step asks you to choose a posting package.
+                Each package has different visibility levels and durations. Higher-tier packages give your listing more
+                exposure.
+            </p>
+
+            <h3>Q: The app shows an error when I try to checkout.</h3>
+            <p>
+                Ensure you are logged in and have items in your cart. If the error persists,
+                check your internet connection or contact support.
+            </p>
+        </section>
+
+        <!-- FOOTER -->
+        <div style="text-align: center; padding: 40px 0 0; color: #aaa; font-size: 13px;">
+            <p>&copy; 2026 RENR. All rights reserved.</p>
+            <p>This documentation was generated for RENR version 1.0.</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
