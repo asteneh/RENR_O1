@@ -13,12 +13,12 @@ export type RootStackParamList = {
   Category: undefined;
   ProductDetails: { product: any };
   Cart: undefined;
-  PostProperty: undefined;
+  PostProperty: { allowedTransactionTypes?: ('rent' | 'sale')[] } | undefined;
   SignUp: { refCode?: string } | undefined;
   Login: undefined;
   Profile: undefined; // Move Profile to Stack
   Search: undefined;
-  Filter: undefined;
+  Filter: { query?: string; currentFilters?: any } | undefined;
   SearchResults: {
     query?: string;
     filters?: any;
@@ -32,12 +32,13 @@ export type RootStackParamList = {
   Messages: undefined;
   Chat: { conversation: any };
   Notification: undefined;
-  PostRequest: undefined;
+  PostRequest: { allowedRequestTypes?: ('buy' | 'rent')[] } | undefined;
   SupplierHome: undefined;
   EditProfile: undefined;
   MyListings: undefined;
   Followings: undefined;
-  Followers: undefined;
+  Followers: { userId?: string; title?: string } | undefined;
+  UserProfile: { userId: string; user?: any };
   MyRequests: undefined;
   MyJobs: { mode?: 'applied' | 'posted' } | undefined;
   MyPackages: { selectedPlan?: any; txRef?: string; serviceType?: string; returnTo?: string } | undefined;
@@ -46,6 +47,7 @@ export type RootStackParamList = {
   EditListing: { productId: string };
   TermsAndPrivacy: undefined;
   PostJob: { job?: any } | undefined;
+  JobApplicants: { jobId: string; jobTitle?: string };
   AppSettings: undefined;
   Feedback: undefined;
 };

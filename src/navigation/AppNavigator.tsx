@@ -40,9 +40,11 @@ import EditOperatorProfileScreen from '../screens/Jobs/EditOperatorProfileScreen
 import EditListingScreen from '../screens/Profile/EditListingScreen';
 import TermsAndPrivacyScreen from '../screens/Auth/TermsAndPrivacyScreen';
 import PostJobScreen from '../screens/Profile/PostJobScreen';
+import JobApplicantsScreen from '../screens/Jobs/JobApplicantsScreen';
 import OtpVerifyRegistrationScreen from '../screens/Auth/OtpVerifyRegistrationScreen';
 import AppSettingsScreen from '../screens/Profile/AppSettingsScreen';
 import FeedbackScreen from '../screens/Profile/FeedbackScreen';
+import UserProfileScreen from '../screens/Profile/UserProfileScreen';
 
 import { RootStackParamList } from './types';
 
@@ -141,6 +143,11 @@ export default function AppNavigator() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="UserProfile"
+          component={UserProfileScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="MyRequests"
           component={MyRequestsScreen}
           options={{ headerShown: false }}
@@ -173,6 +180,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="TermsAndPrivacy"
           component={TermsAndPrivacyScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="JobApplicants"
+          component={JobApplicantsScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen

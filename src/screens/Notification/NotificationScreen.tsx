@@ -7,20 +7,39 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { notificationService } from '../../api/services/notificationService';
 import { socket } from '../../api/socket';
+import { sendTestNotification, getNotificationPermissionStatus } from '../../utils/notifications';
+
 
 const THEME_COLOR = '#FF8C00';
 
 export default function NotificationScreen({ navigation }: any) {
     const { user } = useAuthStore();
-    const { setUnreadNotifications } = useNotificationStore();
+    const { setUnreadNotifications, showNotification } = useNotificationStore();
+
     const queryClient = useQueryClient();
     const userId = user?._id || '';
+
+    const [permStatus, setPermStatus] = useState<string>('');
 
     const { data: notifications, isLoading, refetch } = useQuery({
         queryKey: ['notifications', userId],
         queryFn: () => notificationService.getNotifications(userId),
         enabled: !!userId,
     });
+
+    // Show the current OS permission status so it's obvious when notifications
+    // are blocked at the system level.
+    useEffect(() => {
+        getNotificationPermissionStatus().then(setPermStatus).catch(() => {});
+    }, []);
+
+    const handleTestNotification = async () => {
+        const result = await sendTestNotification();
+        const status = await getNotificationPermissionStatus();
+        setPermStatus(status);
+        showNotification(result, status === 'granted' ? 'success' : 'error', 'Notification Test');
+    };
+
 
     const markSeenMutation = useMutation({
         mutationFn: () => notificationService.updateSeen(userId),
@@ -103,10 +122,22 @@ export default function NotificationScreen({ navigation }: any) {
                     <Ionicons name="arrow-back" size={24} color="#333" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Notifications</Text>
-                <View style={{ width: 44 }} />
+                <TouchableOpacity onPress={handleTestNotification} style={{ padding: 10 }}>
+                    <Ionicons name="notifications-outline" size={22} color={THEME_COLOR} />
+                </TouchableOpacity>
             </View>
 
+            {permStatus !== '' && permStatus !== 'granted' && (
+                <TouchableOpacity onPress={handleTestNotification} style={styles.permBanner}>
+                    <Ionicons name="warning-outline" size={16} color="#8a6d00" />
+                    <Text style={styles.permBannerText}>
+                        Notifications are {permStatus}. Tap to enable & send a test.
+                    </Text>
+                </TouchableOpacity>
+            )}
+
             <FlatList
+
                 data={notifications}
                 keyExtractor={(item) => item._id}
                 renderItem={renderItem}
@@ -154,5 +185,17 @@ const styles = StyleSheet.create({
     message: { fontSize: 14, color: '#666', marginBottom: 6, lineHeight: 20 },
     time: { fontSize: 12, color: '#999' },
     dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: THEME_COLOR },
-    emptyText: { textAlign: 'center', marginTop: 50, color: '#888' }
+    emptyText: { textAlign: 'center', marginTop: 50, color: '#888' },
+    permBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFF3CD',
+        paddingHorizontal: 15,
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#FFE69C',
+    },
+    permBannerText: { marginLeft: 8, color: '#8a6d00', fontSize: 13, flex: 1 },
 });
+
+

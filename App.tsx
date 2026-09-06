@@ -22,6 +22,8 @@ import { useNotificationStore } from './src/store/useNotificationStore';
 import { notificationService } from './src/api/services/notificationService';
 import { useThemeStore } from './src/store/useThemeStore';
 import { fetchUnreadMessagesCount } from './src/api/services/messageService';
+import { setupNotifications, presentLocalNotification } from './src/utils/notifications';
+
 
 
 // 1. Keep Native Screen visible until we are ready
@@ -85,11 +87,18 @@ export default function App() {
   } = useNotificationStore();
   const { theme } = useThemeStore();
 
+  // Ask for notification permissions & create the Android channel once on start
+  // so OS-level notifications can play a sound.
+  useEffect(() => {
+    setupNotifications().catch((e) => console.warn('Notification setup failed:', e));
+  }, []);
+
 
   useEffect(() => {
     if (token && user?._id) {
       socket.auth = { userId: user._id };
       socket.connect();
+
 
       socket.on('notification', (notification: any) => {
         console.log('Notification received:', notification);
@@ -98,12 +107,16 @@ export default function App() {
         if (notification?.user === user._id || notification?.isCampaign) {
           console.log('Notification match found, showing alert...');
           incrementUnreadNotifications();
-          showNotification(
-            notification.notification || notification.message || 'New notification',
-            'info',
-            notification.title || 'Notification'
-          );
+          const notifTitle = notification.title || 'Notification';
+          const notifBody = notification.notification || notification.message || 'New notification';
+          showNotification(notifBody, 'info', notifTitle);
+          // Fire an OS-level notification with sound (works when backgrounded too).
+          presentLocalNotification(notifTitle, notifBody, {
+            type: 'notification',
+            productId: notification?.productId,
+          });
         } else {
+
           console.log('Notification ignored: target user mismatch');
         }
       });
@@ -117,7 +130,13 @@ export default function App() {
             'info',
             'New Message'
           );
+          // OS-level notification with sound for the incoming message.
+          presentLocalNotification('New Message', 'You have a new message', {
+            type: 'message',
+            messageId: data?.messageId,
+          });
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
           queryClient.invalidateQueries({ queryKey: ['unreadMessagesCount', user._id] });
           if (data.messageId) {
             queryClient.invalidateQueries({ queryKey: ['messages', data.messageId] });

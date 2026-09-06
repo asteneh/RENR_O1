@@ -24,6 +24,13 @@ export interface GetJobsResponse {
     totalCount: number;
 }
 
+export interface JobApplicant {
+    _id?: string;
+    userId: any; // Populated User object (or raw id when not populated)
+    isShortListed: boolean;
+    createdAt?: string;
+}
+
 export interface JobQueryParams {
     machineType?: string;
     jobStatus?: 'Open' | 'Closed' | 'Draft';
@@ -84,6 +91,26 @@ export const deleteJob = async (jobId: string): Promise<any> => {
     return response.data;
 };
 
+// Fetch the list of applicants for a job the employer posted
+export const fetchJobApplicants = async (jobId: string): Promise<JobApplicant[]> => {
+    const response = await apiClient.get<JobApplicant[]>(`jobs/${jobId}/applicants`);
+    return Array.isArray(response.data) ? response.data : [];
+};
+
+// Toggle shortlist status of an applicant
+export const shortlistApplicant = async ({
+    jobId,
+    userId,
+    isShortListed,
+}: {
+    jobId: string;
+    userId: string;
+    isShortListed: boolean;
+}): Promise<Job> => {
+    const response = await apiClient.put<Job>('jobs/shortlist', { jobId, userId, isShortListed });
+    return response.data;
+};
+
 // Hooks
 export const useJobsQuery = (params: JobQueryParams = {}) => {
     return useQuery({
@@ -135,6 +162,26 @@ export const useDeleteJobMutation = () => {
     return useMutation({
         mutationFn: deleteJob,
         onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        },
+    });
+};
+
+export const useJobApplicantsQuery = (jobId?: string) => {
+    return useQuery({
+        queryKey: ['jobApplicants', jobId],
+        queryFn: () => fetchJobApplicants(jobId!),
+        enabled: !!jobId,
+    });
+};
+
+export const useShortlistApplicantMutation = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: shortlistApplicant,
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['jobApplicants', variables.jobId] });
+            queryClient.invalidateQueries({ queryKey: ['job', variables.jobId] });
             queryClient.invalidateQueries({ queryKey: ['jobs'] });
         },
     });

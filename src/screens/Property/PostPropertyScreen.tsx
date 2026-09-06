@@ -21,22 +21,36 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
-import { FeatureActions } from '../../constants/UserRoles';
+import { FeatureActions, getRoleDashboardConfig, TransactionKind } from '../../constants/UserRoles';
 import { TITLE_PLACEHOLDER } from '../../constants/formPlaceholders';
 import { checkPackageBeforePosting, useUserPackages } from '../../api/services/packageService';
 import { formatEtb, formatNumberWithCommas, getEtbCurrency, unformatNumber } from '../../utils/currency';
 
 const THEME_COLOR = '#FF8C00';
-const STEPS = ['Type', 'Category', 'Details', 'Location', 'Media', 'Options'];
+// Selection flow: Service/Type → Category → Vehicle Type (sub-category) + Brand → Details → …
+const STEPS = ['Type', 'Category', 'Brand', 'Details', 'Location', 'Media', 'Options'];
 
-export default function PostPropertyScreen({ navigation }: any) {
+export default function PostPropertyScreen({ navigation, route }: any) {
   const [currentStep, setCurrentStep] = useState(0);
   const insets = useSafeAreaInsets();
   const { showNotification, showAlert } = useNotificationStore();
 
+  // ── Role-based transaction type restriction (five-role hierarchy) ──
+  const getUserRoles = useAuthStore(state => state.getUserRoles);
+  const roleTransactionTypes = getRoleDashboardConfig(getUserRoles()).quickActions.postItemTypes;
+  const allowedTransactionTypes: TransactionKind[] =
+    (route?.params?.allowedTransactionTypes as TransactionKind[] | undefined) ??
+    (roleTransactionTypes.length > 0 ? roleTransactionTypes : ['rent', 'sale']);
+
+  const canPostRentType = allowedTransactionTypes.includes('rent');
+  const canPostSaleType = allowedTransactionTypes.includes('sale');
+  const defaultTransactionType = canPostRentType
+    ? TransactionTypeEnums.Rent
+    : TransactionTypeEnums.Sale;
+
   // Form State
   const [selectedService, setSelectedService] = useState<number>(ServiceEnums.Machinery);
-  const [transactionType, setTransactionType] = useState<number>(TransactionTypeEnums.Rent);
+  const [transactionType, setTransactionType] = useState<number>(defaultTransactionType);
   const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [selectedBrand, setSelectedBrand] = useState<any>(null);
   const [title, setTitle] = useState('');
@@ -62,6 +76,15 @@ export default function PostPropertyScreen({ navigation }: any) {
 
   const user = useAuthStore(state => state.user);
 
+  // Keep transaction type inside the allowed set if roles/params change
+  useEffect(() => {
+    const isRent = transactionType === TransactionTypeEnums.Rent;
+    const isSale = transactionType === TransactionTypeEnums.Sale;
+    if ((isRent && !canPostRentType) || (isSale && !canPostSaleType)) {
+      setTransactionType(defaultTransactionType);
+    }
+  }, [canPostRentType, canPostSaleType, defaultTransactionType, transactionType]);
+
   // Queries & Mutations
   const categoriesQuery = useCategoriesByService(selectedService);
   const attributesQuery = useCategoryAttributes(selectedCategory?._id);
@@ -75,6 +98,21 @@ export default function PostPropertyScreen({ navigation }: any) {
   const etbCurrency = getEtbCurrency(currenciesQuery.data || []);
   const { data: packages = [] } = useUserPackages();
   const activePackage = packages.find((p: any) => p.isValid);
+
+  // Whether the chosen category exposes any brands (drives the Brand step)
+  const hasBrands = !!brandsQuery.data && brandsQuery.data.length > 0;
+
+  // "Vehicle Type" lives inside the category specifications — it belongs to the
+  // Brand step (Category → Vehicle Type → Brand), not the Details step.
+  const isVehicleTypeAttribute = (name?: string) =>
+    !!name && /vehicle\s*type/i.test(name);
+  const vehicleTypeAttribute = attributesQuery.data?.find(attr => isVehicleTypeAttribute(attr.name));
+  const detailAttributes = attributesQuery.data?.filter(attr => !isVehicleTypeAttribute(attr.name));
+
+  // Reset brand whenever the category changes so a stale brand isn't submitted
+  useEffect(() => {
+    setSelectedBrand(null);
+  }, [selectedCategory?._id]);
 
   // Auto-select postType based on active package
   useEffect(() => {
@@ -176,22 +214,29 @@ export default function PostPropertyScreen({ navigation }: any) {
     }
 
     if (currentStep === 2) {
+      // Vehicle Type (a category specification) is required when it exists
+      nextErrors.vehicleType = !!vehicleTypeAttribute && !attributeValues[vehicleTypeAttribute.name];
+      // Brand is required only when the selected category actually has brands
+      nextErrors.brand = hasBrands && !selectedBrand;
+    }
+
+    if (currentStep === 3) {
       nextErrors.title = !title.trim();
       nextErrors.description = !description.trim();
       nextErrors.price = !price.trim();
     }
 
-    if (currentStep === 3) {
+    if (currentStep === 4) {
       nextErrors.location = !selectedLocation;
       nextErrors.subCity = !selectedSubCity;
       nextErrors.wereda = !selectedWereda;
     }
 
-    if (currentStep === 4) {
+    if (currentStep === 5) {
       nextErrors.images = images.length === 0;
     }
 
-    if (currentStep === 5) {
+    if (currentStep === 6) {
       // Must have an active package or post through Gadal
       nextErrors.postType = !activePackage && !postThroughGadal;
     }
@@ -371,18 +416,22 @@ export default function PostPropertyScreen({ navigation }: any) {
 
             <Text style={styles.label}>Select Type</Text>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity
-                style={[styles.typeChip, transactionType === TransactionTypeEnums.Rent && styles.activeTypeChip]}
-                onPress={() => setTransactionType(TransactionTypeEnums.Rent)}
-              >
-                <Text style={[styles.typeChipText, transactionType === TransactionTypeEnums.Rent && styles.activeTypeChipText]}>Rent</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeChip, transactionType === TransactionTypeEnums.Sale && styles.activeTypeChip]}
-                onPress={() => setTransactionType(TransactionTypeEnums.Sale)}
-              >
-                <Text style={[styles.typeChipText, transactionType === TransactionTypeEnums.Sale && styles.activeTypeChipText]}>Sale</Text>
-              </TouchableOpacity>
+              {canPostRentType && (
+                <TouchableOpacity
+                  style={[styles.typeChip, transactionType === TransactionTypeEnums.Rent && styles.activeTypeChip]}
+                  onPress={() => setTransactionType(TransactionTypeEnums.Rent)}
+                >
+                  <Text style={[styles.typeChipText, transactionType === TransactionTypeEnums.Rent && styles.activeTypeChipText]}>Rent</Text>
+                </TouchableOpacity>
+              )}
+              {canPostSaleType && (
+                <TouchableOpacity
+                  style={[styles.typeChip, transactionType === TransactionTypeEnums.Sale && styles.activeTypeChip]}
+                  onPress={() => setTransactionType(TransactionTypeEnums.Sale)}
+                >
+                  <Text style={[styles.typeChipText, transactionType === TransactionTypeEnums.Sale && styles.activeTypeChipText]}>Sale</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
@@ -411,6 +460,86 @@ export default function PostPropertyScreen({ navigation }: any) {
         )}
 
         {currentStep === 2 && (
+          <View>
+            {/* Selected category recap */}
+            <Text style={styles.label}>Category</Text>
+            <View style={styles.selectedTypeBox}>
+              {selectedCategory?.icon ? (
+                <Image source={{ uri: selectedCategory.icon }} style={{ width: 24, height: 24, marginRight: 10 }} />
+              ) : (
+                <Ionicons name="cube-outline" size={22} color={THEME_COLOR} style={{ marginRight: 10 }} />
+              )}
+              <Text style={styles.selectedTypeText}>{selectedCategory?.name || 'No category selected'}</Text>
+              <TouchableOpacity onPress={() => setCurrentStep(1)}>
+                <Text style={styles.changeLink}>Change</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Vehicle Type — moved here from the Details specifications */}
+            {attributesQuery.isLoading ? (
+              <ActivityIndicator color={THEME_COLOR} style={{ marginTop: 15 }} />
+            ) : vehicleTypeAttribute ? (
+              <>
+                <Text style={styles.label}>{vehicleTypeAttribute.name}</Text>
+                {vehicleTypeAttribute.isInsertion ? (
+                  <TextInput
+                    style={[styles.input, validationErrors.vehicleType && styles.inputError]}
+                    placeholder={`Enter ${vehicleTypeAttribute.name}`}
+                    placeholderTextColor="#888"
+                    value={attributeValues[vehicleTypeAttribute.name] || ''}
+                    onChangeText={(val) => {
+                      setAttributeValues({ ...attributeValues, [vehicleTypeAttribute.name]: val });
+                      setValidationErrors(prev => ({ ...prev, vehicleType: false }));
+                    }}
+                  />
+                ) : (
+                  <View style={[styles.brandWrap, validationErrors.vehicleType && styles.validationBorder]}>
+                    {vehicleTypeAttribute.values.map(val => (
+                      <TouchableOpacity
+                        key={val}
+                        style={[styles.chip, attributeValues[vehicleTypeAttribute.name] === val && styles.activeChip]}
+                        onPress={() => {
+                          setAttributeValues({ ...attributeValues, [vehicleTypeAttribute.name]: val });
+                          setValidationErrors(prev => ({ ...prev, vehicleType: false }));
+                        }}
+                      >
+                        <Text style={attributeValues[vehicleTypeAttribute.name] === val ? styles.activeChipText : styles.chipText}>
+                          {val}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : null}
+
+            <Text style={styles.label}>Select Brand</Text>
+            {brandsQuery.isLoading ? (
+              <ActivityIndicator color={THEME_COLOR} />
+            ) : hasBrands ? (
+              <View style={[styles.brandWrap, validationErrors.brand && styles.validationBorder]}>
+                {brandsQuery.data!.map(brand => (
+                  <TouchableOpacity
+                    key={brand._id}
+                    style={[styles.chip, selectedBrand?._id === brand._id && styles.activeChip]}
+                    onPress={() => {
+                      setSelectedBrand(brand);
+                      setValidationErrors(prev => ({ ...prev, brand: false }));
+                    }}
+                  >
+                    <Text style={[styles.chipText, selectedBrand?._id === brand._id && styles.activeChipText]}>
+                      {brand.description}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.emptyHint}>No brands available for this type. You can continue.</Text>
+            )}
+          </View>
+        )}
+
+        {currentStep === 3 && (
           <View>
             <Text style={styles.label}>Title</Text>
             <TextInput
@@ -470,27 +599,10 @@ export default function PostPropertyScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            {brandsQuery.data && brandsQuery.data.length > 0 && (
-              <View style={{ marginTop: 15 }}>
-                <Text style={styles.label}>Brand</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-                  {brandsQuery.data.map(brand => (
-                    <TouchableOpacity
-                      key={brand._id}
-                      style={[styles.chip, selectedBrand?._id === brand._id && styles.activeChip]}
-                      onPress={() => setSelectedBrand(brand)}
-                    >
-                      <Text style={[styles.chipText, selectedBrand?._id === brand._id && styles.activeChipText]}>{brand.description}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
-
             {attributesQuery.isLoading ? <ActivityIndicator color={THEME_COLOR} /> : (
               <View style={{ marginTop: 20 }}>
                 <Text style={styles.sectionHeader}>Specifications</Text>
-                {attributesQuery.data?.map(attr => (
+                {detailAttributes?.map(attr => (
                   <View key={attr._id} style={{ marginTop: 10 }}>
                     <Text style={styles.labelSmall}>{attr.name}</Text>
                     {attr.isInsertion ? (
@@ -521,7 +633,7 @@ export default function PostPropertyScreen({ navigation }: any) {
           </View>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 4 && (
           <View>
             <Text style={styles.label}>Select Location</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
@@ -584,7 +696,7 @@ export default function PostPropertyScreen({ navigation }: any) {
           </View>
         )}
 
-        {currentStep === 4 && (
+        {currentStep === 5 && (
           <View>
             <Text style={styles.label}>Product Photos</Text>
             <View style={[styles.uploadBox, validationErrors.images && styles.inputError]}>
@@ -645,7 +757,7 @@ export default function PostPropertyScreen({ navigation }: any) {
           </View>
         )}
 
-        {currentStep === 5 && (
+        {currentStep === 6 && (
           <View>
             <Text style={styles.sectionHeader}>Posting Options</Text>
 
@@ -816,6 +928,17 @@ const styles = StyleSheet.create({
   activeChip: { backgroundColor: THEME_COLOR },
   chipText: { color: '#333' },
   activeChipText: { color: '#fff', fontWeight: 'bold' },
+
+  // Brand step
+  brandWrap: { flexDirection: 'row', flexWrap: 'wrap', borderRadius: 8, paddingTop: 5 },
+  selectedTypeBox: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFF5E5', borderWidth: 1, borderColor: '#FFE0B2',
+    borderRadius: 10, padding: 12,
+  },
+  selectedTypeText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#333' },
+  changeLink: { color: THEME_COLOR, fontWeight: 'bold', fontSize: 13 },
+  emptyHint: { fontSize: 13, color: '#AAA', fontStyle: 'italic', marginTop: 4 },
 
   // Media
   uploadBox: {

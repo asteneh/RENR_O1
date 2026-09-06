@@ -162,6 +162,15 @@ export default function ProductDetailsScreen() {
     }
   };
 
+  const handleOpenSellerProfile = () => {
+    const sellerId = displayProduct.consignee?._id;
+    if (!sellerId) return;
+    navigation.navigate('UserProfile', {
+      userId: sellerId,
+      user: displayProduct.consignee,
+    });
+  };
+
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(0);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
@@ -470,14 +479,23 @@ export default function ProductDetailsScreen() {
           <Text style={styles.sectionTitle}>Seller Info</Text>
           <View style={styles.dealerCardContainer}>
             <View style={styles.dealerCard}>
-              <Image
-                source={{ uri: displayProduct.consignee?.proflePic ? `${CONFIG.FILE_URL}/${displayProduct.consignee.proflePic}` : 'https://via.placeholder.com/45' }}
-                style={styles.dealerAvatar}
-              />
-              <View style={{ flex: 1, marginLeft: 12 }}>
-                <Text style={styles.dealerName}>{displayProduct.consignee?.firstName} {displayProduct.consignee?.lastName}</Text>
-                <Text style={styles.dealerSub}>{displayProduct.consignee?.followers?.length || 0} Followers</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.dealerProfileTouchable}
+                activeOpacity={0.7}
+                onPress={handleOpenSellerProfile}
+              >
+                <Image
+                  source={{ uri: displayProduct.consignee?.proflePic ? `${CONFIG.FILE_URL}/${displayProduct.consignee.proflePic}` : 'https://via.placeholder.com/45' }}
+                  style={styles.dealerAvatar}
+                />
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.dealerName}>{displayProduct.consignee?.firstName} {displayProduct.consignee?.lastName}</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#888" style={{ marginLeft: 4 }} />
+                  </View>
+                  <Text style={styles.dealerSub}>{displayProduct.consignee?.followers?.length || 0} Followers</Text>
+                </View>
+              </TouchableOpacity>
 
               <TouchableOpacity 
                 style={[styles.followBtn, isFollowing && styles.followingBtn]} 
@@ -747,9 +765,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     padding: 15, borderBottomWidth: 1, borderBottomColor: '#EEE'
   },
+  dealerProfileTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
   dealerAvatar: {
     width: 45, height: 45, borderRadius: 25, backgroundColor: '#EEE',
-    marginRight: 15
+    marginRight: 12
   },
   dealerName: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   dealerSub: { fontSize: 13, color: '#777' },

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput,
     TouchableOpacity, ActivityIndicator, BackHandler
@@ -16,10 +16,12 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import RoleAccessGuard from '../../components/common/RoleAccessGuard';
-import { FeatureActions } from '../../constants/UserRoles';
+import { FeatureActions, getRoleDashboardConfig, RequestKind } from '../../constants/UserRoles';
 import { TITLE_PLACEHOLDER } from '../../constants/formPlaceholders';
 
 const THEME_COLOR = '#FF8C00';
+
+type RequestTypeLabel = 'To Rent' | 'To Buy';
 
 // Map UI labels → backend enum values
 const toApiRequestType = (type: string): string => {
@@ -34,11 +36,23 @@ const MAIN_CATEGORIES = [
     { id: 'vehicle',   label: 'Vehicle',   serviceId: 3 },
 ];
 
-export default function PostRequestScreen() {
+export default function PostRequestScreen({ route }: any) {
     const navigation = useNavigation<any>();
-    const { user } = useAuthStore();
+    const { user, getUserRoles } = useAuthStore();
     const { showNotification } = useNotificationStore();
     const createMutation = useCreateRequestMutation();
+
+    // ── Role-based request type restriction (five-role hierarchy) ──
+    const roleRequestTypes = getRoleDashboardConfig(getUserRoles()).quickActions.postRequestTypes;
+    const allowedRequestKinds: RequestKind[] =
+        (route?.params?.allowedRequestTypes as RequestKind[] | undefined) ??
+        (roleRequestTypes.length > 0 ? roleRequestTypes : ['buy', 'rent']);
+
+    // UI labels derived from the allowed kinds — order: To Rent, To Buy
+    const requestTypeOptions: RequestTypeLabel[] = (['rent', 'buy'] as RequestKind[])
+        .filter(kind => allowedRequestKinds.includes(kind))
+        .map(kind => (kind === 'rent' ? 'To Rent' : 'To Buy'));
+    const defaultRequestType: RequestTypeLabel = requestTypeOptions[0] || 'To Buy';
 
     // Which main tab is active: 'machinery' | 'vehicle'
     const [mainCategory, setMainCategory] = useState<'machinery' | 'vehicle'>('machinery');
@@ -55,11 +69,19 @@ export default function PostRequestScreen() {
     const [form, setForm] = useState({
         title: '',
         description: '',
-        requestType: 'To Rent',
+        requestType: defaultRequestType,
         location: '',
         qty: '1',
         postThroughGadal: false,
     });
+
+    // Keep the request type inside the allowed set if roles/params change
+    const allowedOptionsKey = requestTypeOptions.join('|');
+    useEffect(() => {
+        if (!requestTypeOptions.includes(form.requestType as RequestTypeLabel)) {
+            setForm(prev => ({ ...prev, requestType: defaultRequestType }));
+        }
+    }, [allowedOptionsKey, form.requestType, defaultRequestType]);
 
     // Fetch sub-categories for both main categories
     const { data: machineryTypes, isLoading: machineriesLoading } = useCategoriesByService(1);
@@ -194,7 +216,7 @@ export default function PostRequestScreen() {
                 {/* Request Type */}
                 <Text style={styles.label}>Request Type</Text>
                 <View style={styles.typeRow}>
-                    {['To Rent', 'To Buy'].map(type => (
+                    {requestTypeOptions.map(type => (
                         <TouchableOpacity
                             key={type}
                             style={[styles.typeBtn, form.requestType === type && styles.activeTypeBtn]}

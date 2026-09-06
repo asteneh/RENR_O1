@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFollowers, useFollowings, useFollow, useUnfollow, useUserProfile } from '../../api/services/userService';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -13,13 +13,16 @@ const THEME_COLOR = '#FF8C00';
 
 export default function FollowersScreen() {
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
     const { t } = useTranslation();
     const { theme } = useThemeStore();
     const isDark = theme === 'dark';
     const { showAlert, showNotification } = useNotificationStore();
 
     const { data: profile } = useUserProfile();
-    const userId = profile?._id || '';
+    const currentUserId = profile?._id || '';
+    const userId = route.params?.userId || currentUserId;
+    const headerTitle = route.params?.title || t('followers');
 
     const { data: followersData, isLoading: isLoadingFollowers } = useFollowers(userId);
     const { data: followingsData, isLoading: isLoadingFollowings } = useFollowings(userId);
@@ -44,7 +47,7 @@ export default function FollowersScreen() {
                         style: 'destructive',
                         onPress: () => {
                             unfollowMutation.mutate(
-                                { user: userId, userToUnfollow: targetId },
+                                { user: currentUserId, userToUnfollow: targetId },
                                 {
                                     onSuccess: () => showNotification(t('unfollowedSuccess') || "Unfollowed successfully", "success"),
                                     onError: () => showNotification(t('unfollowFailed') || "Failed to unfollow", "error")
@@ -56,7 +59,7 @@ export default function FollowersScreen() {
             );
         } else {
             followMutation.mutate(
-                { user: userId, userToFollow: targetId },
+                { user: currentUserId, userToFollow: targetId },
                 {
                     onSuccess: () => showNotification(t('followedSuccess') || "Followed successfully", "success"),
                     onError: () => showNotification(t('followFailed') || "Failed to follow", "error")
@@ -79,7 +82,7 @@ export default function FollowersScreen() {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color={isDark ? "#FFF" : "#333"} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, isDark && styles.textDark]}>{t('followers')}</Text>
+                <Text style={[styles.headerTitle, isDark && styles.textDark]}>{headerTitle}</Text>
                 <View style={{ width: 28 }} />
             </View>
 
@@ -88,11 +91,19 @@ export default function FollowersScreen() {
                 keyExtractor={(item) => item._id}
                 renderItem={({ item }) => {
                     const isFollowingUser = followingsList.some((f: any) => f._id === item._id);
-                    const isSelf = item._id === userId;
+                    const isSelf = item._id === currentUserId;
                     const fullName = `${item.firstName || ''} ${item.lastName || ''}`.trim() || t('user') || 'User';
 
                     return (
-                        <View style={[styles.userCard, isDark && styles.userCardDark]}>
+                        <TouchableOpacity
+                            style={[styles.userCard, isDark && styles.userCardDark]}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                                if (item._id) {
+                                    navigation.push('UserProfile', { userId: item._id, user: item });
+                                }
+                            }}
+                        >
                             <Image
                                 source={{ uri: item.proflePic ? `${CONFIG.FILE_URL}/${item.proflePic}` : 'https://via.placeholder.com/50' }}
                                 style={styles.userAvatar}
@@ -123,7 +134,7 @@ export default function FollowersScreen() {
                                     </Text>
                                 </TouchableOpacity>
                             )}
-                        </View>
+                        </TouchableOpacity>
                     );
                 }}
                 contentContainerStyle={{ padding: 20 }}

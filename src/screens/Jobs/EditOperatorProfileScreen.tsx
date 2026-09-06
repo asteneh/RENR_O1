@@ -8,9 +8,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { useCategoriesByService } from '../../api/services/categoryService';
-import { useOperatorById, useUpdateOperator } from '../../api/services/operatorService';
+import { useUserProfile, useUpdateUserProfile, useUpdateUserProfileJson } from '../../api/services/userService';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -45,7 +46,7 @@ export default function EditOperatorProfileScreen() {
     const [loaded, setLoaded] = useState(false);
 
     // ── Fetch current operator data ──────────────────────────────────────────
-    const { data: operator, isLoading: profileLoading } = useOperatorById(operatorId);
+    const { data: operator, isLoading: profileLoading } = useUserProfile();
 
     // Pre-fill form once data arrives
     useEffect(() => {
@@ -67,7 +68,8 @@ export default function EditOperatorProfileScreen() {
     }, [operator, loaded]);
 
     const { data: machineries, isLoading: categoriesLoading } = useCategoriesByService(1);
-    const updateMutation = useUpdateOperator();
+    const updateMutation = useUpdateUserProfile();
+    const updateJsonMutation = useUpdateUserProfileJson();
 
     // ── Helpers ──────────────────────────────────────────────────────────────
     const pickDocument = async () => {
@@ -131,33 +133,67 @@ export default function EditOperatorProfileScreen() {
 
     const handleSubmit = async () => {
         if (!validateStep()) return;
-        if (!operatorId) {
-            showNotification('Operator ID is missing. Please try again.', 'error');
-            return;
-        }
 
-        const formData = new FormData();
-        formData.append('firstName', form.firstName);
-        formData.append('lastName', form.lastName);
-        formData.append('phoneNumber', form.phone);
-        if (form.email) formData.append('email', form.email);
-        formData.append('experience', form.experience);
-        formData.append('machinesYouCanOperate', JSON.stringify(form.machineTypes));
-
-        form.newLicenseFiles.forEach((file, index) => {
-            const uri = file.uri;
-            const name = uri.split('/').pop() || `license_${index}.jpg`;
-            formData.append('supportingDocuments', { uri, name, type: 'image/jpeg' } as any);
-        });
+        const isPending = updateMutation.isPending || updateJsonMutation.isPending;
+        if (isPending) return;
 
         try {
-            await updateMutation.mutateAsync({ id: operatorId, formData });
+            let updatedUser: any;
+
+            if (form.newLicenseFiles.length > 0) {
+                // Has files → use multipart/form-data
+                const formData = new FormData();
+                formData.append('firstName', form.firstName);
+                formData.append('lastName', form.lastName);
+                formData.append('phoneNumber', form.phone);
+                if (form.email) formData.append('email', form.email);
+                formData.append('experience', form.experience);
+                formData.append('machinesYouCanOperate', JSON.stringify(form.machineTypes));
+                // These are the operator's registration / legal documents — they must be
+                // sent under `legalDocuments` (NOT `image`, which the API treats as the
+                // profile picture). `legalDocumentNames` keeps a readable label per file.
+                const documentNames: string[] = [];
+                form.newLicenseFiles.forEach((file, index) => {
+                    const uri = file.uri;
+                    const name = file.fileName || uri.split('/').pop() || `document_${index + 1}.jpg`;
+                    documentNames.push(name);
+                    formData.append('legalDocuments', {
+                        uri,
+                        name,
+                        type: file.mimeType || 'image/jpeg',
+                    } as any);
+                });
+                formData.append('legalDocumentNames', JSON.stringify(documentNames));
+                console.log(`[EditOpProfile] Sending FormData with ${documentNames.length} document(s)`);
+
+                updatedUser = await updateMutation.mutateAsync(formData);
+            } else {
+                // No files → send plain JSON so arrays are handled correctly on the server
+                const payload: Record<string, any> = {
+                    firstName: form.firstName,
+                    lastName: form.lastName,
+                    phoneNumber: form.phone,
+                    experience: form.experience,
+                    machinesYouCanOperate: form.machineTypes,
+                };
+                if (form.email) payload.email = form.email;
+                console.log('[EditOpProfile] Sending JSON payload:', JSON.stringify(payload));
+                updatedUser = await updateJsonMutation.mutateAsync(payload);
+            }
+
+            if (updatedUser) {
+                useAuthStore.getState().updateUser(updatedUser);
+            }
             showNotification('Profile updated successfully!', 'success');
             setActiveStep(2);
         } catch (error: any) {
+            const status = error?.response?.status;
+            const data = error?.response?.data;
+            console.error(`[EditOpProfile] Save error (HTTP ${status}):`, JSON.stringify(data || error?.message || error));
             showNotification(cleanErrorMessage(error), 'error');
         }
     };
+
 
     // ── Step content ─────────────────────────────────────────────────────────
     const renderStepContent = () => {
@@ -267,18 +303,37 @@ export default function EditOperatorProfileScreen() {
                             </View>
                         )}
 
-                        <Text style={[styles.label, { marginTop: 20 }]}>Upload New Documents (Optional)</Text>
+                        <Text style={[styles.label, { marginTop: 20 }]}>Registration Documents</Text>
+
+                        {(operator?.legalDocuments?.length ?? 0) > 0 && (
+                            <View style={styles.fileList}>
+                                {operator?.legalDocuments?.map((doc, idx) => (
+                                    <View key={`existing_${idx}`} style={styles.fileItem}>
+                                        <Ionicons name="document-attach-outline" size={20} color={THEME_COLOR} />
+                                        <Text style={styles.fileName} numberOfLines={1}>{doc.name}</Text>
+                                        <Text style={styles.uploadedTag}>Uploaded</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+
                         <TouchableOpacity style={styles.uploadBtn} onPress={pickDocument}>
                             <Ionicons name="cloud-upload-outline" size={24} color={THEME_COLOR} />
-                            <Text style={styles.uploadBtnText}>Choose Files</Text>
+                            <Text style={styles.uploadBtnText}>Add Documents</Text>
                         </TouchableOpacity>
+                        <Text style={styles.uploadHint}>
+                            New documents are added to your existing ones.
+                        </Text>
 
                         {form.newLicenseFiles.length > 0 && (
                             <View style={styles.fileList}>
                                 {form.newLicenseFiles.map((file, idx) => (
                                     <View key={idx} style={styles.fileItem}>
                                         <Ionicons name="image-outline" size={20} color="#666" />
-                                        <Text style={styles.fileName} numberOfLines={1}>Document {idx + 1}.jpg</Text>
+                                        <Text style={styles.fileName} numberOfLines={1}>
+                                            {file.fileName || file.uri?.split('/').pop() || `Document ${idx + 1}`}
+                                        </Text>
+
                                         <TouchableOpacity
                                             onPress={() =>
                                                 setForm(prev => ({
@@ -358,12 +413,12 @@ export default function EditOperatorProfileScreen() {
                         style={[
                             styles.nextBtn,
                             activeStep === 0 && { width: '100%' },
-                            updateMutation.isPending && { opacity: 0.7 },
+                            (updateMutation.isPending || updateJsonMutation.isPending) && { opacity: 0.7 },
                         ]}
                         onPress={activeStep === 1 ? handleSubmit : handleNext}
-                        disabled={updateMutation.isPending}
+                        disabled={updateMutation.isPending || updateJsonMutation.isPending}
                     >
-                        {updateMutation.isPending ? (
+                        {(updateMutation.isPending || updateJsonMutation.isPending) ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
                             <Text style={styles.nextBtnText}>
@@ -445,7 +500,19 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     uploadBtnText: { color: THEME_COLOR, fontWeight: 'bold', fontSize: 16 },
+    uploadHint: { fontSize: 12, color: '#888', marginTop: 8, textAlign: 'center' },
+    uploadedTag: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: '#4CAF50',
+        backgroundColor: '#E8F5E9',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        overflow: 'hidden',
+    },
     fileList: { marginTop: 15, gap: 10 },
+
     fileItem: {
         flexDirection: 'row',
         alignItems: 'center',

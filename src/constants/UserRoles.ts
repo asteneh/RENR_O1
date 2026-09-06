@@ -105,37 +105,39 @@ export const ACCESS_MATRIX: Record<FeatureAction, Record<UserRole, AccessLevel>>
     [UserRoles.RENT_OWNER]: 'paid',
     [UserRoles.OPERATOR]: 'no',
   },
+  // Buyer may only post RENT items (per five-role hierarchy)
   [FeatureActions.POST_SALE]: {
     [UserRoles.USER]: 'no',
     [UserRoles.EMPLOYER]: 'paid',
-    [UserRoles.BUYER]: 'paid',
+    [UserRoles.BUYER]: 'no',
     [UserRoles.SELLER]: 'paid',
-    [UserRoles.RENT_SEEKER]: 'paid',
-    [UserRoles.RENT_OWNER]: 'no',
+    [UserRoles.RENT_SEEKER]: 'no',
+    [UserRoles.RENT_OWNER]: 'paid',
     [UserRoles.OPERATOR]: 'no',
   },
   [FeatureActions.POST_RENT]: {
     [UserRoles.USER]: 'no',
     [UserRoles.EMPLOYER]: 'paid',
-    [UserRoles.BUYER]: 'no',
+    [UserRoles.BUYER]: 'paid',
     [UserRoles.SELLER]: 'paid',
-    [UserRoles.RENT_SEEKER]: 'paid',
+    [UserRoles.RENT_SEEKER]: 'no',
     [UserRoles.RENT_OWNER]: 'paid',
     [UserRoles.OPERATOR]: 'no',
   },
+  // Buyer & Seller can post buy requests; Tekeray can post both request types
   [FeatureActions.REQUEST_BUY]: {
     [UserRoles.USER]: 'no',
     [UserRoles.EMPLOYER]: 'paid',
     [UserRoles.BUYER]: 'paid',
-    [UserRoles.SELLER]: 'no',
-    [UserRoles.RENT_SEEKER]: 'no',
+    [UserRoles.SELLER]: 'paid',
+    [UserRoles.RENT_SEEKER]: 'paid',
     [UserRoles.RENT_OWNER]: 'no',
     [UserRoles.OPERATOR]: 'no',
   },
   [FeatureActions.REQUEST_RENT]: {
     [UserRoles.USER]: 'no',
     [UserRoles.EMPLOYER]: 'paid',
-    [UserRoles.BUYER]: 'paid',
+    [UserRoles.BUYER]: 'no',
     [UserRoles.SELLER]: 'no',
     [UserRoles.RENT_SEEKER]: 'paid',
     [UserRoles.RENT_OWNER]: 'no',
@@ -261,6 +263,205 @@ export function getBlockedMessage(roles: UserRole[], feature: FeatureAction): st
     return `This feature requires an active membership plan. Please upgrade to continue.`;
   }
   return '';
+}
+
+// ─── Role Dashboard Hierarchy ─────────────────────────────────────
+// Single source of truth for what each role sees on its dashboard
+// (Profile screen: Quick Actions + Activities).
+//
+// Role definitions:
+//   BUYER       → wants to buy an item
+//   SELLER      → wants to sell an item
+//   RENT_OWNER  → "Akeray": rents out an item/property to others
+//   RENT_SEEKER → "Tekeray": rents an item/property from others
+//   OPERATOR    → looking for a job
+
+export type TransactionKind = 'rent' | 'sale';
+export type RequestKind = 'buy' | 'rent';
+
+export interface RoleDashboardConfig {
+  quickActions: {
+    /** Which transaction types the "Post Items" flow may create. Empty = hide action. */
+    postItemTypes: TransactionKind[];
+    /** Which request types the "Post Request" flow may create. Empty = hide action. */
+    postRequestTypes: RequestKind[];
+    /** Show the "Post Job" quick action. */
+    postJob: boolean;
+    /** Show the "Looking For Job" quick action (Operator only). */
+    lookingForJob: boolean;
+  };
+  activities: {
+    myPosts: boolean;
+    myRequests: boolean;
+    /** Operator uses the singular label "My Package". */
+    singularPackageLabel: boolean;
+    appliedJobs: boolean;
+    postedJobs: boolean;
+  };
+}
+
+const EMPTY_CONFIG: RoleDashboardConfig = {
+  quickActions: {
+    postItemTypes: [],
+    postRequestTypes: [],
+    postJob: false,
+    lookingForJob: false,
+  },
+  activities: {
+    myPosts: false,
+    myRequests: false,
+    singularPackageLabel: false,
+    appliedJobs: false,
+    postedJobs: false,
+  },
+};
+
+export const ROLE_DASHBOARD_CONFIG: Record<UserRole, RoleDashboardConfig> = {
+  // Plain user: browse only
+  [UserRoles.USER]: EMPTY_CONFIG,
+
+  // 1. BUYER — Post Items (Rent) · Post Request (Buyer) · Post Job
+  [UserRoles.BUYER]: {
+    quickActions: {
+      postItemTypes: ['rent'],
+      postRequestTypes: ['buy'],
+      postJob: true,
+      lookingForJob: false,
+    },
+    activities: {
+      myPosts: true,
+      myRequests: true,
+      singularPackageLabel: false,
+      appliedJobs: false,
+      postedJobs: true,
+    },
+  },
+
+  // 2. SELLER — Post Items (Seller + Rent) · Post Request (Buyer) · Post Job
+  [UserRoles.SELLER]: {
+    quickActions: {
+      postItemTypes: ['sale', 'rent'],
+      postRequestTypes: ['buy'],
+      postJob: true,
+      lookingForJob: false,
+    },
+    activities: {
+      myPosts: true,
+      myRequests: true,
+      singularPackageLabel: false,
+      appliedJobs: false,
+      postedJobs: true,
+    },
+  },
+
+  // 3. AKERAY (RENT_OWNER) — Post Items (Rent + Seller) · Post Job. No requests.
+  [UserRoles.RENT_OWNER]: {
+    quickActions: {
+      postItemTypes: ['rent', 'sale'],
+      postRequestTypes: [],
+      postJob: true,
+      lookingForJob: false,
+    },
+    activities: {
+      myPosts: true,
+      myRequests: false,
+      singularPackageLabel: false,
+      appliedJobs: false,
+      postedJobs: true,
+    },
+  },
+
+  // 4. TEKERAY (RENT_SEEKER) — Post Request (To Rent + To Buy) · Post Job. No item posts.
+  [UserRoles.RENT_SEEKER]: {
+    quickActions: {
+      postItemTypes: [],
+      postRequestTypes: ['rent', 'buy'],
+      postJob: true,
+      lookingForJob: false,
+    },
+    activities: {
+      myPosts: false,
+      myRequests: true,
+      singularPackageLabel: false,
+      appliedJobs: false,
+      postedJobs: true,
+    },
+  },
+
+  // 5. OPERATOR — Looking For Job only.
+  [UserRoles.OPERATOR]: {
+    quickActions: {
+      postItemTypes: [],
+      postRequestTypes: [],
+      postJob: false,
+      lookingForJob: true,
+    },
+    activities: {
+      myPosts: false,
+      myRequests: false,
+      singularPackageLabel: true,
+      appliedJobs: true,
+      postedJobs: true,
+    },
+  },
+
+  // Employer keeps job-centric capabilities (legacy role, not part of the 5-role hierarchy)
+  [UserRoles.EMPLOYER]: {
+    quickActions: {
+      postItemTypes: ['sale', 'rent'],
+      postRequestTypes: ['buy', 'rent'],
+      postJob: true,
+      lookingForJob: false,
+    },
+    activities: {
+      myPosts: true,
+      myRequests: true,
+      singularPackageLabel: false,
+      appliedJobs: false,
+      postedJobs: true,
+    },
+  },
+};
+
+/** De-duplicating union that preserves the given order preference. */
+function unionKinds<T extends string>(order: T[], groups: T[][]): T[] {
+  const present = new Set<T>();
+  groups.forEach(group => group.forEach(item => present.add(item)));
+  return order.filter(item => present.has(item));
+}
+
+/**
+ * Merge dashboard configs across all of a user's roles.
+ * Capabilities are unioned — if ANY role can do it, the user can do it.
+ * The singular package label only applies when the user is Operator-only.
+ */
+export function getRoleDashboardConfig(roles: UserRole[]): RoleDashboardConfig {
+  const configs = (roles.length > 0 ? roles : [UserRoles.USER as UserRole])
+    .map(role => ROLE_DASHBOARD_CONFIG[role] ?? EMPTY_CONFIG);
+
+  const isOperatorOnly = roles.length > 0 && roles.every(r => r === UserRoles.OPERATOR);
+
+  return {
+    quickActions: {
+      postItemTypes: unionKinds<TransactionKind>(
+        ['sale', 'rent'],
+        configs.map(c => c.quickActions.postItemTypes)
+      ),
+      postRequestTypes: unionKinds<RequestKind>(
+        ['buy', 'rent'],
+        configs.map(c => c.quickActions.postRequestTypes)
+      ),
+      postJob: configs.some(c => c.quickActions.postJob),
+      lookingForJob: configs.some(c => c.quickActions.lookingForJob),
+    },
+    activities: {
+      myPosts: configs.some(c => c.activities.myPosts),
+      myRequests: configs.some(c => c.activities.myRequests),
+      singularPackageLabel: isOperatorOnly,
+      appliedJobs: configs.some(c => c.activities.appliedJobs),
+      postedJobs: configs.some(c => c.activities.postedJobs),
+    },
+  };
 }
 
 // ─── Membership Plans ─────────────────────────────────────────────

@@ -157,6 +157,22 @@ export default function PostJobScreen() {
                     <View style={{ width: 40 }} />
                 </View>
 
+                {/* Quick access: employers can review the jobs they posted and the applications received */}
+                <TouchableOpacity
+                    style={styles.myJobsBanner}
+                    activeOpacity={0.8}
+                    onPress={() => navigation.navigate('MyJobs', { mode: 'posted' })}
+                >
+                    <View style={styles.myJobsIcon}>
+                        <Ionicons name="briefcase" size={20} color={THEME_COLOR} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.myJobsTitle}>My Posted Jobs</Text>
+                        <Text style={styles.myJobsSub}>View your job posts and the applications received</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={THEME_COLOR} />
+                </TouchableOpacity>
+
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                     style={{ flex: 1 }}
@@ -478,4 +494,22 @@ const styles = StyleSheet.create({
     },
     operatorLinkTitle: { fontSize: 15, fontWeight: '700', color: '#333' },
     operatorLinkSub: { fontSize: 12, color: '#888', marginTop: 2 },
+    myJobsBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginHorizontal: 20,
+        marginTop: 15,
+        padding: 14,
+        borderRadius: 12,
+        backgroundColor: '#FFF8F0',
+        borderWidth: 1,
+        borderColor: '#FFE0B2',
+    },
+    myJobsIcon: {
+        width: 38, height: 38, borderRadius: 19, backgroundColor: '#FFEFD9',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    myJobsTitle: { fontSize: 15, fontWeight: '700', color: '#333' },
+    myJobsSub: { fontSize: 12, color: '#888', marginTop: 2 },
 });

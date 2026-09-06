@@ -7,6 +7,7 @@ export interface UserProfile {
     lastName: string;
     phoneNumber: string;
     email?: string;
+    tinNumber?: string;
     region?: string;
     city?: string;
     subCity?: string;
@@ -16,6 +17,8 @@ export interface UserProfile {
     userType: string;
     experience?: string;
     machinesYouCanOperate?: string[];
+    legalDocuments?: { name: string; path: string }[];
+
     referralCode?: string;
     referredBy?: string;
 }
@@ -30,6 +33,15 @@ export const updateUserProfile = async (formData: FormData): Promise<any> => {
     const response = await apiClient.put('users', formData, {
         headers: {
             'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};
+
+export const updateUserProfileJson = async (data: Record<string, any>): Promise<any> => {
+    const response = await apiClient.put('users', data, {
+        headers: {
+            'Content-Type': 'application/json',
         },
     });
     return response.data;
@@ -73,6 +85,16 @@ export const useUpdateUserProfile = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: updateUserProfile,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        },
+    });
+};
+
+export const useUpdateUserProfileJson = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: updateUserProfileJson,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['userProfile'] });
         },
@@ -129,6 +151,19 @@ export const useFollowers = (userId: string) => {
     });
 };
 
+export const fetchPublicProfile = async (userId: string): Promise<UserProfile> => {
+    const response = await apiClient.get(`publicProfileDetail/${userId}`);
+    return response.data;
+};
+
+export const usePublicProfile = (userId: string) => {
+    return useQuery({
+        queryKey: ['publicProfile', userId],
+        queryFn: () => fetchPublicProfile(userId),
+        enabled: !!userId,
+    });
+};
+
 export const useFollow = () => {
     const queryClient = useQueryClient();
     return useMutation({
@@ -138,6 +173,7 @@ export const useFollow = () => {
             queryClient.invalidateQueries({ queryKey: ['followers'] });
             queryClient.invalidateQueries({ queryKey: ['getSingleProduct'] });
             queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+            queryClient.invalidateQueries({ queryKey: ['publicProfile'] });
         },
     });
 };
@@ -151,6 +187,7 @@ export const useUnfollow = () => {
             queryClient.invalidateQueries({ queryKey: ['followers'] });
             queryClient.invalidateQueries({ queryKey: ['getSingleProduct'] });
             queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+            queryClient.invalidateQueries({ queryKey: ['publicProfile'] });
         },
     });
 };

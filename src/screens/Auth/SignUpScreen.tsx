@@ -190,6 +190,8 @@ export default function SignUpScreen({ route }: any) {
         let code = '';
         const deepLinkPattern = /gadalmarket:\/\/referral\/([A-Z0-9\-]+)/i;
         const webLinkPattern = /gadalmarket\.com\/referral\/([A-Z0-9\-]+)/i;
+        const playStorePattern = /play\.google\.com\/store\/apps\/details\?id=com\.gadalmarket.*?[?&]referrer=([A-Z0-9\-]+)/i;
+        const codeInTextPattern = /(?:referral code|code)[:\s]+([A-Z0-9\-]+)/i;
         const codePattern = /^(GADAL-[A-Z0-9]+)$/i;
         const simpleCodePattern = /^([A-Z]+[0-9]+)$/i;
 
@@ -198,6 +200,12 @@ export default function SignUpScreen({ route }: any) {
           if (match) code = match[1];
         } else if (webLinkPattern.test(clipboardContent)) {
           const match = clipboardContent.match(webLinkPattern);
+          if (match) code = match[1];
+        } else if (playStorePattern.test(clipboardContent)) {
+          const match = clipboardContent.match(playStorePattern);
+          if (match) code = match[1];
+        } else if (codeInTextPattern.test(clipboardContent)) {
+          const match = clipboardContent.match(codeInTextPattern);
           if (match) code = match[1];
         } else if (codePattern.test(clipboardContent.trim())) {
           code = clipboardContent.trim();

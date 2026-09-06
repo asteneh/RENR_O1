@@ -42,6 +42,10 @@ export default function MyJobsScreen() {
         navigation.navigate('PostJob', { job: item });
     };
 
+    const handleViewApplicants = (item: any) => {
+        navigation.navigate('JobApplicants', { jobId: item._id, jobTitle: item.jobTitle });
+    };
+
     const handleDeleteJob = (item: any) => {
         showAlert(
             'Delete Job',
@@ -93,10 +97,14 @@ export default function MyJobsScreen() {
                     </View>
                 )}
 
-                {!showApplied && applicantCount > 0 && (
+                {!showApplied && (
                     <View style={styles.applicantRow}>
                         <Ionicons name="people-outline" size={14} color={THEME_COLOR} />
-                        <Text style={styles.applicantText}>{applicantCount} applicant{applicantCount !== 1 ? 's' : ''}</Text>
+                        <Text style={styles.applicantText}>
+                            {applicantCount > 0
+                                ? `${applicantCount} application${applicantCount !== 1 ? 's' : ''} received`
+                                : 'No applications yet'}
+                        </Text>
                     </View>
                 )}
 
@@ -108,6 +116,19 @@ export default function MyJobsScreen() {
                         <Text style={[styles.detailTagText, { color: '#5F6368' }]}>{item.location}</Text>
                     </View>
                 </View>
+
+                {!showApplied && (
+                    <TouchableOpacity
+                        style={styles.viewApplicantsBtn}
+                        onPress={() => handleViewApplicants(item)}
+                    >
+                        <Ionicons name="people" size={16} color="#fff" />
+                        <Text style={styles.viewApplicantsText}>
+                            View Applications{applicantCount > 0 ? ` (${applicantCount})` : ''}
+                        </Text>
+                        <Ionicons name="chevron-forward" size={16} color="#fff" />
+                    </TouchableOpacity>
+                )}
 
                 <View style={styles.cardFooter}>
                     <View style={styles.cardFooterLeft}>
@@ -242,6 +263,11 @@ const styles = StyleSheet.create({
     shortlistText: { fontSize: 11, fontWeight: '700', color: '#F5A623' },
     applicantRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
     applicantText: { fontSize: 12, color: THEME_COLOR, fontWeight: '600' },
+    viewApplicantsBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+        backgroundColor: THEME_COLOR, paddingVertical: 10, borderRadius: 8, marginBottom: 12,
+    },
+    viewApplicantsText: { color: '#fff', fontSize: 13, fontWeight: '700' },
     detailsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 15 },
     detailTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
     detailTagText: { fontSize: 11, fontWeight: '600' },

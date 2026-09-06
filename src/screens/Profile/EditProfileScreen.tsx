@@ -31,6 +31,7 @@ export default function EditProfileScreen() {
         region: '',
         city: '',
         subCity: '',
+        tinNumber: '',
     });
 
     const [selectedRoles, setSelectedRoles] = useState<UserRole[]>([]);
@@ -46,6 +47,7 @@ export default function EditProfileScreen() {
                 region: profile.region || '',
                 city: profile.city || '',
                 subCity: profile.subCity || '',
+                tinNumber: profile.tinNumber || '',
             });
             setSelectedRoles(extractBackendRoles(profile).filter(r => r !== UserRoles.USER));
         }
@@ -72,6 +74,7 @@ export default function EditProfileScreen() {
         if (form.region) formData.append('region', form.region);
         if (form.city) formData.append('city', form.city);
         if (form.subCity) formData.append('subCity', form.subCity);
+        if (form.tinNumber) formData.append('tinNumber', form.tinNumber);
 
         const backendRoles = selectedRoles.map(r => RoleToBackend[r]);
         formData.append('roles', JSON.stringify(backendRoles));
@@ -214,6 +217,19 @@ export default function EditProfileScreen() {
                             onChangeText={t => setForm({ ...form, subCity: t })}
                         />
                     </View>
+                </View>
+
+                <View style={styles.inputGroup}>
+                    <Text style={styles.label}>TIN Number (Optional)</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Taxpayer Identification Number"
+                        placeholderTextColor="#888"
+                        value={form.tinNumber}
+                        onChangeText={t => setForm({ ...form, tinNumber: t })}
+                        keyboardType="numeric"
+                        maxLength={20}
+                    />
                 </View>
 
                 <View style={styles.inputGroup}>

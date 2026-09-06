@@ -103,8 +103,6 @@ export default function EditListingScreen({ navigation, route }: any) {
     const updateProductMutation = useUpdateProductMutation();
     const etbCurrency = getEtbCurrency(currenciesQuery.data || []);
 
-    if (isProductLoading) return <View style={styles.center}><ActivityIndicator size="large" color={THEME_COLOR} /></View>;
-
     // --- Components ---
 
     // --- Rendering Helpers ---
@@ -115,6 +113,7 @@ export default function EditListingScreen({ navigation, route }: any) {
             default: return 'cube-outline';
         }
     };
+
 
     const submitUpdate = async () => {
 
@@ -200,7 +199,18 @@ export default function EditListingScreen({ navigation, route }: any) {
         }, [handleBack])
     );
 
+    // NOTE: All hooks must be declared above this point. Early returns placed
+    // before hooks cause "Rendered more hooks than during the previous render".
+    if (isProductLoading) {
+        return (
+            <View style={styles.center}>
+                <ActivityIndicator size="large" color={THEME_COLOR} />
+            </View>
+        );
+    }
+
     return (
+
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={handleBack}>

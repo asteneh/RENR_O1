@@ -19,6 +19,7 @@ import {
   RoleIcons,
   FeatureActions,
   canAccessMultiRole,
+  getRoleDashboardConfig,
   UserRole,
 } from '../../constants/UserRoles';
 
@@ -96,10 +97,10 @@ export default function ProfileScreen() {
   const handleShareReferral = async () => {
     if (profile?.referralCode) {
       try {
-        const message = `Join me on Gadal Market! Use my referral code ${profile.referralCode} to sign up.\nDownload the app and start: gadalmarket://referral/${profile.referralCode}\nOr signup online: https://gadalmarket.com/referral/${profile.referralCode}`;
+        const message = `Check out "Gadal Market"!\nUse my referral code: ${profile.referralCode}\n\n📱 Mobile App (Google Play):\nhttps://play.google.com/store/apps/details?id=com.gadalmarket&referrer=${profile.referralCode}\n\n🌐 Web Browser:\nhttps://gadalmarket.com/referral/${profile.referralCode}\n\nDiscover, buy, rent, and sell goods easily with Gadal Market!`;
         await Share.share({
           message,
-          title: 'Refer a Friend',
+          title: 'Check out "Gadal Market"',
         });
       } catch (error) {
         console.error('Share error:', error);
@@ -125,13 +126,31 @@ export default function ProfileScreen() {
 
   const isOperator = currentRoles.includes(UserRoles.OPERATOR);
 
-  // Multi-role capability checks (if ANY role grants access, user has it)
-  const canPostJob = canAccessMultiRole(currentRoles, FeatureActions.POST_JOB);
-  const canPostSale = canAccessMultiRole(currentRoles, FeatureActions.POST_SALE);
-  const canPostRent = canAccessMultiRole(currentRoles, FeatureActions.POST_RENT);
-  const canRequestBuy = canAccessMultiRole(currentRoles, FeatureActions.REQUEST_BUY);
-  const canRequestRent = canAccessMultiRole(currentRoles, FeatureActions.REQUEST_RENT);
+  // Five-role dashboard hierarchy — merged across all of the user's roles
+  const dashboard = getRoleDashboardConfig(currentRoles);
+  const { postItemTypes, postRequestTypes } = dashboard.quickActions;
+
+  const canPostItem = postItemTypes.length > 0;
+  const canPostRequest = postRequestTypes.length > 0;
+  const canPostJob = dashboard.quickActions.postJob;
+  const canLookForJob = dashboard.quickActions.lookingForJob;
   const canJoinOperator = canAccessMultiRole(currentRoles, FeatureActions.JOIN_OPERATOR);
+
+  // "Post Items" label reflects available transaction types
+  const postItemLabel =
+    postItemTypes.length === 1 && postItemTypes[0] === 'rent'
+      ? t('postForRent')
+      : postItemTypes.length === 1 && postItemTypes[0] === 'sale'
+        ? t('postForSale')
+        : t('postItem');
+
+  // "Post Request" label reflects available request types
+  const postRequestLabel =
+    postRequestTypes.length === 1 && postRequestTypes[0] === 'rent'
+      ? t('requestToRent')
+      : postRequestTypes.length === 1 && postRequestTypes[0] === 'buy'
+        ? t('requestToBuy')
+        : t('postRequest');
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={['top', 'bottom']}>
@@ -175,6 +194,15 @@ export default function ProfileScreen() {
                 )}
               </View> */}
               <Text style={[styles.userEmail, isDark && styles.userEmailDark]}>{profile?.phoneNumber}</Text>
+
+              {profile?.tinNumber ? (
+                <View style={styles.tinRow}>
+                  <Ionicons name="card-outline" size={13} color="#888" />
+                  <Text style={[styles.tinText, isDark && styles.userEmailDark]}>
+                    TIN: {profile.tinNumber}
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
@@ -238,26 +266,30 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, isDark && styles.sectionTitleDark]}>{t('quickActions')}</Text>
           <View style={styles.quickActionsRow}>
-            {(canPostSale || canPostRent) && (
+            {canPostItem && (
               <TouchableOpacity
                 style={[styles.quickActionCard, isDark && styles.quickActionCardDark]}
-                onPress={() => navigation.navigate('PostProperty')}
+                onPress={() =>
+                  navigation.navigate('PostProperty', { allowedTransactionTypes: postItemTypes })
+                }
               >
                 <View style={[styles.quickActionIcon, { backgroundColor: isDark ? '#2C1D0A' : '#FFF5E5' }]}>
                   <Ionicons name="add-circle-outline" size={24} color={THEME_COLOR} />
                 </View>
-                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{t('postItem')}</Text>
+                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{postItemLabel}</Text>
               </TouchableOpacity>
             )}
-            {(canRequestBuy || canRequestRent) && (
+            {canPostRequest && (
               <TouchableOpacity
                 style={[styles.quickActionCard, isDark && styles.quickActionCardDark]}
-                onPress={() => navigation.navigate('PostRequest')}
+                onPress={() =>
+                  navigation.navigate('PostRequest', { allowedRequestTypes: postRequestTypes })
+                }
               >
                 <View style={[styles.quickActionIcon, { backgroundColor: isDark ? '#0A2535' : '#E5F6FF' }]}>
                   <Ionicons name="document-text-outline" size={24} color="#2196F3" />
                 </View>
-                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{t('postRequest')}</Text>
+                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{postRequestLabel}</Text>
               </TouchableOpacity>
             )}
             {canPostJob && (
@@ -269,6 +301,17 @@ export default function ProfileScreen() {
                   <Ionicons name="briefcase-outline" size={24} color="#4CAF50" />
                 </View>
                 <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{t('postJob')}</Text>
+              </TouchableOpacity>
+            )}
+            {canLookForJob && (
+              <TouchableOpacity
+                style={[styles.quickActionCard, isDark && styles.quickActionCardDark]}
+                onPress={() => navigation.navigate('Jobs')}
+              >
+                <View style={[styles.quickActionIcon, { backgroundColor: isDark ? '#2A1436' : '#F3E8FF' }]}>
+                  <Ionicons name="search-outline" size={24} color="#9C27B0" />
+                </View>
+                <Text style={[styles.quickActionLabel, isDark && styles.quickActionLabelDark]}>{t('lookingForJob')}</Text>
               </TouchableOpacity>
             )}
 
@@ -306,7 +349,7 @@ export default function ProfileScreen() {
               label={t('myFavorites')}
               onPress={() => navigation.navigate('Favorites')}
             />
-            {(canPostSale || canPostRent) && (
+            {dashboard.activities.myPosts && (
               <>
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
@@ -316,7 +359,7 @@ export default function ProfileScreen() {
                 />
               </>
             )}
-            {(canRequestBuy || canRequestRent) && (
+            {dashboard.activities.myRequests && (
               <>
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
@@ -341,10 +384,10 @@ export default function ProfileScreen() {
             <View style={[styles.divider, isDark && styles.dividerDark]} />
             <MenuOption
               icon="cube-outline"
-              label={t('myPackages')}
+              label={dashboard.activities.singularPackageLabel ? t('myPackage') : t('myPackages')}
               onPress={() => navigation.navigate('MyPackages')}
             />
-            {isOperator && (
+            {dashboard.activities.appliedJobs && (
               <>
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
@@ -354,7 +397,7 @@ export default function ProfileScreen() {
                 />
               </>
             )}
-            {canPostJob && (
+            {dashboard.activities.postedJobs && (
               <>
                 <View style={[styles.divider, isDark && styles.dividerDark]} />
                 <MenuOption
@@ -499,9 +542,59 @@ export default function ProfileScreen() {
                 ) : null}
               </View>
 
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12, marginBottom: 4 }}>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? '#1E3A24' : '#E8F5E9',
+                    borderWidth: 1,
+                    borderColor: '#81C784',
+                  }}
+                  onPress={async () => {
+                    if (profile?.referralCode) {
+                      const link = `https://play.google.com/store/apps/details?id=com.gadalmarket&referrer=${profile.referralCode}`;
+                      await Clipboard.setStringAsync(link);
+                      showNotification('Google Play App referral link copied!', 'success');
+                    }
+                  }}
+                >
+                  <Ionicons name="logo-google-playstore" size={16} color="#2E7D32" style={{ marginRight: 6 }} />
+                  <Text style={{ color: '#2E7D32', fontWeight: 'bold', fontSize: 13 }}>App Link</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingVertical: 10,
+                    borderRadius: 12,
+                    backgroundColor: isDark ? '#1A2E44' : '#E3F2FD',
+                    borderWidth: 1,
+                    borderColor: '#90CAF9',
+                  }}
+                  onPress={async () => {
+                    if (profile?.referralCode) {
+                      const link = `https://gadalmarket.com/referral/${profile.referralCode}`;
+                      await Clipboard.setStringAsync(link);
+                      showNotification('Web referral link copied!', 'success');
+                    }
+                  }}
+                >
+                  <Ionicons name="globe-outline" size={16} color="#1565C0" style={{ marginRight: 6 }} />
+                  <Text style={{ color: '#1565C0', fontWeight: 'bold', fontSize: 13 }}>Web Link</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral}>
                 <Ionicons name="share-social-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-                <Text style={styles.shareBtnText}>{t('shareCode')}</Text>
+                <Text style={styles.shareBtnText}>Share Both (Web & App)</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -531,6 +624,8 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   userEmail: { fontSize: 13, color: '#666', marginTop: 2 },
+  tinRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  tinText: { fontSize: 12, color: '#888', fontWeight: '500' },
 
   // Role & Membership Badges
   roleBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
