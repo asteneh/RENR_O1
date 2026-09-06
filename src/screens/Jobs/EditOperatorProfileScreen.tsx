@@ -165,7 +165,6 @@ export default function EditOperatorProfileScreen() {
                 });
                 formData.append('legalDocumentNames', JSON.stringify(documentNames));
                 console.log(`[EditOpProfile] Sending FormData with ${documentNames.length} document(s)`);
-
                 updatedUser = await updateMutation.mutateAsync(formData);
             } else {
                 // No files → send plain JSON so arrays are handled correctly on the server
