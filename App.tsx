@@ -258,7 +258,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   splashOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',

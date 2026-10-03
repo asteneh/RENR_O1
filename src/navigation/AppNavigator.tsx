@@ -71,8 +71,10 @@ const linking: LinkingOptions<RootStackParamList> = {
 export default function AppNavigator() {
   useEffect(() => {
     if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync('white').catch(() => {});
-      NavigationBar.setButtonStyleAsync('dark').catch(() => {});
+      // SDK 57 replaced setBackgroundColorAsync/setButtonStyleAsync with a single
+      // style value. 'light' = light navigation bar with dark button content,
+      // which matches the previous white background + dark buttons appearance.
+      NavigationBar.setStyle('light');
     }
   }, []);
 

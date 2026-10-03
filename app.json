@@ -6,7 +6,6 @@
     "orientation": "portrait",
     "icon": "./assets/orange-logo.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "scheme": "gadalmarket",
     "splash": {
       "image": "./assets/orange-logo.png",
@@ -67,7 +66,9 @@
           "icon": "./assets/orange-logo.png",
           "color": "#FF8C00"
         }
-      ]
+      ],
+      "expo-splash-screen",
+      "expo-status-bar"
     ]
   }
 }

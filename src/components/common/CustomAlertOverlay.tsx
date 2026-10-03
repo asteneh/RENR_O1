@@ -135,11 +135,11 @@ const CustomAlertOverlay = () => {
 
 const styles = StyleSheet.create({
     wrapper: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         zIndex: 11000,
     },
     overlay: {
-        ...StyleSheet.absoluteFillObject,
+        ...StyleSheet.absoluteFill,
         backgroundColor: 'rgba(0,0,0,0.3)',
     },
     container: {

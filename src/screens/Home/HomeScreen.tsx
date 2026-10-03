@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden'
   },
   featuredImage: { width: '100%', height: '100%' },
-  featuredOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.1)' },
+  featuredOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.1)' },
   featuredTag: { position: 'absolute', top: 15, left: 15, backgroundColor: 'rgba(0,0,0,0.6)', padding: 6, borderRadius: 6 },
   featuredTagText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   featuredContent: {
