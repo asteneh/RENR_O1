@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gadal Market",
     "slug": "New_Rent",
-    "version": "1.0.0",
+    "version": "7.0.0",
     "orientation": "portrait",
     "icon": "./assets/orange-logo.png",
     "userInterfaceStyle": "light",
@@ -34,7 +34,6 @@
         "POST_NOTIFICATIONS"
       ],
       "intentFilters": [
-
         {
           "action": "VIEW",
           "autoVerify": false,
@@ -70,6 +69,5 @@
         }
       ]
     ]
-
   }
 }
