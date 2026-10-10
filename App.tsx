@@ -95,35 +95,97 @@ export default function App() {
 
 
   useEffect(() => {
-    if (token && user?._id) {
-      socket.auth = { userId: user._id };
+    const userId = user?._id || user?.id;
+    if (token && userId) {
+      socket.auth = { userId };
       socket.connect();
 
 
       socket.on('notification', (notification: any) => {
         console.log('Notification received:', notification);
-        console.log(`User ID in store: ${user._id}, Notification target user: ${notification?.user}`);
+        console.log(`User ID in store: ${userId}, Notification target user: ${notification?.user}`);
 
-        if (notification?.user === user._id || notification?.isCampaign) {
+        const roles = useAuthStore.getState().getUserRoles();
+        const currentUser = useAuthStore.getState().user;
+        const currentUserId = currentUser?._id || currentUser?.id;
+        const isOperatorUser =
+          roles.includes('OPERATOR') ||
+          currentUser?.userType === 'Operator' ||
+          currentUser?.userType === 'employee (Operator)' ||
+          currentUser?.roles?.includes?.('Operator');
+
+        const isJobAlert =
+          Boolean(notification?.job) ||
+          notification?.type === 'job' ||
+          notification?.targetRole === 'Operator' ||
+          notification?.targetRoles?.includes?.('Operator');
+
+        const notifTargetUser = notification?.user;
+        const isTargetMatch =
+          notifTargetUser === currentUserId ||
+          notifTargetUser === userId ||
+          notification?.isCampaign ||
+          (isJobAlert && isOperatorUser && !notifTargetUser) ||
+          (isJobAlert && isOperatorUser && notifTargetUser === currentUserId);
+
+        if (isTargetMatch) {
           console.log('Notification match found, showing alert...');
           incrementUnreadNotifications();
-          const notifTitle = notification.title || 'Notification';
+          const notifTitle = notification.title || (isJobAlert ? 'New Job Alert 🚜' : 'Notification');
           const notifBody = notification.notification || notification.message || 'New notification';
           showNotification(notifBody, 'info', notifTitle);
           // Fire an OS-level notification with sound (works when backgrounded too).
           presentLocalNotification(notifTitle, notifBody, {
-            type: 'notification',
+            type: notification?.type || (isJobAlert ? 'job' : 'notification'),
             productId: notification?.productId,
+            jobId: notification?.job,
           });
-        } else {
 
+          queryClient.invalidateQueries({ queryKey: ['notifications', user._id] });
+          if (isJobAlert) {
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+          }
+        } else {
           console.log('Notification ignored: target user mismatch');
         }
       });
 
+      const handleDirectJobAlert = (jobData: any) => {
+        console.log('New job event received via socket:', jobData);
+        const roles = useAuthStore.getState().getUserRoles();
+        const currentUser = useAuthStore.getState().user;
+        const isOperatorUser =
+          roles.includes('OPERATOR') ||
+          currentUser?.userType === 'Operator' ||
+          currentUser?.roles?.includes('Operator');
+
+        if (!isOperatorUser) return;
+
+        incrementUnreadNotifications();
+        const jobTitle = jobData?.jobTitle || jobData?.title || 'New Job Alert 🚜';
+        const jobMsg =
+          jobData?.notification ||
+          jobData?.message ||
+          (jobData?.companyName ? `New job: ${jobData?.jobTitle || 'Operator'} at ${jobData?.companyName}` : 'A new machinery operator job was posted!');
+
+        showNotification(jobMsg, 'info', jobTitle);
+        presentLocalNotification(jobTitle, jobMsg, {
+          type: 'job',
+          jobId: jobData?._id || jobData?.jobId || jobData?.job,
+        });
+
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['notifications', userId] });
+      };
+
+      socket.on('new_job', handleDirectJobAlert);
+      socket.on('job_created', handleDirectJobAlert);
+      socket.on('job_notification', handleDirectJobAlert);
+
       socket.on('new_message', (data: any) => {
         console.log('New message received via socket:', data);
-        if (data.receiver === user._id) {
+        const liveUserId = useAuthStore.getState().user?._id || useAuthStore.getState().user?.id || userId;
+        if (data.receiver === liveUserId) {
           incrementUnreadMessages();
           showNotification(
             'You have a new message',
@@ -137,7 +199,7 @@ export default function App() {
           });
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
-          queryClient.invalidateQueries({ queryKey: ['unreadMessagesCount', user._id] });
+          queryClient.invalidateQueries({ queryKey: ['unreadMessagesCount', liveUserId] });
           if (data.messageId) {
             queryClient.invalidateQueries({ queryKey: ['messages', data.messageId] });
           }
@@ -153,14 +215,14 @@ export default function App() {
       });
 
       // Initial unread count fetch
-      notificationService.getUnreadNotificationsCount(user._id).then((data: any) => {
+      notificationService.getUnreadNotificationsCount(userId).then((data: any) => {
         if (data && typeof data.unreadCount === 'number') {
           setUnreadNotifications(data.unreadCount);
         }
       }).catch(console.error);
 
       // Initial unread messages count fetch
-      fetchUnreadMessagesCount(user._id).then((data: any) => {
+      fetchUnreadMessagesCount(userId).then((data: any) => {
         if (data && typeof data.unreadCount === 'number') {
           setUnreadMessages(data.unreadCount);
         }
@@ -170,12 +232,15 @@ export default function App() {
         console.log('Cleaning up socket listeners and disconnecting...');
         socket.off('notification');
         socket.off('new_message');
+        socket.off('new_job', handleDirectJobAlert);
+        socket.off('job_created', handleDirectJobAlert);
+        socket.off('job_notification', handleDirectJobAlert);
         socket.off('connect_error');
         socket.off('error');
         socket.disconnect();
       };
     }
-  }, [token, user?._id]);
+  }, [token, user?._id, user?.id]);
 
   useEffect(() => {
     async function prepare() {

@@ -11,6 +11,7 @@ import { useJobsQuery, useApplyToJobMutation } from '../../api/services/jobServi
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
+import { UserRoles } from '../../constants/UserRoles';
 import JobCard from '../../components/JobCard';
 
 const THEME_COLOR = '#FF8C00';
@@ -19,10 +20,18 @@ export default function FindJobsScreen() {
     const navigation = useNavigation<any>();
     const insets = useSafeAreaInsets();
     const route = useRoute<any>();
-    const { user, isAuthenticated } = useAuthStore();
+    const { user, isAuthenticated, getUserRoles } = useAuthStore();
     const { showAlert, showNotification } = useNotificationStore();
 
     const [searchTerm, setSearchTerm] = useState('');
+
+    const roles = getUserRoles();
+    const isOperator =
+        roles.includes(UserRoles.OPERATOR) ||
+        user?.userType === 'Operator' ||
+        user?.userType === 'employee (Operator)' ||
+        user?.roles?.includes('Operator') ||
+        (Array.isArray(user?.userType) && user.userType.includes('Operator'));
 
     const filters = route.params?.filters || {};
     const selectedJobType = filters.jobType;
@@ -54,44 +63,42 @@ export default function FindJobsScreen() {
     }, [jobsData, searchTerm]);
 
     const handleApply = async (jobId: string, appliedUsers: any[]) => {
-        const userId = user?.id || user?._id;
+        if (!isAuthenticated) {
+            showAlert("Login Required", "Please login to apply for this job.", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Login", onPress: () => navigation.navigate('Login'), style: 'default' },
+                { text: "Register as Operator", onPress: () => navigation.navigate('OperatorRegistration', { jobId }), style: 'default' }
+            ]);
+            return;
+        }
 
-        showAlert(
-            "Apply for Job",
-            "Choose your application method:",
-            [
-                {
-                    text: "Easy Apply",
-                    onPress: async () => {
-                        if (!isAuthenticated) {
-                            return navigation.navigate('OperatorRegistration', { jobId });
-                        }
-                        if (appliedUsers.some(u => {
-                            const uId = u.userId && typeof u.userId === 'object' ? (u.userId._id || u.userId.id) : u.userId;
-                            return uId === userId;
-                        })) {
-                            return showAlert("Already Applied", "You have already applied for this position.");
-                        }
-                        try {
-                            await applyMutation.mutateAsync({ jobId, userId });
-                            showNotification("Application submitted successfully!", "success");
-                        } catch (error: any) {
-                            showNotification(cleanErrorMessage(error), "error");
-                        }
-                    },
-                    style: 'default'
-                },
-                {
-                    text: "Register & Apply",
-                    onPress: () => navigation.navigate('OperatorRegistration', { jobId }),
-                    style: 'default'
-                },
-                {
-                    text: "Cancel",
-                    style: "cancel"
-                }
-            ]
-        );
+        const isOperator = user?.userType === 'Operator' || user?.roles?.includes('Operator') || getUserRoles().includes(UserRoles.OPERATOR);
+        if (!isOperator) {
+            showAlert(
+                "Operator Only",
+                "Only registered operators can apply for jobs. Would you like to register as an operator?",
+                [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Register as Operator", onPress: () => navigation.navigate('OperatorRegistration', { jobId }), style: "default" }
+                ]
+            );
+            return;
+        }
+
+        const userId = user?.id || user?._id;
+        if (appliedUsers.some(u => {
+            const uId = u.userId && typeof u.userId === 'object' ? (u.userId._id || u.userId.id) : u.userId;
+            return uId === userId;
+        })) {
+            return showAlert("Already Applied", "You have already applied for this position.");
+        }
+
+        try {
+            await applyMutation.mutateAsync({ jobId, userId });
+            showNotification("Application submitted successfully!", "success");
+        } catch (error: any) {
+            showNotification(cleanErrorMessage(error), "error");
+        }
     };
 
     const renderBanner = () => (
@@ -100,12 +107,14 @@ export default function FindJobsScreen() {
                 <Text style={styles.bannerTitle}>Find Machinery Operator Jobs</Text>
                 <Text style={styles.bannerSub}>Connect with top construction companies and start your next project today.</Text>
 
-                <TouchableOpacity
-                    style={styles.joinBtn}
-                    onPress={() => navigation.navigate('OperatorRegistration')}
-                >
-                    <Text style={styles.joinBtnText}>Looking For a Job</Text>
-                </TouchableOpacity>
+                {isOperator && (
+                    <TouchableOpacity
+                        style={styles.joinBtn}
+                        onPress={() => navigation.navigate('EditOperatorProfile', { operatorId: user?._id || user?.id })}
+                    >
+                        <Text style={styles.joinBtnText}>Update Profile</Text>
+                    </TouchableOpacity>
+                )}
             </View>
             <View style={styles.bannerIconContainer}>
                 <Ionicons name="construct" size={100} color="rgba(255,255,255,0.15)" />

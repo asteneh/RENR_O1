@@ -1,15 +1,47 @@
 import React from 'react';
-import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, StyleSheet, Image, TouchableOpacity, ActivityIndicator, Linking } from 'react-native';
 import { useOperators, Operator } from '../../api/services/operatorService';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuthStore } from '../../store/useAuthStore';
+import { UserRoles } from '../../constants/UserRoles';
 
 const THEME_COLOR = '#FF8C00';
 
 export default function OperatorListScreen({ navigation }: any) {
     const { data: operators, isLoading, error } = useOperators();
+    const { user, getUserRoles } = useAuthStore();
+    const roles = getUserRoles();
+    const isOperator =
+        roles.includes(UserRoles.OPERATOR) ||
+        user?.userType === 'Operator' ||
+        user?.userType === 'employee (Operator)' ||
+        user?.roles?.includes('Operator') ||
+        (Array.isArray(user?.userType) && user.userType.includes('Operator'));
+
+    // Filter out operators who turned OFF their availability (on job / not ready)
+    const visibleOperators = React.useMemo(() => {
+        if (!operators) return [];
+        return operators.filter((item: Operator) =>
+            item.isAvailable !== false &&
+            item.operatorStatus !== 'off' &&
+            item.operatorStatus !== 'on_job'
+        );
+    }, [operators]);
+
+    const handleContact = (item: Operator) => {
+        if (item.phoneNumber) {
+            Linking.openURL(`tel:${item.phoneNumber}`);
+        } else {
+            navigation.navigate('UserProfile', { userId: item._id, user: item });
+        }
+    };
 
     const renderItem = ({ item }: { item: Operator }) => (
-        <TouchableOpacity style={styles.card} onPress={() => { /* Navigate to detail? */ }}>
+        <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('UserProfile', { userId: item._id, user: item })}
+        >
             <View style={styles.header}>
                 <Image
                     source={{ uri: item.proflePic || 'https://via.placeholder.com/50' }}
@@ -34,8 +66,12 @@ export default function OperatorListScreen({ navigation }: any) {
             </View>
 
             <View style={styles.actions}>
-                <TouchableOpacity style={styles.contactBtn}>
-                    <Text style={styles.contactBtnText}>Contact</Text>
+                <TouchableOpacity
+                    style={styles.contactBtn}
+                    onPress={() => handleContact(item)}
+                >
+                    <Ionicons name="call-outline" size={16} color={THEME_COLOR} style={{ marginRight: 6 }} />
+                    <Text style={styles.contactBtnText}>Contact Operator</Text>
                 </TouchableOpacity>
             </View>
         </TouchableOpacity>
@@ -48,20 +84,22 @@ export default function OperatorListScreen({ navigation }: any) {
         <View style={styles.container}>
             <View style={styles.topBar}>
                 <Text style={styles.title}>Machinery Operators</Text>
-                <TouchableOpacity
-                    style={styles.joinBtn}
-                    onPress={() => navigation.navigate('OperatorRegistration')}
-                >
-                    <Text style={styles.joinBtnText}>Looking For a Job</Text>
-                </TouchableOpacity>
+                {isOperator && (
+                    <TouchableOpacity
+                        style={styles.joinBtn}
+                        onPress={() => navigation.navigate('EditOperatorProfile', { operatorId: user?._id || user?.id })}
+                    >
+                        <Text style={styles.joinBtnText}>Update Profile</Text>
+                    </TouchableOpacity>
+                )}
             </View>
 
             <FlatList
-                data={operators}
+                data={visibleOperators}
                 keyExtractor={(item) => item._id}
                 renderItem={renderItem}
                 contentContainerStyle={styles.list}
-                ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20 }}>No operators found.</Text>}
+                ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20 }}>No available operators found.</Text>}
             />
         </View>
     );

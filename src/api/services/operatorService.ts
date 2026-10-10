@@ -11,6 +11,8 @@ export interface Operator {
     machinesYouCanOperate: string[]; // Access to strings or populated objects depending on backend
     proflePic?: string;
     isVerified: boolean;
+    isAvailable?: boolean;
+    operatorStatus?: 'available' | 'on_job' | 'off';
 }
 
 // ─── APIs ────────────────────────────────────────────────────────────────────

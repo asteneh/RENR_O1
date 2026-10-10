@@ -9,6 +9,9 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import {
     useJobApplicantsQuery,
     useShortlistApplicantMutation,
+    useHireApplicantMutation,
+    useRemoveApplicantMutation,
+    useCloseJobOfferMutation,
     JobApplicant,
 } from '../../api/services/jobService';
 import { useNotificationStore } from '../../store/useNotificationStore';
@@ -47,6 +50,9 @@ export default function JobApplicantsScreen() {
         refetch,
     } = useJobApplicantsQuery(jobId);
     const shortlistMutation = useShortlistApplicantMutation();
+    const hireMutation = useHireApplicantMutation();
+    const removeMutation = useRemoveApplicantMutation();
+    const closeOfferMutation = useCloseJobOfferMutation();
 
     const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
     const [pendingId, setPendingId] = useState<string | null>(null);
@@ -95,6 +101,114 @@ export default function JobApplicantsScreen() {
         );
     };
 
+    // Employer gives the job to this operator. Notifications stop automatically.
+    const handleHire = (applicant: JobApplicant) => {
+        const userId = getApplicantId(applicant);
+        const user = applicant?.userId;
+        const name = user && typeof user === 'object'
+            ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'this operator'
+            : 'this operator';
+
+        if (!userId) {
+            showNotification('Applicant details are unavailable.', 'error');
+            return;
+        }
+
+        showAlert(
+            'Give this job?',
+            `${name} will be hired for "${jobTitle}". The job will close and notifications for it will stop.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Hire',
+                    onPress: () => {
+                        setPendingId(userId);
+                        hireMutation.mutate(
+                            { jobId, userId },
+                            {
+                                onSuccess: () => {
+                                    showNotification(`${name} got the job. Notifications stopped.`, 'success');
+                                    setPendingId(null);
+                                },
+                                onError: (error: any) => {
+                                    showNotification(cleanErrorMessage(error), 'error');
+                                    setPendingId(null);
+                                },
+                            },
+                        );
+                    },
+                },
+            ],
+        );
+    };
+
+    // Employer removes an operator from this job.
+    const handleRemove = (applicant: JobApplicant) => {
+        const userId = getApplicantId(applicant);
+        const user = applicant?.userId;
+        const name = user && typeof user === 'object'
+            ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'this operator'
+            : 'this operator';
+
+        if (!userId) {
+            showNotification('Applicant details are unavailable.', 'error');
+            return;
+        }
+
+        showAlert(
+            'Remove operator',
+            `Remove ${name} from "${jobTitle}"? They will be notified and will stop receiving alerts for this job.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Remove',
+                    style: 'destructive',
+                    onPress: () => {
+                        setPendingId(userId);
+                        removeMutation.mutate(
+                            { jobId, userId },
+                            {
+                                onSuccess: () => {
+                                    showNotification(`${name} removed from this job.`, 'success');
+                                    setPendingId(null);
+                                },
+                                onError: (error: any) => {
+                                    showNotification(cleanErrorMessage(error), 'error');
+                                    setPendingId(null);
+                                },
+                            },
+                        );
+                    },
+                },
+            ],
+        );
+    };
+
+    // The offer is over — close the job and mute everyone still on it.
+    const handleCloseOffer = () => {
+        showAlert(
+            'Close job offer',
+            `Close "${jobTitle}"? No one can apply anymore, and notifications stop for all ${list.length} applicant${list.length !== 1 ? 's' : ''}.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Close Offer',
+                    style: 'destructive',
+                    onPress: () => {
+                        closeOfferMutation.mutate(jobId, {
+                            onSuccess: (data: any) => {
+                                showNotification(data?.message || 'Job offer closed.', 'success');
+                            },
+                            onError: (error: any) => {
+                                showNotification(cleanErrorMessage(error), 'error');
+                            },
+                        });
+                    },
+                },
+            ],
+        );
+    };
+
     const handleContact = (applicant: JobApplicant) => {
         const user = applicant?.userId;
         const phone = user && typeof user === 'object' ? user.phoneNumber : undefined;
@@ -128,6 +242,10 @@ export default function JobApplicantsScreen() {
             ? user!.machinesYouCanOperate.length
             : 0;
         const isPending = shortlistMutation.isPending && pendingId === applicantId;
+        const isActionPending = (shortlistMutation.isPending || hireMutation.isPending
+            || removeMutation.isPending) && pendingId === applicantId;
+        const isHired = item.status === 'Hired';
+        const notificationsOff = item.notificationsEnabled === false;
 
         return (
             <View style={styles.card}>
@@ -167,6 +285,18 @@ export default function JobApplicantsScreen() {
                         )}
                     </View>
                     <View style={styles.cardTopRight}>
+                        {isHired && (
+                            <View style={[styles.statusPill, { backgroundColor: '#E8F5E9' }]}>
+                                <Ionicons name="checkmark-circle" size={12} color="#2E7D32" />
+                                <Text style={[styles.statusPillText, { color: '#2E7D32' }]}>Hired</Text>
+                            </View>
+                        )}
+                        {!isHired && notificationsOff && (
+                            <View style={[styles.statusPill, { backgroundColor: '#F1F3F4' }]}>
+                                <Ionicons name="notifications-off-outline" size={12} color="#5F6368" />
+                                <Text style={[styles.statusPillText, { color: '#5F6368' }]}>Muted</Text>
+                            </View>
+                        )}
                         {item.isShortListed && (
                             <View style={styles.shortlistBadge}>
                                 <Ionicons name="star" size={12} color="#F5A623" />
@@ -178,6 +308,38 @@ export default function JobApplicantsScreen() {
                 </TouchableOpacity>
 
                 <View style={styles.cardActions}>
+                    {!isHired && (
+                        <>
+                            <TouchableOpacity
+                                style={[styles.hireBtn, isActionPending && styles.disabledBtn]}
+                                onPress={() => handleHire(item)}
+                                disabled={isActionPending}
+                            >
+                                {hireMutation.isPending && pendingId === applicantId ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="checkmark-circle-outline" size={15} color="#fff" />
+                                        <Text style={styles.hireBtnText}>Hire</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.removeBtn, isActionPending && styles.disabledBtn]}
+                                onPress={() => handleRemove(item)}
+                                disabled={isActionPending}
+                            >
+                                {removeMutation.isPending && pendingId === applicantId ? (
+                                    <ActivityIndicator size="small" color="#EF4444" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                                        <Text style={styles.removeBtnText}>Remove</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </>
+                    )}
                     <TouchableOpacity style={styles.detailBtn} onPress={() => setSelectedApplicant(item)}>
                         <Ionicons name="document-text-outline" size={15} color="#333" />
                         <Text style={styles.detailBtnText}>Detail</Text>
@@ -232,6 +394,23 @@ export default function JobApplicantsScreen() {
                 </View>
                 <View style={{ width: 40 }} />
             </View>
+
+            {/* The offer is over — close it and stop notifications for everyone */}
+            <TouchableOpacity
+                style={styles.closeOfferBar}
+                onPress={handleCloseOffer}
+                disabled={closeOfferMutation.isPending}
+                activeOpacity={0.8}
+            >
+                {closeOfferMutation.isPending ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                ) : (
+                    <>
+                        <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
+                        <Text style={styles.closeOfferBarText}>Close job offer & stop notifications</Text>
+                    </>
+                )}
+            </TouchableOpacity>
 
             <View style={styles.summaryRow}>
                 <View style={styles.summaryCard}>
@@ -641,6 +820,29 @@ const styles = StyleSheet.create({
         borderRadius: 6,
     },
     shortlistBadgeText: { fontSize: 10, fontWeight: '700', color: '#F5A623' },
+    statusPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginBottom: 6,
+    },
+    statusPillText: { fontSize: 10, fontWeight: '700' },
+    hireBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
+        backgroundColor: '#2E7D32',
+    },
+    hireBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    removeBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+        paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8,
+        backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
+    },
+    removeBtnText: { color: '#EF4444', fontSize: 13, fontWeight: '700' },
+    closeOfferBar: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+        marginHorizontal: 15, marginTop: 12, paddingVertical: 11, borderRadius: 10,
+        backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
+    },
+    closeOfferBarText: { color: '#EF4444', fontSize: 13, fontWeight: '700' },
     cardActions: {
         flexDirection: 'row', gap: 8, marginTop: 14,
         borderTopWidth: 1, borderTopColor: '#F2F2F2', paddingTop: 12,

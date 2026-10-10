@@ -1,5 +1,68 @@
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
+
+/** Type-only reference: erased at compile time, so it can never trigger the crash. */
+type ExpoNotifications = typeof import('expo-notifications');
+
+/**
+ * `expo-notifications` (SDK 53+) throws **at import time** on Android inside
+ * Expo Go, because remote push support was removed from Expo Go. The throw
+ * fires while the package barrel is being evaluated:
+ *
+ *   index.js -> DevicePushTokenAutoRegistration.fx.js -> addPushTokenListener
+ *            -> warnOfExpoGoPushUsage -> throw
+ *
+ * `index.js` runs as soon as anything imports it, so a plain
+ * `import * as Notifications from 'expo-notifications'` takes down the entire
+ * bundle during module evaluation - before React renders anything.
+ *
+ * So we load it defensively instead:
+ *   1. Try the public barrel. This is the happy path for development builds,
+ *      iOS Expo Go and web, and keeps full parity with the documented API.
+ *   2. If that throws, fall back to requiring only the local-notification
+ *      modules. Those files were verified not to reach `TokenEmitter` /
+ *      `warnOfExpoGoPushUsage`, and local notifications (channels,
+ *      permissions, scheduling) still work inside Expo Go - only *remote*
+ *      push is unavailable there.
+ */
+function loadNotifications(): ExpoNotifications | null {
+    try {
+        return require('expo-notifications') as ExpoNotifications;
+    } catch (barrelError) {
+        try {
+            const channelTypes = require('expo-notifications/build/NotificationChannelManager.types');
+            const notificationTypes = require('expo-notifications/build/Notifications.types');
+            const { setNotificationHandler } = require('expo-notifications/build/NotificationsHandler');
+            const { scheduleNotificationAsync } = require('expo-notifications/build/scheduleNotificationAsync');
+            const { setNotificationChannelAsync } = require('expo-notifications/build/setNotificationChannelAsync');
+            const permissions = require('expo-notifications/build/NotificationPermissions');
+
+            console.warn(
+                '[notifications] Expo Go on Android: remote push is unavailable, ' +
+                    'using local notifications only.'
+            );
+
+            return {
+                ...channelTypes,
+                ...notificationTypes,
+                setNotificationHandler,
+                scheduleNotificationAsync,
+                setNotificationChannelAsync,
+                getPermissionsAsync: permissions.getPermissionsAsync,
+                requestPermissionsAsync: permissions.requestPermissionsAsync,
+            } as ExpoNotifications;
+        } catch {
+            console.warn('[notifications] expo-notifications could not be loaded:', barrelError);
+            return null;
+        }
+    }
+}
+
+const Notifications = loadNotifications();
+
+/** True when the notification APIs are usable in the current runtime. */
+export function areNotificationsAvailable(): boolean {
+    return Notifications !== null;
+}
 
 /**
  * Push / local notification helpers for the mobile app.
@@ -17,17 +80,19 @@ import * as Notifications from 'expo-notifications';
 // a fresh channel with sound enabled (Android caches channel settings permanently).
 export const ANDROID_CHANNEL_ID = 'gadal_alerts_channel_v1';
 
-// Configure how notifications behave when received while the app is foregrounded.
+// Configure how notifications behave while the app is foregrounded.
 // Without this, foreground notifications are silently swallowed by the OS.
-Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        // iOS 14+ granular presentation flags (safe to include on all platforms).
-        shouldShowBanner: true,
-        shouldShowList: true,
-    }),
-});
+if (Notifications) {
+    Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            // iOS 14+ granular presentation flags (safe to include on all platforms).
+            shouldShowBanner: true,
+            shouldShowList: true,
+        }),
+    });
+}
 
 /**
  * Create the Android notification channel used for all local notifications.
@@ -35,6 +100,10 @@ Notifications.setNotificationHandler({
  */
 export async function ensureAndroidChannel(): Promise<void> {
     if (Platform.OS !== 'android') return;
+    if (!Notifications) {
+        console.warn('Skipping Android channel: expo-notifications is unavailable.');
+        return;
+    }
     try {
         await Notifications.setNotificationChannelAsync(ANDROID_CHANNEL_ID, {
             name: 'Gadal Notifications',
@@ -68,6 +137,10 @@ export async function ensureAndroidChannel(): Promise<void> {
  * Returns true when notifications are allowed.
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
+    if (!Notifications) {
+        console.warn('Cannot request notification permissions: expo-notifications is unavailable.');
+        return false;
+    }
     try {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
@@ -104,6 +177,10 @@ export async function presentLocalNotification(
     body: string,
     data: Record<string, any> = {}
 ): Promise<void> {
+    if (!Notifications) {
+        console.warn('Cannot present notification: expo-notifications is unavailable.');
+        return;
+    }
     try {
         if (Platform.OS === 'android') {
             await ensureAndroidChannel();
@@ -135,6 +212,7 @@ export async function presentLocalNotification(
  * in the UI while verifying the notification pipeline on a real device.
  */
 export async function getNotificationPermissionStatus(): Promise<string> {
+    if (!Notifications) return 'unavailable';
     try {
         const { status } = await Notifications.getPermissionsAsync();
         return status;
@@ -148,6 +226,9 @@ export async function getNotificationPermissionStatus(): Promise<string> {
  * human-readable result string useful for debugging on-device.
  */
 export async function sendTestNotification(): Promise<string> {
+    if (!areNotificationsAvailable()) {
+        return 'expo-notifications could not be loaded in this runtime.';
+    }
     const granted = await setupNotifications();
     if (!granted) {
         return 'Permission NOT granted. Enable notifications for this app in system settings.';

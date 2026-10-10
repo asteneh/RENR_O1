@@ -135,7 +135,6 @@ export default function PostPropertyScreen({ navigation, route }: any) {
 
   const getServiceIcon = (key: string) => {
     switch (key) {
-      case 'Property': return 'home-outline';
       case 'Vehicle': return 'car-outline';
       case 'Machinery': return 'construct-outline';
       default: return 'cube-outline';

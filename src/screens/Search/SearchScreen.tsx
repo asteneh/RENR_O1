@@ -12,7 +12,7 @@ const THEME_COLOR = '#FF8C00';
 
 const POPULAR_SEARCHES = [
   'Excavator', 'Bulldozer', 'Loader', 'Dump Truck', 'Crane',
-  'Toyota', 'Villa', 'Apartment', 'Generator', 'Grader',
+  'Toyota', 'Forklift', 'Generator', 'Grader', 'Tipper Truck',
 ];
 
 const RECENT_SEARCHES_KEY = 'recent_searches';
@@ -219,7 +219,6 @@ export default function SearchScreen() {
               {[
                 { label: 'Machinery', icon: 'hammer-outline', q: '', pt: 1 },
                 { label: 'Vehicles', icon: 'car-outline', q: '', pt: 3 },
-                { label: 'Property', icon: 'home-outline', q: '', pt: 2 },
               ].map(({ label, icon, q, pt }) => (
                 <TouchableOpacity
                   key={label}

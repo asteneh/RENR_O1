@@ -81,9 +81,7 @@ export const useAuthStore = create<AuthState>()(
 
       addRole: (role) => {
         const current = get().currentRoles;
-        if (!current.includes(role)) {
-          set({ currentRoles: [...current, role] });
-        }
+        set({ currentRoles: addRoleExclusive(current, role) });
       },
 
       removeRole: (role) => {
@@ -95,9 +93,7 @@ export const useAuthStore = create<AuthState>()(
       // Legacy compat
       setRole: (role) => {
         const current = get().currentRoles;
-        if (!current.includes(role)) {
-          set({ currentRoles: [...current, role] });
-        }
+        set({ currentRoles: addRoleExclusive(current, role) });
       },
 
       setViewMode: (mode) => set({ viewMode: mode }),
@@ -191,6 +187,20 @@ export function extractBackendRoles(user: any): UserRole[] {
   return roles.length > 0 ? roles : [UserRoles.USER as UserRole];
 }
 
+// Roles that cannot be combined with any other role (e.g. Broker).
+const EXCLUSIVE_ROLES: UserRole[] = [UserRoles.BROKER];
+
+/**
+ * Add a role while respecting exclusive roles: adding an exclusive role
+ * replaces the selection, and adding any other role drops an exclusive one.
+ * Keeps every caller (UI and store) on the same rule.
+ */
+export function addRoleExclusive(current: UserRole[], role: UserRole): UserRole[] {
+  if (current.includes(role)) return current;
+  if (EXCLUSIVE_ROLES.includes(role)) return [role];
+  return [...current.filter(r => !EXCLUSIVE_ROLES.includes(r)), role];
+}
+
 function mapSingleRole(backendRole: string): UserRole | null {
   if (!backendRole) return null;
   const normalized = backendRole.toLowerCase().trim();
@@ -200,21 +210,21 @@ function mapSingleRole(backendRole: string): UserRole | null {
     'user': UserRoles.USER,
     'seller': UserRoles.SELLER,
     'buyer': UserRoles.BUYER,
-    'employer': UserRoles.EMPLOYER,
     'operator': UserRoles.OPERATOR,
     'rent_owner': UserRoles.RENT_OWNER,
     'rent_seeker': UserRoles.RENT_SEEKER,
     'akeray': UserRoles.RENT_OWNER,
     'tekeray': UserRoles.RENT_SEEKER,
+    'broker': UserRoles.BROKER,
   };
 
   if (directMap[normalized]) return directMap[normalized];
 
   // Fuzzy matching
+  if (normalized.includes('broker')) return UserRoles.BROKER;
   if (normalized.includes('operator') || normalized.includes('employee')) return UserRoles.OPERATOR;
   if (normalized.includes('seller') || normalized.includes('supplier')) return UserRoles.SELLER;
   if (normalized.includes('buyer')) return UserRoles.BUYER;
-  if (normalized.includes('employer')) return UserRoles.EMPLOYER;
   if (normalized.includes('rent_owner') || normalized.includes('landlord') || normalized.includes('akeray')) return UserRoles.RENT_OWNER;
   if (normalized.includes('rent_seeker') || normalized.includes('tenant') || normalized.includes('tekeray')) return UserRoles.RENT_SEEKER;
 

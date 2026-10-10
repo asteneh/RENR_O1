@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, StatusBar, Modal, FlatList, ActivityIndicator,
-  KeyboardAvoidingView, Platform, BackHandler
+  KeyboardAvoidingView, Platform, BackHandler, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import { useCategoriesByService, useBrandsByCategory } from '../../api/services/
 import { formatPhoneNumber } from '../../utils/formatPhoneNumber';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
-import { UserRoles, UserRole, RoleLabels, RoleDescriptions, RoleIcons, RoleToBackend, SELECTABLE_ROLES } from '../../constants/UserRoles';
+import { UserRoles, UserRole, RoleLabels, RoleDescriptions, RoleIcons, RoleToBackend, SELECTABLE_ROLES, toggleRoleExclusive, validateBrokerIdAttachment, BROKER_ID_DOCUMENT_TYPES, BrokerIdDocumentType, DEFAULT_BROKER_ID_DOCUMENT_TYPE } from '../../constants/UserRoles';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from '../../i18n';
 
@@ -65,6 +65,10 @@ export default function SignUpScreen({ route }: any) {
   // Multi-role selection
   const [selectedRoles, setSelectedRoles] = useState<UserRole[]>([]);
   const [showRoleModal, setShowRoleModal] = useState(false);
+  // Broker ID — the National ID / Kebele card image itself, required only while
+// the Broker role is selected. Never a number typed into a text box.
+const [brokerIdAsset, setBrokerIdAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+const [brokerIdDocumentType, setBrokerIdDocumentType] = useState<BrokerIdDocumentType>(DEFAULT_BROKER_ID_DOCUMENT_TYPE);
 
   // Step 2 Fields (Now Step 4)
   const [machineryList, setMachineryList] = useState<{ category: any; brand: any; }[]>([]);
@@ -157,16 +161,40 @@ export default function SignUpScreen({ route }: any) {
   };
 
   const hasBelongingsRole = selectedRoles.includes(UserRoles.SELLER) || selectedRoles.includes(UserRoles.RENT_OWNER);
-  const hasEmployerRole = selectedRoles.includes(UserRoles.EMPLOYER);
-  const onlyEmployer = selectedRoles.length === 1 && selectedRoles[0] === UserRoles.EMPLOYER;
+  const isBrokerSelected = selectedRoles.includes(UserRoles.BROKER);
 
-  // Toggle a role in the multi-select array
+  // Toggle a role in the multi-select array, honouring exclusive roles
+  // (Broker can only ever be selected on its own).
   const toggleRole = (role: UserRole) => {
-    setSelectedRoles(prev => 
-      prev.includes(role) 
-        ? prev.filter(r => r !== role) 
-        : [...prev, role]
-    );
+    setSelectedRoles(prev => toggleRoleExclusive(prev, role));
+    // Leaving the Broker role drops the ID card it required.
+    if (role === UserRoles.BROKER && !selectedRoles.includes(UserRoles.BROKER)) {
+      setBrokerIdAsset(null);
+    }
+  };
+
+  const pickBrokerIdFromLibrary = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setBrokerIdAsset(result.assets[0]);
+    }
+  };
+
+  const takeBrokerIdPhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      showNotification('Camera permission is needed to photograph your ID.', 'error');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      setBrokerIdAsset(result.assets[0]);
+    }
   };
 
   const { showNotification } = useNotificationStore();
@@ -385,6 +413,17 @@ export default function SignUpScreen({ route }: any) {
       } as any);
     });
 
+    // The broker ID travels as a file, plus a plain field naming the document it
+    // is. The API stores it and flags the account for review.
+    if (isBrokerSelected && brokerIdAsset) {
+      formData.append('brokerIdDocumentType', brokerIdDocumentType);
+      formData.append('brokerIdAttachment', {
+        uri: brokerIdAsset.uri,
+        name: brokerIdAsset.fileName || `broker_id.${brokerIdAsset.mimeType === 'image/png' ? 'png' : 'jpg'}`,
+        type: brokerIdAsset.mimeType || 'image/jpeg',
+      } as any);
+    }
+
     registerMutation.mutate(formData, {
       onSuccess: async () => {
         try {
@@ -441,6 +480,17 @@ export default function SignUpScreen({ route }: any) {
       if (selectedRoles.length === 0) {
         showNotification('Please select at least one role.', 'error');
         return;
+      }
+
+      // The Broker ID card image is mandatory whenever the Broker role is chosen.
+      if (isBrokerSelected) {
+        const brokerIdError = validateBrokerIdAttachment(
+          brokerIdAsset ? { uri: brokerIdAsset.uri, documentType: brokerIdDocumentType } : null
+        );
+        if (brokerIdError) {
+          showNotification(brokerIdError, 'error');
+          return;
+        }
       }
 
       if (!agreedToTerms) {
@@ -722,6 +772,67 @@ export default function SignUpScreen({ route }: any) {
                         </TouchableOpacity>
                       </View>
                     ))}
+                  </View>
+                )}
+
+                {/* Broker ID card image - mandatory whenever Broker is selected. */}
+                {isBrokerSelected && (
+                  <View style={{ marginTop: 4 }}>
+                    <Text style={styles.roleLabel}>
+                      BROKER ID (National ID / Kebele Card) <Text style={{ color: '#E53935' }}>*</Text>
+                    </Text>
+                    {/* Which document is being uploaded */}
+                    <View style={styles.brokerDocTypeRow}>
+                      {BROKER_ID_DOCUMENT_TYPES.map(type => {
+                        const isActive = brokerIdDocumentType === type;
+                        return (
+                          <TouchableOpacity
+                            key={type}
+                            style={[styles.brokerDocTypeChip, isActive && styles.brokerDocTypeChipActive]}
+                            onPress={() => setBrokerIdDocumentType(type)}
+                          >
+                            <Text style={[styles.brokerDocTypeChipText, isActive && styles.brokerDocTypeChipTextActive]}>
+                              {type}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    {brokerIdAsset ? (
+                      <View style={styles.brokerIdPreviewWrap}>
+                        <Image source={{ uri: brokerIdAsset.uri }} style={styles.brokerIdPreview} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.brokerIdName} numberOfLines={1}>
+                            {brokerIdAsset.fileName || brokerIdDocumentType}
+                          </Text>
+                          <Text style={styles.brokerIdMeta}>{brokerIdDocumentType} selected</Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setBrokerIdAsset(null)}>
+                          <Ionicons name="trash-outline" size={22} color="#E53935" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <View style={styles.brokerIdUploadBox}>
+                        <Ionicons name="card-outline" size={30} color={THEME_COLOR} />
+                        <Text style={styles.brokerIdUploadText}>
+                          Upload a clear photo of your {brokerIdDocumentType}
+                        </Text>
+                        <View style={styles.brokerIdBtnRow}>
+                          <TouchableOpacity style={styles.brokerIdBtn} onPress={takeBrokerIdPhoto}>
+                            <Ionicons name="camera-outline" size={16} color="#fff" />
+                            <Text style={styles.brokerIdBtnText}>Take Photo</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity style={styles.brokerIdBtn} onPress={pickBrokerIdFromLibrary}>
+                            <Ionicons name="images-outline" size={16} color="#fff" />
+                            <Text style={styles.brokerIdBtnText}>Gallery</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                    <Text style={styles.helperText}>
+                      Broker is a single role and cannot be combined with other roles. Your ID is reviewed by an admin.
+                    </Text>
                   </View>
                 )}
 
@@ -1017,7 +1128,11 @@ export default function SignUpScreen({ route }: any) {
                 <Ionicons name="close" size={24} color="#333" />
               </TouchableOpacity>
             </View>
-            <Text style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>You can select multiple roles</Text>
+            <Text style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
+              {selectedRoles.includes(UserRoles.BROKER)
+                ? 'Broker is a single role - tap it again to remove'
+                : 'You can select multiple roles'}
+            </Text>
             <FlatList
               data={SELECTABLE_ROLES}
               keyExtractor={(item) => item}
@@ -1089,6 +1204,38 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', width: '100%' },
 
   roleLabel: { fontSize: 14, fontWeight: 'bold', color: '#555', marginBottom: 10, marginTop: 10 },
+    helperText: { fontSize: 12, color: '#888', marginTop: -8, marginBottom: 12 },
+
+  // ── Broker ID document ──
+  brokerDocTypeRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  brokerDocTypeChip: {
+    flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10,
+    backgroundColor: '#fff', borderWidth: 1, borderColor: '#EEE',
+  },
+  brokerDocTypeChipActive: { borderColor: THEME_COLOR, backgroundColor: '#FFF3E0' },
+  brokerDocTypeChipText: { fontSize: 13, fontWeight: '600', color: '#666' },
+  brokerDocTypeChipTextActive: { color: THEME_COLOR },
+  brokerIdUploadBox: {
+    alignItems: 'center', paddingVertical: 18, paddingHorizontal: 12, borderRadius: 12,
+    backgroundColor: '#fff', borderWidth: 1, borderStyle: 'dashed', borderColor: THEME_COLOR,
+  },
+  brokerIdUploadText: {
+    fontSize: 13, color: '#666', textAlign: 'center', marginVertical: 8,
+  },
+  brokerIdBtnRow: { flexDirection: 'row', gap: 10 },
+  brokerIdBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: THEME_COLOR, paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20,
+  },
+  brokerIdBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  brokerIdPreviewWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: '#fff', borderRadius: 12, padding: 10,
+    borderWidth: 1, borderColor: '#EEE',
+  },
+  brokerIdPreview: { width: 64, height: 48, borderRadius: 8, backgroundColor: '#F5F5F5' },
+  brokerIdName: { fontSize: 13, fontWeight: '600', color: '#333' },
+  brokerIdMeta: { fontSize: 12, color: '#888', marginTop: 2 },
   roleContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   roleButton: {
     flex: 1, paddingVertical: 10, alignItems: 'center',

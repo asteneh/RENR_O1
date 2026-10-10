@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, LayoutAnimation } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RequestItem } from '../data/mockRequests';
 
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+// NOTE: `UIManager.setLayoutAnimationEnabledExperimental` is a no-op under the
+// New Architecture (LayoutAnimation is enabled by default there), so it is
+// intentionally not called to avoid the startup warning. LayoutAnimation still
+// works on the New Architecture, so no replacement call is needed.
 
 const THEME_COLOR = '#FF8C00';
 

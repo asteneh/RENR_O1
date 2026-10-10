@@ -41,6 +41,12 @@ export default function TabNavigator() {
     const showRequestsTab = true; // Browsing requests is free for all
     const showPostTab = isAuthenticated ? (canPostItems || canPostJob) : true;
 
+    // A Broker is an exclusive role that never posts or applies to jobs
+    // (see ROLE_DASHBOARD_CONFIG / ACCESS_MATRIX), so the Jobs tab is hidden
+    // for them entirely. Everyone else keeps it.
+    const isBroker = currentRoles.includes(UserRoles.BROKER);
+    const showJobsTab = !isBroker;
+
     return (
         <Tab.Navigator screenOptions={({ route }) => ({
             headerShown: false,
@@ -77,6 +83,7 @@ export default function TabNavigator() {
         })}>
             <Tab.Screen name="Home" component={HomeScreen} options={{ title: t('home') }} />
 
+            {showJobsTab && (
             <Tab.Screen
                 name="JobsTab"
                 component={Placeholder}
@@ -97,6 +104,7 @@ export default function TabNavigator() {
                     ),
                 }}
             />
+            )}
 
             {/* Post Button (Middle) - visible to roles that can post */}
             {showPostTab && (

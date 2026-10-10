@@ -2,10 +2,10 @@ export const UserRoles = {
   USER: 'USER',
   SELLER: 'SELLER',
   BUYER: 'BUYER',
-  EMPLOYER: 'EMPLOYER',
   OPERATOR: 'OPERATOR',
   RENT_OWNER: 'RENT_OWNER',
   RENT_SEEKER: 'RENT_SEEKER',
+  BROKER: 'BROKER',
 } as const;
 
 export type UserRole = typeof UserRoles[keyof typeof UserRoles];
@@ -25,10 +25,10 @@ export const RoleLabels: Record<UserRole, string> = {
   [UserRoles.USER]: 'User',
   [UserRoles.SELLER]: 'Seller',
   [UserRoles.BUYER]: 'Buyer',
-  [UserRoles.EMPLOYER]: 'Employer',
   [UserRoles.OPERATOR]: 'Operator',
   [UserRoles.RENT_OWNER]: 'Akeray',
   [UserRoles.RENT_SEEKER]: 'Tekeray',
+  [UserRoles.BROKER]: 'Broker',
 };
 
 // Short descriptions shown during registration
@@ -36,10 +36,10 @@ export const RoleDescriptions: Record<UserRole, string> = {
   [UserRoles.USER]: 'Browse listings and search',
   [UserRoles.SELLER]: 'Sell items & properties',
   [UserRoles.BUYER]: 'Buy items & properties',
-  [UserRoles.EMPLOYER]: 'Post jobs & hire operators',
   [UserRoles.OPERATOR]: 'Service provider / worker',
   [UserRoles.RENT_OWNER]: 'Post rental properties (Landlord)',
   [UserRoles.RENT_SEEKER]: 'Find rental properties (Tenant)',
+  [UserRoles.BROKER]: 'Deal on behalf of others (single role)',
 };
 
 // Icons for each role
@@ -47,10 +47,10 @@ export const RoleIcons: Record<UserRole, string> = {
   [UserRoles.USER]: 'person-outline',
   [UserRoles.SELLER]: 'storefront-outline',
   [UserRoles.BUYER]: 'cart-outline',
-  [UserRoles.EMPLOYER]: 'briefcase-outline',
   [UserRoles.OPERATOR]: 'construct-outline',
   [UserRoles.RENT_OWNER]: 'home-outline',
   [UserRoles.RENT_SEEKER]: 'search-outline',
+  [UserRoles.BROKER]: 'ribbon-outline',
 };
 
 // Backend enum mapping — converts our internal constants to what the API expects
@@ -58,25 +58,26 @@ export const RoleToBackend: Record<UserRole, string> = {
   [UserRoles.USER]: 'User',
   [UserRoles.SELLER]: 'Seller',
   [UserRoles.BUYER]: 'Buyer',
-  [UserRoles.EMPLOYER]: 'Employer',
   [UserRoles.OPERATOR]: 'Operator',
   [UserRoles.RENT_OWNER]: 'Akeray',
   [UserRoles.RENT_SEEKER]: 'Tekeray',
+  [UserRoles.BROKER]: 'Broker',
 };
 
 // Roles available for selection during registration (excludes USER)
 export const SELECTABLE_ROLES: UserRole[] = [
   UserRoles.SELLER,
   UserRoles.BUYER,
-  UserRoles.EMPLOYER,
   UserRoles.OPERATOR,
   UserRoles.RENT_OWNER,
   UserRoles.RENT_SEEKER,
+  UserRoles.BROKER,
 ];
 
 // ─── Feature Actions ──────────────────────────────────────────────
 export const FeatureActions = {
   POST_JOB: 'POST_JOB',
+  APPLY_JOB: 'APPLY_JOB',
   POST_SALE: 'POST_SALE',
   POST_RENT: 'POST_RENT',
   REQUEST_BUY: 'REQUEST_BUY',
@@ -98,86 +99,97 @@ type AccessLevel = 'paid' | 'free' | 'no';
 export const ACCESS_MATRIX: Record<FeatureAction, Record<UserRole, AccessLevel>> = {
   [FeatureActions.POST_JOB]: {
     [UserRoles.USER]: 'no',
-    [UserRoles.EMPLOYER]: 'paid',
     [UserRoles.BUYER]: 'paid',
     [UserRoles.SELLER]: 'paid',
     [UserRoles.RENT_SEEKER]: 'paid',
     [UserRoles.RENT_OWNER]: 'paid',
     [UserRoles.OPERATOR]: 'no',
+    // Brokers deal on behalf of clients but never post jobs themselves.
+    [UserRoles.BROKER]: 'no',
+  },
+  [FeatureActions.APPLY_JOB]: {
+    [UserRoles.USER]: 'no',
+    [UserRoles.BUYER]: 'no',
+    [UserRoles.SELLER]: 'no',
+    [UserRoles.RENT_SEEKER]: 'no',
+    [UserRoles.RENT_OWNER]: 'no',
+    [UserRoles.OPERATOR]: 'free',
+    [UserRoles.BROKER]: 'no',
   },
   // Buyer may only post RENT items (per five-role hierarchy)
   [FeatureActions.POST_SALE]: {
     [UserRoles.USER]: 'no',
-    [UserRoles.EMPLOYER]: 'paid',
     [UserRoles.BUYER]: 'no',
     [UserRoles.SELLER]: 'paid',
     [UserRoles.RENT_SEEKER]: 'no',
     [UserRoles.RENT_OWNER]: 'paid',
     [UserRoles.OPERATOR]: 'no',
+    [UserRoles.BROKER]: 'paid',
   },
   [FeatureActions.POST_RENT]: {
     [UserRoles.USER]: 'no',
-    [UserRoles.EMPLOYER]: 'paid',
     [UserRoles.BUYER]: 'paid',
     [UserRoles.SELLER]: 'paid',
     [UserRoles.RENT_SEEKER]: 'no',
     [UserRoles.RENT_OWNER]: 'paid',
     [UserRoles.OPERATOR]: 'no',
+    [UserRoles.BROKER]: 'paid',
   },
   // Buyer & Seller can post buy requests; Tekeray can post both request types
   [FeatureActions.REQUEST_BUY]: {
     [UserRoles.USER]: 'no',
-    [UserRoles.EMPLOYER]: 'paid',
     [UserRoles.BUYER]: 'paid',
     [UserRoles.SELLER]: 'paid',
     [UserRoles.RENT_SEEKER]: 'paid',
     [UserRoles.RENT_OWNER]: 'no',
     [UserRoles.OPERATOR]: 'no',
+    [UserRoles.BROKER]: 'paid',
   },
   [FeatureActions.REQUEST_RENT]: {
     [UserRoles.USER]: 'no',
-    [UserRoles.EMPLOYER]: 'paid',
     [UserRoles.BUYER]: 'no',
     [UserRoles.SELLER]: 'no',
     [UserRoles.RENT_SEEKER]: 'paid',
     [UserRoles.RENT_OWNER]: 'no',
     [UserRoles.OPERATOR]: 'no',
+    [UserRoles.BROKER]: 'paid',
   },
   [FeatureActions.VIEW_SELLER_INFO]: {
     [UserRoles.USER]: 'no',
-    [UserRoles.EMPLOYER]: 'paid',
     [UserRoles.BUYER]: 'paid',
     [UserRoles.SELLER]: 'paid',
     [UserRoles.RENT_SEEKER]: 'paid',
     [UserRoles.RENT_OWNER]: 'paid',
     [UserRoles.OPERATOR]: 'no',
+    [UserRoles.BROKER]: 'paid',
   },
   [FeatureActions.JOIN_OPERATOR]: {
     [UserRoles.USER]: 'paid',
-    [UserRoles.EMPLOYER]: 'paid',
     [UserRoles.BUYER]: 'paid',
     [UserRoles.SELLER]: 'paid',
     [UserRoles.RENT_SEEKER]: 'paid',
     [UserRoles.RENT_OWNER]: 'paid',
     [UserRoles.OPERATOR]: 'paid',
+    // A Broker cannot become an Operator.
+    [UserRoles.BROKER]: 'no',
   },
   [FeatureActions.BROWSE_LISTINGS]: {
     [UserRoles.USER]: 'free',
-    [UserRoles.EMPLOYER]: 'free',
     [UserRoles.BUYER]: 'free',
     [UserRoles.SELLER]: 'free',
     [UserRoles.RENT_SEEKER]: 'free',
     [UserRoles.RENT_OWNER]: 'free',
     [UserRoles.OPERATOR]: 'free',
+    [UserRoles.BROKER]: 'free',
   },
   [FeatureActions.SEARCH]: {
     [UserRoles.USER]: 'free',
-    [UserRoles.EMPLOYER]: 'free',
     [UserRoles.BUYER]: 'free',
     [UserRoles.SELLER]: 'free',
     [UserRoles.RENT_SEEKER]: 'free',
     [UserRoles.RENT_OWNER]: 'free',
     [UserRoles.OPERATOR]: 'free',
+    [UserRoles.BROKER]: 'free',
   },
 };
 
@@ -401,16 +413,17 @@ export const ROLE_DASHBOARD_CONFIG: Record<UserRole, RoleDashboardConfig> = {
       myRequests: false,
       singularPackageLabel: true,
       appliedJobs: true,
-      postedJobs: true,
+      postedJobs: false,
     },
   },
 
-  // Employer keeps job-centric capabilities (legacy role, not part of the 5-role hierarchy)
-  [UserRoles.EMPLOYER]: {
+  // 6. BROKER — full deal-making access, but never posts or applies to jobs.
+  // Broker is exclusive, so no other role's config can widen this.
+  [UserRoles.BROKER]: {
     quickActions: {
       postItemTypes: ['sale', 'rent'],
       postRequestTypes: ['buy', 'rent'],
-      postJob: true,
+      postJob: false,
       lookingForJob: false,
     },
     activities: {
@@ -418,7 +431,7 @@ export const ROLE_DASHBOARD_CONFIG: Record<UserRole, RoleDashboardConfig> = {
       myRequests: true,
       singularPackageLabel: false,
       appliedJobs: false,
-      postedJobs: true,
+      postedJobs: false,
     },
   },
 };
@@ -434,12 +447,14 @@ function unionKinds<T extends string>(order: T[], groups: T[][]): T[] {
  * Merge dashboard configs across all of a user's roles.
  * Capabilities are unioned — if ANY role can do it, the user can do it.
  * The singular package label only applies when the user is Operator-only.
+ * The appliedJobs activity is strictly limited to users who have the OPERATOR role.
  */
 export function getRoleDashboardConfig(roles: UserRole[]): RoleDashboardConfig {
   const configs = (roles.length > 0 ? roles : [UserRoles.USER as UserRole])
     .map(role => ROLE_DASHBOARD_CONFIG[role] ?? EMPTY_CONFIG);
 
   const isOperatorOnly = roles.length > 0 && roles.every(r => r === UserRoles.OPERATOR);
+  const hasOperator = roles.includes(UserRoles.OPERATOR);
 
   return {
     quickActions: {
@@ -458,7 +473,7 @@ export function getRoleDashboardConfig(roles: UserRole[]): RoleDashboardConfig {
       myPosts: configs.some(c => c.activities.myPosts),
       myRequests: configs.some(c => c.activities.myRequests),
       singularPackageLabel: isOperatorOnly,
-      appliedJobs: configs.some(c => c.activities.appliedJobs),
+      appliedJobs: hasOperator,
       postedJobs: configs.some(c => c.activities.postedJobs),
     },
   };
@@ -477,11 +492,6 @@ export const MEMBERSHIP_PLANS: Record<string, MembershipPlan[]> = {
     { id: 'free', title: "Free User", price: 0, features: ["Browse only", "Search properties/jobs"] },
     { id: 'basic', title: "Basic Paid", price: 50, features: ["1 posting", "Limited contacts access"] },
     { id: 'premium', title: "Premium", price: 150, features: ["Unlimited posting", "Full contact access"] }
-  ],
-  [UserRoles.EMPLOYER]: [
-    { id: 'basic', title: "Basic", price: 100, features: ["5 Job postings/month", "View applicant info"] },
-    { id: 'gold', title: "Gold", price: 250, features: ["15 Job postings/month", "Priority listing", "View applicant info"] },
-    { id: 'premium', title: "Premium", price: 500, features: ["Unlimited Job postings/month", "Featured listings", "Full applicant access"] }
   ],
   [UserRoles.RENT_OWNER]: [
     { id: 'basic', title: "Basic", price: 100, features: ["10 items to post/month", "3 Job vacancies/month"] },
@@ -505,6 +515,11 @@ export const MEMBERSHIP_PLANS: Record<string, MembershipPlan[]> = {
   ],
   [UserRoles.OPERATOR]: [
     { id: 'basic', title: "Basic", price: 50, features: ["Operator dashboard access", "Standard operator status"] }
+  ],
+  [UserRoles.BROKER]: [
+    { id: 'basic', title: "Basic", price: 100, features: ["Post items & requests", "View seller contact info"] },
+    { id: 'gold', title: "Gold", price: 250, features: ["Priority listings", "View seller contact info"] },
+    { id: 'premium', title: "Premium", price: 500, features: ["Unlimited postings", "Featured listings", "Full contact access"] }
   ]
 };
 
@@ -519,4 +534,70 @@ export function getMergedMembershipPlans(roles: UserRole[]): { role: UserRole; r
       roleName: RoleLabels[role],
       plans: MEMBERSHIP_PLANS[role],
     }));
+}
+
+// ─── Broker Role Rules ─────────────────────────────────────────────
+// A Broker acts on behalf of others, so it gets broad deal-making access,
+// but it may never be combined with another role and it never posts or
+// applies to jobs (see ACCESS_MATRIX / ROLE_DASHBOARD_CONFIG above).
+
+/** Roles that must be selected on their own — no multi-select allowed. */
+export const EXCLUSIVE_ROLES: UserRole[] = [UserRoles.BROKER];
+
+/** True when this role cannot be combined with any other role. */
+export function isExclusiveRole(role: UserRole): boolean {
+  return EXCLUSIVE_ROLES.includes(role);
+}
+
+/**
+ * Toggle a role while honouring the exclusivity rules.
+ *
+ * - Selecting an exclusive role replaces the entire selection with it.
+ * - Selecting any other role drops any exclusive role already chosen.
+ * - Deselecting is always allowed.
+ */
+export function toggleRoleExclusive(roles: UserRole[], role: UserRole): UserRole[] {
+  if (roles.includes(role)) {
+    return roles.filter(r => r !== role);
+  }
+  if (isExclusiveRole(role)) {
+    return [role];
+  }
+  return [...roles.filter(r => !isExclusiveRole(r)), role];
+}
+
+// ─── Broker ID Document ────────────────────────────────────────────
+// The broker ID is not a licence number: it is the ID card itself, uploaded
+// as an image. Exactly one of these two documents is accepted as proof.
+
+export const BROKER_ID_DOCUMENT_TYPES = ['National ID', 'Kebele Card'] as const;
+
+export type BrokerIdDocumentType = typeof BROKER_ID_DOCUMENT_TYPES[number];
+
+export const DEFAULT_BROKER_ID_DOCUMENT_TYPE: BrokerIdDocumentType = 'National ID';
+
+/** The broker ID as it comes back from the API (path is relative to files/). */
+export interface BrokerIdAttachment {
+    documentType: BrokerIdDocumentType;
+    name?: string;
+    path: string;
+    uploadedAt?: string;
+}
+
+/** Anything with a usable file location counts as an attachment — a local
+ *  `uri` while the user is picking it, or a server `path` once uploaded. */
+export type BrokerIdAttachmentSource = Partial<BrokerIdAttachment> & { uri?: string } | null | undefined;
+
+/**
+ * Validate the uploaded Broker ID. Returns an error message, or null when valid.
+ * Mirrors the server-side rules in Gadal_Market_Backend/Utils/brokerRules.js.
+ */
+export function validateBrokerIdAttachment(attachment: BrokerIdAttachmentSource): string | null {
+    if (!attachment) return 'Please attach your National ID or Kebele Card.';
+    const location = (attachment.path || attachment.uri || '').trim();
+    if (!location) return 'Please attach your National ID or Kebele Card.';
+    if (attachment.documentType && !BROKER_ID_DOCUMENT_TYPES.includes(attachment.documentType)) {
+        return 'Broker ID must be a National ID or a Kebele Card.';
+    }
+    return null;
 }

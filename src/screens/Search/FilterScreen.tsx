@@ -47,21 +47,14 @@ export default function FilterScreen() {
     existingFilters.maxPrice ? String(existingFilters.maxPrice) : ''
   );
 
-  // Dynamic categories based on selected product type
-  const machineryServiceId = productType === null || productType === ServiceEnums.Machinery ? ServiceEnums.Machinery : 0;
-  const vehicleServiceId = productType === null || productType === ServiceEnums.Vehicle ? ServiceEnums.Vehicle : 0;
-  const propertyServiceId = productType === null || productType === ServiceEnums.Property ? ServiceEnums.Property : 0;
-
   const { data: machineryCats, isLoading: mLoading } = useCategoriesByService(ServiceEnums.Machinery);
   const { data: vehicleCats, isLoading: vLoading } = useCategoriesByService(ServiceEnums.Vehicle);
-  const { data: propertyCats, isLoading: pLoading } = useCategoriesByService(ServiceEnums.Property);
 
-  const catsLoading = mLoading || vLoading || pLoading;
+  const catsLoading = mLoading || vLoading;
 
   const allCategories = [
     ...(machineryCats || []),
     ...(vehicleCats || []),
-    ...(propertyCats || []),
   ];
 
   // Show only categories for selected product type
@@ -69,8 +62,6 @@ export default function FilterScreen() {
     ? (machineryCats || [])
     : productType === ServiceEnums.Vehicle
     ? (vehicleCats || [])
-    : productType === ServiceEnums.Property
-    ? (propertyCats || [])
     : allCategories;
 
   const handleReset = useCallback(() => {
@@ -159,11 +150,6 @@ export default function FilterScreen() {
               label="🚗 Vehicle"
               selected={productType === ServiceEnums.Vehicle}
               onPress={() => { setProductType(ServiceEnums.Vehicle); setCategoryId(null); }}
-            />
-            <Chip
-              label="🏠 Property"
-              selected={productType === ServiceEnums.Property}
-              onPress={() => { setProductType(ServiceEnums.Property); setCategoryId(null); }}
             />
           </View>
         </View>

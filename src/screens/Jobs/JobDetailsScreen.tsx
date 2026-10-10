@@ -1,16 +1,25 @@
 import React from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
-    TouchableOpacity, ActivityIndicator, Share, Linking
+    TouchableOpacity, ActivityIndicator, Share, Linking, Switch
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { JobsStackParamList } from '../../navigation/JobsNavigator';
-import { useJobDetailQuery, useApplyToJobMutation, Job } from '../../api/services/jobService';
+import {
+    useJobDetailQuery,
+    useApplyToJobMutation,
+    useJobNotificationPreferenceMutation,
+    useWithdrawApplicationMutation,
+    useRespondToOfferMutation,
+    Job,
+    JobApplicant,
+} from '../../api/services/jobService';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { useAuthStore } from '../../store/useAuthStore';
+import { UserRoles } from '../../constants/UserRoles';
 import { formatPostDate } from '../../utils/dateUtils';
 
 const THEME_COLOR = '#FF8C00';
@@ -21,17 +30,34 @@ export default function JobDetailsScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<JobDetailsRouteProp>();
     const { jobId } = route.params;
-    const { user, isAuthenticated, token } = useAuthStore();
+    const { user, isAuthenticated, token, getUserRoles } = useAuthStore();
     const { showNotification, showAlert } = useNotificationStore();
     const insets = useSafeAreaInsets();
 
     const { data: job, isLoading } = useJobDetailQuery(jobId);
     const applyMutation = useApplyToJobMutation();
+    const notificationMutation = useJobNotificationPreferenceMutation();
+    const withdrawMutation = useWithdrawApplicationMutation();
+    const respondMutation = useRespondToOfferMutation();
 
-    const isApplied = job?.appliedUsers.some((u: any) => {
+    const currentUserId = user?.id || user?._id;
+
+    // This user's own application entry on the job (if any).
+    const myApplication: JobApplicant | undefined = job?.appliedUsers?.find((u: any) => {
         const uId = u.userId && typeof u.userId === 'object' ? (u.userId._id || u.userId.id) : u.userId;
-        return uId === (user?.id || user?._id);
+        return uId === currentUserId;
     });
+
+    const isApplied = Boolean(myApplication);
+    // Undefined means "not set" → treat as ON. Only an explicit false mutes.
+    const notificationsOn = myApplication?.notificationsEnabled !== false;
+    const myStatus = myApplication?.status;
+    const hasOffer = myStatus === 'OfferSent' || myStatus === 'Shortlisted';
+    const isHired = myStatus === 'Hired';
+
+    // Once the role is filled there's nothing left to be alerted about.
+    const isClosed = job?.jobStatus === 'Closed';
+    const applicantCount = job?.appliedUsers?.length || 0;
 
     const isOwner = (() => {
         if (!job || !user) return false;
@@ -51,7 +77,8 @@ export default function JobDetailsScreen() {
             return;
         }
 
-        if (user?.userType !== 'Operator' && !user?.roles?.includes('Operator')) {
+        const isOperator = user?.userType === 'Operator' || user?.roles?.includes('Operator') || getUserRoles().includes(UserRoles.OPERATOR);
+        if (!isOperator) {
             showAlert("Operator Only", "Only registered operators can apply for jobs. Would you like to register as an operator?", [
                 { text: "No", style: "cancel" },
                 { text: "Register", onPress: () => navigation.navigate('OperatorRegistration', { jobId }), style: "default" }
@@ -65,6 +92,85 @@ export default function JobDetailsScreen() {
         } catch (error: any) {
             showNotification(cleanErrorMessage(error), "error");
         }
+    };
+
+    // "I don't want this offer" — silences SMS + notifications but keeps the
+    // application, so the switch can be flipped back on later.
+    const handleToggleNotifications = async (nextEnabled: boolean) => {
+        if (!currentUserId) return;
+        try {
+            await notificationMutation.mutateAsync({
+                jobId,
+                userId: currentUserId,
+                enabled: nextEnabled,
+            });
+            showNotification(
+                nextEnabled
+                    ? 'Notifications are back on for this job.'
+                    : 'Notifications and SMS are off for this job.',
+                'success',
+            );
+        } catch (error: any) {
+            showNotification(cleanErrorMessage(error), 'error');
+        }
+    };
+
+    // "Not interested" — removes the application AND stops notifications.
+    const handleWithdraw = () => {
+        if (!currentUserId) return;
+        showAlert(
+            'Withdraw Application',
+            'This removes your application and stops all notifications for this job. You can apply again while the job is open.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Withdraw',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await withdrawMutation.mutateAsync({ jobId, userId: currentUserId });
+                            showNotification('Application withdrawn. Notifications stopped.', 'success');
+                        } catch (error: any) {
+                            showNotification(cleanErrorMessage(error), 'error');
+                        }
+                    },
+                },
+            ],
+        );
+    };
+
+    const handleRespondToOffer = (response: 'Accept' | 'Decline') => {
+        if (!currentUserId) return;
+        showAlert(
+            response === 'Accept' ? 'Accept this job?' : 'Turn down this offer?',
+            response === 'Accept'
+                ? 'Accepting closes the job and stops notifications for it. The employer will contact you.'
+                : 'Declining stops all notifications for this job.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: response === 'Accept' ? 'Accept' : 'Decline',
+                    style: response === 'Accept' ? 'default' : 'destructive',
+                    onPress: async () => {
+                        try {
+                            await respondMutation.mutateAsync({
+                                jobId,
+                                userId: currentUserId,
+                                response,
+                            });
+                            showNotification(
+                                response === 'Accept'
+                                    ? 'Congratulations! You got this job.'
+                                    : 'Offer declined. Notifications stopped.',
+                                'success',
+                            );
+                        } catch (error: any) {
+                            showNotification(cleanErrorMessage(error), 'error');
+                        }
+                    },
+                },
+            ],
+        );
     };
 
     const handleShare = async () => {
@@ -165,6 +271,33 @@ export default function JobDetailsScreen() {
                     </View>
                 </View>
 
+                {isHired && (
+                    <View style={[styles.statusBanner, styles.statusBannerSuccess]}>
+                        <Ionicons name="checkmark-circle" size={20} color="#2E7D32" />
+                        <Text style={[styles.statusBannerText, { color: '#2E7D32' }]}>
+                            You got this job. Notifications for it are stopped.
+                        </Text>
+                    </View>
+                )}
+
+                {!isHired && isClosed && (
+                    <View style={[styles.statusBanner, styles.statusBannerNeutral]}>
+                        <Ionicons name="information-circle-outline" size={20} color="#5F6368" />
+                        <Text style={[styles.statusBannerText, { color: '#5F6368' }]}>
+                            This job is closed — the employer has finished hiring.
+                        </Text>
+                    </View>
+                )}
+
+                {hasOffer && (
+                    <View style={[styles.statusBanner, styles.statusBannerOffer]}>
+                        <Ionicons name="hand-left" size={20} color={THEME_COLOR} />
+                        <Text style={[styles.statusBannerText, { color: '#B76900' }]}>
+                            You have an offer for this job. Accept it below, or turn it down to stop notifications.
+                        </Text>
+                    </View>
+                )}
+
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Description</Text>
                     <Text style={styles.sectionBody}>{job.jobDescription}</Text>
@@ -193,40 +326,131 @@ export default function JobDetailsScreen() {
                         ))}
                     </View>
                 )}
+{/* ── Manage this application ── */}
+                {isApplied && !isOwner && (
+                    <View style={styles.manageCard}>
+                        <Text style={styles.manageTitle}>Manage this application</Text>
+
+                        {/* The "not want offer" toggle */}
+                        <View style={styles.muteRow}>
+                            <View style={styles.muteIconWrap}>
+                                <Ionicons
+                                    name={notificationsOn ? 'notifications-outline' : 'notifications-off-outline'}
+                                    size={20}
+                                    color={notificationsOn ? THEME_COLOR : '#999'}
+                                />
+                            </View>
+                            <View style={styles.muteTextWrap}>
+                                <Text style={styles.muteTitle}>
+                                    {notificationsOn ? 'Job notifications on' : 'Notifications muted'}
+                                </Text>
+                                <Text style={styles.muteSub}>
+                                    {isHired
+                                        ? 'This job is filled, so alerts are stopped.'
+                                        : notificationsOn
+                                            ? 'Turn off SMS and alerts for this job only.'
+                                            : 'You will not get SMS or alerts for this job.'}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={notificationsOn}
+                                onValueChange={handleToggleNotifications}
+                                disabled={notificationMutation.isPending || isHired}
+                                trackColor={{ false: '#DDD', true: THEME_COLOR }}
+                                thumbColor="#fff"
+                            />
+                        </View>
+
+                        {/* Withdraw — removes the application and stops alerts */}
+                        {!isHired && (
+                            <TouchableOpacity
+                                style={styles.withdrawBtn}
+                                onPress={handleWithdraw}
+                                disabled={withdrawMutation.isPending}
+                            >
+                                {withdrawMutation.isPending ? (
+                                    <ActivityIndicator color="#EF4444" size="small" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="close-circle-outline" size={18} color="#EF4444" />
+                                        <Text style={styles.withdrawBtnText}>Not interested? Withdraw</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
             </ScrollView>
 
             <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                 {isOwner ? (
-                    <View style={styles.ownerBanner}>
-                        <Ionicons name="person-circle-outline" size={20} color={THEME_COLOR} />
-                        <Text style={styles.ownerBannerText}>This is your job posting</Text>
-                    </View>
-                ) : (
                     <>
-                        {isApplied && (
-                            <TouchableOpacity style={styles.contactBtn} onPress={handleContactEmployer}>
-                                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
-                                <Text style={styles.contactBtnText}>Contact Employer</Text>
-                            </TouchableOpacity>
-                        )}
                         <TouchableOpacity
-                            style={[
-                                styles.applyBtn,
-                                isApplied && styles.appliedBtn,
-                                applyMutation.isPending && styles.disabledBtn
-                            ]}
-                            onPress={handleApply}
-                            disabled={isApplied || applyMutation.isPending}
+                            style={styles.viewApplicantsBtn}
+                            onPress={() => navigation.navigate('JobApplicants', { jobId, jobTitle: job.jobTitle })}
                         >
-                            {applyMutation.isPending ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text style={[styles.applyBtnText, isApplied && styles.appliedBtnText]}>
-                                    {isApplied ? 'Applied' : 'Apply Now'}
-                                </Text>
-                            )}
+                            <Ionicons name="people" size={18} color="#fff" />
+                            <Text style={styles.viewApplicantsBtnText}>
+                                View Applications{applicantCount > 0 ? ` (${applicantCount})` : ''}
+                            </Text>
+                            <Ionicons name="chevron-forward" size={16} color="#fff" />
+                        </TouchableOpacity>
+                        <View style={styles.ownerBanner}>
+                            <Ionicons name="person-circle-outline" size={20} color={THEME_COLOR} />
+                            <Text style={styles.ownerBannerText}>This is your job posting</Text>
+                        </View>
+                    </>
+                ) : isApplied ? (
+                    <>
+                        {/* ── Offer actions ── */}
+                        {hasOffer && (
+                            <View style={styles.offerRow}>
+                                <TouchableOpacity
+                                    style={[styles.offerBtn, styles.acceptBtn, respondMutation.isPending && styles.disabledBtn]}
+                                    onPress={() => handleRespondToOffer('Accept')}
+                                    disabled={respondMutation.isPending}
+                                >
+                                    <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                                    <Text style={styles.offerBtnText}>Accept Job</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.offerBtn, styles.declineBtn, respondMutation.isPending && styles.disabledBtn]}
+                                    onPress={() => handleRespondToOffer('Decline')}
+                                    disabled={respondMutation.isPending}
+                                >
+                                    <Ionicons name="close-circle" size={18} color="#fff" />
+                                    <Text style={styles.offerBtnText}>Turn Down</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+
+                        <TouchableOpacity style={styles.contactBtn} onPress={handleContactEmployer}>
+                            <Ionicons name="chatbubble-ellipses-outline" size={20} color="#fff" />
+                            <Text style={styles.contactBtnText}>Contact Employer</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.applyBtn, styles.appliedBtn]}
+                            disabled
+                        >
+                            <Text style={[styles.applyBtnText, styles.appliedBtnText]}>Applied</Text>
                         </TouchableOpacity>
                     </>
+                ) : (
+                    <TouchableOpacity
+                        style={[
+                            styles.applyBtn,
+                            applyMutation.isPending && styles.disabledBtn
+                        ]}
+                        onPress={handleApply}
+                        disabled={applyMutation.isPending}
+                    >
+                        {applyMutation.isPending ? (
+                            <ActivityIndicator color="#fff" />
+                        ) : (
+                            <Text style={styles.applyBtnText}>Apply Now</Text>
+                        )}
+                    </TouchableOpacity>
                 )}
             </View>
         </SafeAreaView>
@@ -320,4 +544,92 @@ const styles = StyleSheet.create({
         borderColor: '#FFE0B2',
     },
     ownerBannerText: { color: THEME_COLOR, fontSize: 15, fontWeight: '700' },
+
+    // ── Status banners ──
+    statusBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        padding: 14,
+        borderRadius: 12,
+        marginBottom: 20,
+    },
+    statusBannerSuccess: { backgroundColor: '#E8F5E9' },
+    statusBannerNeutral: { backgroundColor: '#F1F3F4' },
+    statusBannerOffer: { backgroundColor: '#FFF8E1' },
+    statusBannerText: { flex: 1, fontSize: 14, fontWeight: '600', lineHeight: 20 },
+
+    // ── Manage application card ──
+    manageCard: {
+        backgroundColor: '#FFF8F0',
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#FFE0B2',
+        padding: 16,
+        marginBottom: 10,
+    },
+    manageTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#B76900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 12,
+    },
+    muteRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    muteIconWrap: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    muteTextWrap: { flex: 1 },
+    muteTitle: { fontSize: 15, fontWeight: '700', color: '#333' },
+    muteSub: { fontSize: 12, color: '#777', marginTop: 2, lineHeight: 17 },
+    withdrawBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        marginTop: 14,
+        paddingVertical: 12,
+        borderRadius: 10,
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1,
+        borderColor: '#FECACA',
+    },
+    withdrawBtnText: { color: '#EF4444', fontSize: 14, fontWeight: '700' },
+
+    // ── Offer accept / decline ──
+    offerRow: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+    offerBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 14,
+        borderRadius: 12,
+    },
+    acceptBtn: { backgroundColor: '#2E7D32' },
+    declineBtn: { backgroundColor: '#EF4444' },
+    offerBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+
+    viewApplicantsBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: THEME_COLOR,
+        paddingVertical: 14,
+        borderRadius: 12,
+        marginBottom: 10,
+    },
+    viewApplicantsBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

@@ -32,7 +32,7 @@ import { fetchConversations } from '../../api/services/messageService';
 import { CONFIG } from '../../config';
 import ZoomableImageModal from '../../components/common/ZoomableImageModal';
 import ProductCard from '../../components/ProductCard';
-import { RoleLabels, UserRole } from '../../constants/UserRoles';
+import { RoleLabels, UserRole, UserRoles } from '../../constants/UserRoles';
 
 const THEME_COLOR = '#FF8C00';
 
@@ -40,7 +40,6 @@ const CATEGORY_TABS = [
     { label: 'All', serviceType: undefined },
     { label: 'Machinery', serviceType: 1 },
     { label: 'Vehicle', serviceType: 3 },
-    { label: 'Property', serviceType: 2 },
 ];
 
 type UserProfileRouteProp = RouteProp<RootStackParamList, 'UserProfile'>;
@@ -266,6 +265,8 @@ export default function UserProfileScreen() {
 
     const fullName = `${displayUser.firstName || ''} ${displayUser.lastName || ''}`.trim() || 'Seller Profile';
     const roleLabel = displayUser.userType ? RoleLabels[displayUser.userType as UserRole] || displayUser.userType : 'Member';
+    const isOperatorUser = displayUser.userType === 'Operator' || displayUser.roles?.includes('Operator') || displayUser.roles?.includes(UserRoles.OPERATOR);
+    const isOperatorOff = displayUser.isAvailable === false || displayUser.operatorStatus === 'off' || displayUser.operatorStatus === 'on_job';
     const location = [displayUser.subCity, displayUser.city, displayUser.region].filter(Boolean).join(', ');
     const postCount = displayUser.postCount ?? (adsData?.products?.length || 0);
     const followersCount = followersList?.length || 0;
@@ -300,6 +301,32 @@ export default function UserProfileScreen() {
                             <View style={[styles.roleBadge, { backgroundColor: isDark ? '#2C1D0A' : '#FFF5E5' }]}>
                                 <Text style={styles.roleBadgeText}>{roleLabel}</Text>
                             </View>
+                            {isOperatorUser && (
+                                <View
+                                    style={[
+                                        styles.roleBadge,
+                                        {
+                                            backgroundColor: isOperatorOff
+                                                ? (isDark ? '#450a0a' : '#FEE2E2')
+                                                : (isDark ? '#052e16' : '#DCFCE7'),
+                                            marginLeft: 6,
+                                        },
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.roleBadgeText,
+                                            {
+                                                color: isOperatorOff
+                                                    ? (isDark ? '#FCA5A5' : '#DC2626')
+                                                    : (isDark ? '#86EFAC' : '#16A34A'),
+                                            },
+                                        ]}
+                                    >
+                                        {isOperatorOff ? (displayUser.operatorStatus === 'on_job' ? 'On Job' : 'Unavailable') : 'Available'}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
                         {Boolean(location) && (
                             <View style={styles.locationRow}>

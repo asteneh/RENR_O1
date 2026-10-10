@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TextInput,
-    TouchableOpacity, ActivityIndicator, BackHandler,
+    TouchableOpacity, ActivityIndicator, BackHandler, Switch,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/nativ
 import * as ImagePicker from 'expo-image-picker';
 import { useCategoriesByService } from '../../api/services/categoryService';
 import { useUserProfile, useUpdateUserProfile, useUpdateUserProfileJson } from '../../api/services/userService';
+import { setGlobalJobNotificationPreference } from '../../api/services/jobService';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { cleanErrorMessage } from '../../utils/errorUtils';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -30,8 +31,47 @@ export default function EditOperatorProfileScreen() {
 
     const operatorId: string = route.params?.operatorId;
 
+    const { data: operator, isLoading: profileLoading } = useUserProfile();
+    const { data: machineries, isLoading: categoriesLoading } = useCategoriesByService(1);
+    const updateMutation = useUpdateUserProfile();
+    const updateJsonMutation = useUpdateUserProfileJson();
+
     const [activeStep, setActiveStep] = useState(0);
     const steps = ['Details', 'Experience', 'Done'];
+
+    const [isAvailable, setIsAvailable] = useState<boolean>(true);
+    const [isSavingStatus, setIsSavingStatus] = useState(false);
+
+    // Immediately persist the toggle so the user doesn't need to finish Step 1
+    const handleToggleAvailability = async (value: boolean) => {
+        setIsAvailable(value);
+        const userId = operator?._id || operatorId;
+        if (!userId) return;
+        setIsSavingStatus(true);
+        try {
+            await updateJsonMutation.mutateAsync({
+                isAvailable: value,
+                operatorStatus: value ? 'available' : 'off',
+            });
+            await setGlobalJobNotificationPreference({ userId, enabled: value });
+            useAuthStore.getState().updateUser({
+                ...useAuthStore.getState().user,
+                isAvailable: value,
+                operatorStatus: value ? 'available' : 'off',
+            });
+            showNotification(
+                value ? 'Profile is now ON — visible to employers.' : 'Profile is now OFF — hidden from employers.',
+                'success'
+            );
+        } catch (err) {
+            console.warn('[EditOpProfile] Failed to save availability:', err);
+            // revert on failure
+            setIsAvailable(!value);
+            showNotification('Failed to update status. Please try again.', 'error');
+        } finally {
+            setIsSavingStatus(false);
+        }
+    };
 
     const [form, setForm] = useState({
         firstName: '',
@@ -45,10 +85,7 @@ export default function EditOperatorProfileScreen() {
 
     const [loaded, setLoaded] = useState(false);
 
-    // ── Fetch current operator data ──────────────────────────────────────────
-    const { data: operator, isLoading: profileLoading } = useUserProfile();
-
-    // Pre-fill form once data arrives
+    // ── Pre-fill form once data arrives ──────────────────────────────────────
     useEffect(() => {
         if (operator && !loaded) {
             const machineIds = (operator.machinesYouCanOperate || []).map((m: any) =>
@@ -63,13 +100,11 @@ export default function EditOperatorProfileScreen() {
                 machineTypes: machineIds,
                 newLicenseFiles: [],
             });
+            const avail = operator.isAvailable !== false && operator.operatorStatus !== 'off';
+            setIsAvailable(avail);
             setLoaded(true);
         }
     }, [operator, loaded]);
-
-    const { data: machineries, isLoading: categoriesLoading } = useCategoriesByService(1);
-    const updateMutation = useUpdateUserProfile();
-    const updateJsonMutation = useUpdateUserProfileJson();
 
     // ── Helpers ──────────────────────────────────────────────────────────────
     const pickDocument = async () => {
@@ -149,6 +184,8 @@ export default function EditOperatorProfileScreen() {
                 if (form.email) formData.append('email', form.email);
                 formData.append('experience', form.experience);
                 formData.append('machinesYouCanOperate', JSON.stringify(form.machineTypes));
+                formData.append('isAvailable', String(isAvailable));
+                formData.append('operatorStatus', isAvailable ? 'available' : 'off');
                 // These are the operator's registration / legal documents — they must be
                 // sent under `legalDocuments` (NOT `image`, which the API treats as the
                 // profile picture). `legalDocumentNames` keeps a readable label per file.
@@ -174,14 +211,32 @@ export default function EditOperatorProfileScreen() {
                     phoneNumber: form.phone,
                     experience: form.experience,
                     machinesYouCanOperate: form.machineTypes,
+                    isAvailable: isAvailable,
+                    operatorStatus: isAvailable ? 'available' : 'off',
                 };
                 if (form.email) payload.email = form.email;
                 console.log('[EditOpProfile] Sending JSON payload:', JSON.stringify(payload));
                 updatedUser = await updateJsonMutation.mutateAsync(payload);
             }
 
+            const opId = operator?._id || operatorId;
+            if (opId) {
+                try {
+                    await setGlobalJobNotificationPreference({
+                        userId: opId,
+                        enabled: isAvailable,
+                    });
+                } catch (prefErr) {
+                    console.warn('[EditOpProfile] Failed to sync SMS notification preference:', prefErr);
+                }
+            }
+
             if (updatedUser) {
-                useAuthStore.getState().updateUser(updatedUser);
+                useAuthStore.getState().updateUser({
+                    ...updatedUser,
+                    isAvailable: isAvailable,
+                    operatorStatus: isAvailable ? 'available' : 'off',
+                });
             }
             showNotification('Profile updated successfully!', 'success');
             setActiveStep(2);
@@ -209,6 +264,49 @@ export default function EditOperatorProfileScreen() {
             case 0:
                 return (
                     <View style={styles.stepContainer}>
+                        {/* Operator Availability Toggle Card */}
+                        <View style={styles.operatorToggleCard}>
+                            <View style={styles.operatorToggleHeader}>
+                                <View style={{ flex: 1, marginRight: 12 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                        <Ionicons name="construct-outline" size={20} color={THEME_COLOR} />
+                                        <Text style={styles.operatorToggleTitle}>Operator Status (On / Off)</Text>
+                                    </View>
+                                    <Text style={styles.operatorToggleSubtitle}>
+                                        {isAvailable
+                                            ? "You are ON (Ready for Job). Your profile is visible to employers, and you will receive job SMS alerts."
+                                            : "You are OFF (On Job / Not Ready). Your profile is hidden from employers and job SMS alerts are paused. All your saved data remains safe."}
+                                    </Text>
+                                </View>
+                                {isSavingStatus ? (
+                                    <ActivityIndicator size="small" color={THEME_COLOR} />
+                                ) : (
+                                    <Switch
+                                        value={isAvailable}
+                                        onValueChange={handleToggleAvailability}
+                                        trackColor={{ false: '#B0BEC5', true: '#81C784' }}
+                                        thumbColor={isAvailable ? '#2E7D32' : '#ECEFF1'}
+                                    />
+                                )}
+                            </View>
+
+                            <View style={[
+                                styles.operatorStatusBadge,
+                                { backgroundColor: isAvailable ? '#E8F5E9' : '#FFF3E0' }
+                            ]}>
+                                <View style={[
+                                    styles.statusDot,
+                                    { backgroundColor: isAvailable ? '#2E7D32' : '#E65100' }
+                                ]} />
+                                <Text style={[
+                                    styles.statusBadgeText,
+                                    { color: isAvailable ? '#2E7D32' : '#E65100' }
+                                ]}>
+                                    {isAvailable ? 'READY FOR JOB (ACTIVE & VISIBLE)' : 'ON JOB / NOT READY (PROFILE OFF & SILENCED)'}
+                                </Text>
+                            </View>
+                        </View>
+
                         <Text style={styles.sectionTitle}>Personal Details</Text>
 
                         <View style={styles.inputGroup}>
@@ -557,4 +655,49 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     doneBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+
+    // Operator On/Off Toggle Card
+    operatorToggleCard: {
+        backgroundColor: '#FFF9F0',
+        borderRadius: 14,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1.5,
+        borderColor: '#FFE0B2',
+    },
+    operatorToggleHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    operatorToggleTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#222',
+    },
+    operatorToggleSubtitle: {
+        fontSize: 12,
+        color: '#666',
+        lineHeight: 18,
+    },
+    operatorStatusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 12,
+        marginTop: 12,
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    statusBadgeText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        letterSpacing: 0.3,
+    },
 });

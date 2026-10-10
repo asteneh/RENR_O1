@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../apiClient';
+import type { BrokerIdAttachment } from '../../constants/UserRoles';
 
 export interface UserProfile {
     _id: string;
@@ -18,9 +19,18 @@ export interface UserProfile {
     experience?: string;
     machinesYouCanOperate?: string[];
     legalDocuments?: { name: string; path: string }[];
+    /** Present only for accounts holding the Broker role. */
+    brokerIdAttachment?: BrokerIdAttachment | null;
+    brokerIdVerified?: boolean;
 
     referralCode?: string;
     referredBy?: string;
+    roles?: string[];
+    /** Global master switches for job SMS / in-app alerts. */
+    notificationPreferences?: { jobSms?: boolean; jobInApp?: boolean };
+    /** Operator availability switch: if false / 'off', operator is not ready for job or on job */
+    isAvailable?: boolean;
+    operatorStatus?: 'available' | 'on_job' | 'off';
 }
 
 // API CALLS
@@ -51,7 +61,9 @@ export const fetchUserAds = async (args: {
     userId: string,
     serviceType?: number,
     derivedState?: number,
-    recordStatus?: number
+    recordStatus?: number,
+    /** Owner-only: also return listings the seller marked unavailable. */
+    includeUnavailable?: boolean,
 }) => {
     let url = `products?consignee=${args.userId}`;
 
@@ -67,6 +79,12 @@ export const fetchUserAds = async (args: {
 
     if (args.derivedState) {
         url += `&derivedState=${args.derivedState}`;
+    }
+
+    // The public API hides seller-marked-unavailable products. Only the
+    // owner's own "My Listings" view opts back in to see them.
+    if (args.includeUnavailable) {
+        url += '&includeUnavailable=true';
     }
 
     const response = await apiClient.get(url);
@@ -105,10 +123,11 @@ export const useUserAds = (args: {
     userId: string,
     serviceType?: number,
     derivedState?: number,
-    recordStatus?: number
+    recordStatus?: number,
+    includeUnavailable?: boolean,
 }) => {
     return useQuery({
-        queryKey: ['userAds', args.userId, args.serviceType, args.derivedState, args.recordStatus],
+        queryKey: ['userAds', args.userId, args.serviceType, args.derivedState, args.recordStatus, args.includeUnavailable],
         queryFn: () => fetchUserAds(args),
         enabled: !!args.userId,
     });

@@ -17,7 +17,7 @@ export default function NotificationScreen({ navigation }: any) {
     const { setUnreadNotifications, showNotification } = useNotificationStore();
 
     const queryClient = useQueryClient();
-    const userId = user?._id || '';
+    const userId = user?._id || user?.id || '';
 
     const [permStatus, setPermStatus] = useState<string>('');
 
@@ -53,8 +53,25 @@ export default function NotificationScreen({ navigation }: any) {
         if (userId) {
             markSeenMutation.mutate();
 
+            const isOperator =
+                user?.userType === 'Operator' ||
+                user?.userType === 'employee (Operator)' ||
+                user?.roles?.includes?.('Operator');
+
             socket.on('notification', (notification: any) => {
-                if (notification?.user === userId || notification?.isCampaign) {
+                const isJobAlert =
+                    Boolean(notification?.job) ||
+                    notification?.type === 'job' ||
+                    notification?.targetRole === 'Operator';
+
+                const notifUserId = notification?.user;
+                const isMatch =
+                    notifUserId === userId ||
+                    notification?.isCampaign ||
+                    (isJobAlert && isOperator && !notifUserId) ||
+                    (isJobAlert && isOperator && notifUserId === userId);
+
+                if (isMatch) {
                     refetch();
                 }
             });
@@ -70,6 +87,14 @@ export default function NotificationScreen({ navigation }: any) {
             style={[styles.card, !item.seen && styles.unreadCard]}
             activeOpacity={0.7}
             onPress={() => {
+                // Job alerts deep-link into the job's details screen.
+                if (item.job) {
+                    navigation.navigate('Jobs', {
+                        screen: 'JobDetails',
+                        params: { jobId: item.job },
+                    });
+                    return;
+                }
                 if (item.product) {
                     navigation.navigate('ProductDetails', { product: { _id: item.product } });
                 }
@@ -81,7 +106,7 @@ export default function NotificationScreen({ navigation }: any) {
             <View style={styles.content}>
                 <View style={styles.headerRow}>
                     <Text style={[styles.title, !item.seen && styles.unreadText]}>
-                        {item.title || (item.product ? 'New Product Update' : 'System Update')}
+                        {item.title || (item.job ? 'New Job Alert 🚜' : (item.product ? 'New Product Update' : 'System Update'))}
                     </Text>
                     {!item.seen && <View style={styles.dot} />}
                 </View>
@@ -93,6 +118,7 @@ export default function NotificationScreen({ navigation }: any) {
 
     const getIconColor = (type: string) => {
         switch (type) {
+            case 'job': return THEME_COLOR;
             case 'success': return '#4CAF50';
             case 'alert': return '#F44336';
             default: return THEME_COLOR;
@@ -101,6 +127,7 @@ export default function NotificationScreen({ navigation }: any) {
 
     const getIconName = (type: string) => {
         switch (type) {
+            case 'job': return 'construct';
             case 'success': return 'checkmark-circle';
             case 'alert': return 'alert-circle';
             default: return 'notifications';

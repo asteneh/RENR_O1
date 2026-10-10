@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
     useWindowDimensions, TextInput, ActivityIndicator,
-    RefreshControl, ScrollView, Modal, Pressable,
+    RefreshControl, ScrollView, Modal, Pressable, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +44,7 @@ export default function SupplierHomeScreen() {
 
     // ── Filter state ─────────────────────────────────────────
     const [showFilter, setShowFilter] = useState(false);
+    const [selectedRequest, setSelectedRequest] = useState<RequestTransaction | null>(null);
     const [activeCat, setActiveCat] = useState<'all' | 'machinery' | 'vehicle'>('all');
     const [selectedTypeId, setSelectedTypeId]   = useState<string | null>(null);
     const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
@@ -140,8 +141,40 @@ export default function SupplierHomeScreen() {
             : null;
 
         const displayType = normalizeRequestType(item.requestType);
+        const poster = item.postedBy;
+        const posterName = typeof poster === 'object' && (poster?.firstName || poster?.lastName)
+            ? `${poster.firstName || ''} ${poster.lastName || ''}`.trim()
+            : 'Requester';
+        const posterPhone = typeof poster === 'object' ? poster?.phoneNumber : null;
+        const posterId = typeof poster === 'object' ? (poster?._id || (poster as any)?.id) : poster;
+
+        const handleCall = (e: any) => {
+            e?.stopPropagation?.();
+            if (posterPhone) {
+                Linking.openURL(`tel:${posterPhone}`);
+            }
+        };
+
+        const handleSms = (e: any) => {
+            e?.stopPropagation?.();
+            if (posterPhone) {
+                Linking.openURL(`sms:${posterPhone}`);
+            }
+        };
+
+        const handleUserPress = (e: any) => {
+            e?.stopPropagation?.();
+            if (posterId) {
+                navigation.navigate('UserProfile', { userId: posterId, user: poster });
+            }
+        };
+
         return (
-            <TouchableOpacity style={[styles.card, { width: cardWidth }]} onPress={() => {}}>
+            <TouchableOpacity
+                style={[styles.card, { width: cardWidth }]}
+                activeOpacity={0.7}
+                onPress={() => setSelectedRequest(item)}
+            >
                 <View style={styles.cardHeader}>
                     <View style={[styles.tag, { backgroundColor: displayType === 'To Rent' ? '#FFAD00' : '#28a745' }]}>
                         <Text style={styles.tagText}>{displayType.toUpperCase()}</Text>
@@ -173,11 +206,34 @@ export default function SupplierHomeScreen() {
                 </View>
 
                 <View style={styles.cardFooter}>
-                    <View style={styles.userSection}>
-                        <Ionicons name="person-circle-outline" size={20} color="#888" />
-                        <Text style={styles.userName}>{item.postedBy?.firstName} {item.postedBy?.lastName}</Text>
+                    <TouchableOpacity
+                        style={styles.userSection}
+                        onPress={handleUserPress}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="person-circle-outline" size={24} color={THEME_COLOR} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.userName} numberOfLines={1}>{posterName}</Text>
+                            {posterPhone ? (
+                                <Text style={styles.userPhone} numberOfLines={1}>{posterPhone}</Text>
+                            ) : null}
+                        </View>
+                    </TouchableOpacity>
+
+                    <View style={styles.cardActionRow}>
+                        {posterPhone && (
+                            <>
+                                <TouchableOpacity style={styles.quickCallBtn} onPress={handleCall}>
+                                    <Ionicons name="call" size={12} color="#fff" />
+                                    <Text style={styles.quickCallBtnText}>Call</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.quickSmsBtn} onPress={handleSms}>
+                                    <Ionicons name="chatbubble-ellipses" size={12} color="#fff" />
+                                </TouchableOpacity>
+                            </>
+                        )}
+                        <Ionicons name="chevron-forward" size={18} color={THEME_COLOR} />
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color={THEME_COLOR} />
                 </View>
             </TouchableOpacity>
         );
@@ -408,6 +464,121 @@ export default function SupplierHomeScreen() {
                     </TouchableOpacity>
                 </View>
             </Modal>
+
+            {/* ── Request Details & Contact Modal ── */}
+            <Modal
+                visible={!!selectedRequest}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setSelectedRequest(null)}
+            >
+                <Pressable style={styles.overlay} onPress={() => setSelectedRequest(null)} />
+                <View style={styles.detailSheet}>
+                    <View style={styles.sheetHandle} />
+
+                    <View style={styles.detailSheetHeader}>
+                        <View style={{ flex: 1, marginRight: 10 }}>
+                            <View style={[styles.tag, {
+                                alignSelf: 'flex-start',
+                                marginBottom: 6,
+                                backgroundColor: normalizeRequestType(selectedRequest?.requestType) === 'To Rent' ? '#FFAD00' : '#28a745'
+                            }]}>
+                                <Text style={styles.tagText}>
+                                    {normalizeRequestType(selectedRequest?.requestType).toUpperCase()}
+                                </Text>
+                            </View>
+                            <Text style={styles.detailSheetTitle}>{selectedRequest?.title}</Text>
+                            <Text style={styles.dateText}>
+                                Posted {selectedRequest?.createdAt ? format(new Date(selectedRequest.createdAt), 'MMMM dd, yyyy') : ''}
+                            </Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setSelectedRequest(null)} style={styles.closeBtn}>
+                            <Ionicons name="close" size={24} color="#666" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 450 }}>
+                        {/* Requirement description */}
+                        <Text style={styles.detailSectionHeading}>Requirement Details</Text>
+                        <View style={styles.detailBodyWrap}>
+                            <Text style={styles.detailBodyText}>{selectedRequest?.description}</Text>
+                        </View>
+
+                        {/* Metadata items */}
+                        <View style={styles.detailMetaGrid}>
+                            <View style={styles.detailMetaBox}>
+                                <Text style={styles.detailMetaLabel}>Type</Text>
+                                <Text style={styles.detailMetaValue}>
+                                    {selectedRequest?.productDetails?.[0]?.category?.name || 'N/A'}
+                                </Text>
+                            </View>
+
+                            <View style={styles.detailMetaBox}>
+                                <Text style={styles.detailMetaLabel}>Location</Text>
+                                <Text style={styles.detailMetaValue}>{selectedRequest?.location || 'Not specified'}</Text>
+                            </View>
+                        </View>
+
+                        {/* Contact User Section */}
+                        <View style={styles.requesterCard}>
+                            <Text style={styles.requesterCardHeading}>POSTED BY (USER CONTACT INFO)</Text>
+                            <View style={styles.requesterInfoRow}>
+                                <Ionicons name="person-circle" size={48} color={THEME_COLOR} />
+                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                    <Text style={styles.requesterName}>
+                                        {typeof selectedRequest?.postedBy === 'object'
+                                            ? `${selectedRequest?.postedBy?.firstName || ''} ${selectedRequest?.postedBy?.lastName || ''}`.trim() || 'Requester'
+                                            : 'Requester'}
+                                    </Text>
+                                    <Text style={styles.requesterPhone}>
+                                        {typeof selectedRequest?.postedBy === 'object' && selectedRequest?.postedBy?.phoneNumber
+                                            ? `📞 ${selectedRequest.postedBy.phoneNumber}`
+                                            : 'No phone number provided'}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Contact action buttons */}
+                            <View style={styles.modalActionButtonsRow}>
+                                {typeof selectedRequest?.postedBy === 'object' && selectedRequest?.postedBy?.phoneNumber ? (
+                                    <>
+                                        <TouchableOpacity
+                                            style={styles.modalCallBtn}
+                                            onPress={() => Linking.openURL(`tel:${selectedRequest.postedBy.phoneNumber}`)}
+                                        >
+                                            <Ionicons name="call" size={16} color="#fff" />
+                                            <Text style={styles.modalActionBtnText}>Call</Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            style={styles.modalSmsBtn}
+                                            onPress={() => Linking.openURL(`sms:${selectedRequest.postedBy.phoneNumber}`)}
+                                        >
+                                            <Ionicons name="chatbubble-ellipses" size={16} color="#fff" />
+                                            <Text style={styles.modalActionBtnText}>SMS</Text>
+                                        </TouchableOpacity>
+                                    </>
+                                ) : null}
+
+                                {selectedRequest?.postedBy && (
+                                    <TouchableOpacity
+                                        style={styles.modalProfileBtn}
+                                        onPress={() => {
+                                            const poster = selectedRequest.postedBy;
+                                            const pId = typeof poster === 'object' ? (poster._id || (poster as any)?.id) : poster;
+                                            setSelectedRequest(null);
+                                            navigation.navigate('UserProfile', { userId: pId, user: poster });
+                                        }}
+                                    >
+                                        <Ionicons name="person-outline" size={16} color="#333" />
+                                        <Text style={styles.modalProfileBtnText}>Profile</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
+                        </View>
+                    </ScrollView>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -484,8 +655,20 @@ const styles = StyleSheet.create({
         alignItems: 'center', marginTop: 15, paddingTop: 12,
         borderTopWidth: 1, borderTopColor: '#F5F5F5',
     },
-    userSection: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    userName: { fontSize: 12, color: '#888', fontWeight: '500' },
+    userSection: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+    userName: { fontSize: 13, color: '#333', fontWeight: '600' },
+    userPhone: { fontSize: 11, color: THEME_COLOR, fontWeight: '500', marginTop: 1 },
+    cardActionRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    quickCallBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: '#28a745', paddingHorizontal: 8, paddingVertical: 5,
+        borderRadius: 12,
+    },
+    quickCallBtnText: { color: '#fff', fontSize: 11, fontWeight: 'bold' },
+    quickSmsBtn: {
+        backgroundColor: '#007AFF', paddingHorizontal: 8, paddingVertical: 5,
+        borderRadius: 12, justifyContent: 'center', alignItems: 'center',
+    },
 
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     emptyContainer: { alignItems: 'center', marginTop: 100, opacity: 0.5 },
@@ -533,4 +716,48 @@ const styles = StyleSheet.create({
         borderRadius: 14, alignItems: 'center', marginTop: 20,
     },
     applyBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+
+    // Details Sheet
+    detailSheet: {
+        backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        paddingHorizontal: 20, paddingBottom: 30, maxHeight: '85%',
+    },
+    detailSheetHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+        paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F0F0F0',
+    },
+    detailSheetTitle: { fontSize: 18, fontWeight: 'bold', color: '#222', marginBottom: 4 },
+    closeBtn: { padding: 4 },
+    detailSectionHeading: { fontSize: 13, fontWeight: '700', color: '#777', textTransform: 'uppercase', marginTop: 16, marginBottom: 8 },
+    detailBodyWrap: { backgroundColor: '#F8F9FA', borderRadius: 10, padding: 12, borderWidth: 1, borderColor: '#EEE' },
+    detailBodyText: { fontSize: 14, color: '#333', lineHeight: 21 },
+    detailMetaGrid: { flexDirection: 'row', gap: 10, marginTop: 12 },
+    detailMetaBox: { flex: 1, backgroundColor: '#F8F9FA', borderRadius: 10, padding: 10, borderWidth: 1, borderColor: '#EEE' },
+    detailMetaLabel: { fontSize: 11, color: '#888', fontWeight: '600', marginBottom: 2 },
+    detailMetaValue: { fontSize: 13, color: '#333', fontWeight: 'bold' },
+
+    requesterCard: {
+        backgroundColor: '#FFF9F0', borderRadius: 14, padding: 16,
+        marginTop: 18, borderWidth: 1.5, borderColor: '#FFE0B2',
+    },
+    requesterCardHeading: { fontSize: 11, fontWeight: '800', color: THEME_COLOR, letterSpacing: 0.5, marginBottom: 10 },
+    requesterInfoRow: { flexDirection: 'row', alignItems: 'center' },
+    requesterName: { fontSize: 16, fontWeight: 'bold', color: '#222' },
+    requesterPhone: { fontSize: 13, color: '#555', marginTop: 2, fontWeight: '500' },
+    modalActionButtonsRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+    modalCallBtn: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+        backgroundColor: '#28a745', paddingVertical: 10, borderRadius: 10,
+    },
+    modalSmsBtn: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+        backgroundColor: '#007AFF', paddingVertical: 10, borderRadius: 10,
+    },
+    modalProfileBtn: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+        backgroundColor: '#FFF', paddingVertical: 10, borderRadius: 10,
+        borderWidth: 1, borderColor: '#DDD',
+    },
+    modalActionBtnText: { color: '#FFF', fontSize: 13, fontWeight: 'bold' },
+    modalProfileBtnText: { color: '#333', fontSize: 13, fontWeight: 'bold' },
 });

@@ -23,7 +23,9 @@ export default function MyListingsScreen() {
 
     // Map tab index to API parameters
     const getFilterParams = (index: number) => {
-        const params: any = { userId: profile?._id || '', recordStatus: 1 };
+        // The owner must still see listings they marked unavailable, otherwise the
+        // "Unavailable" tab and the "All" tab would silently hide them.
+        const params: any = { userId: profile?._id || '', recordStatus: 1, includeUnavailable: true };
         if (index === 1) params.derivedState = 1; // Available
         if (index === 2) params.derivedState = 2; // Unavailable
         if (index === 3) params.serviceType = 1;  // Machinery

@@ -320,17 +320,6 @@ export default function PostJobScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        <TouchableOpacity
-                            style={styles.operatorLink}
-                            onPress={() => navigation.navigate('OperatorRegistration')}
-                        >
-                            <Ionicons name="construct-outline" size={22} color={THEME_COLOR} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.operatorLinkTitle}>Looking For a Job</Text>
-                                <Text style={styles.operatorLinkSub}>Register as a machinery operator to find and apply for jobs</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#999" />
-                        </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[styles.submitBtn, (createJobMutation.isPending || updateJobMutation.isPending) && styles.disabledBtn]}
